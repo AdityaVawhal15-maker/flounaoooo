@@ -28,5 +28,3 @@ Thumbs.db
 # scaffold-generated agent notes (kept local)
 AGENTS.md
 
-# documentation kept out of the repo
-*.md
