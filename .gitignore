@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# builds
+web/.next/
+server/dist/
+
+# env & secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+
+# local databases
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# local design references & internal notes (not for the repo)
+.design-refs/
+.claude/
+CLAUDE.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# scaffold-generated agent notes (kept local)
+AGENTS.md
+
+# documentation kept out of the repo
+*.md
