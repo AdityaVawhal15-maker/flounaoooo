@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* Radiues design tokens — extracted from the Algorithec Figma (page "Algorithec (FINAL)") */
+@theme {
+  --color-cream: #fff9f6; /* app background */
+  --color-ink: #3d1c00; /* headings / primary text (deep brown) */
+  --color-accent: #e8651a; /* brand orange */
+  --color-accent-soft: #ffe9db; /* orange tint for chips/badges */
+  --color-cocoa: #8b5e3c; /* secondary text + primary buttons */
+  --color-beige: #f0e6de; /* secondary buttons / muted surfaces */
+  --color-card: #ffffff; /* cards */
+  --color-line: #eee3da; /* hairline borders */
+  --color-success: #1ca65c;
+  --color-danger: #d93025;
+
+  --font-sans: var(--font-inter);
+
+  --radius-pill: 28px;
+  --radius-card: 16px;
+
+  --shadow-glow: 0px 4px 10px 0px rgba(240, 101, 0, 0.25);
+  --shadow-card: 0px 2px 12px 0px rgba(61, 28, 0, 0.06);
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Account-setup transition (post-OTP) */
+@keyframes logo-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 4px 10px rgba(240, 101, 0, 0.25));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 8px 28px rgba(240, 101, 0, 0.55));
+    transform: scale(1.05);
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    width: 4%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 1.6s ease-in-out infinite;
+}
+
+.animate-progress {
+  animation: progress-fill 2.6s ease-in-out forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
