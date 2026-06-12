@@ -1,0 +1,305 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { Search, MapPin, Star, Clock, CircleDot } from "lucide-react";
+import { api } from "@/lib/api";
+import { rupees } from "@/lib/money";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
+import { cn } from "@/lib/cn";
+import type { RideQuote } from "@/components/chat/types";
+
+const RideMap = dynamic(
+  () => import("@/components/rides/RideMap").then((m) => m.RideMap),
+  { ssr: false, loading: () => <div className="size-full min-h-[260px] animate-pulse bg-beige/50" /> },
+);
+
+type Place = { name: string; area: string; lat: number; lng: number };
+type RouteInfo = {
+  distanceKm: number;
+  rideMinutes: number;
+  geometry: [number, number][];
+};
+
+const VEHICLES = ["any", "bike", "auto", "cab"] as const;
+
+function PlaceSearch({
+  label,
+  icon,
+  value,
+  onSelect,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: Place | null;
+  onSelect: (p: Place | null) => void;
+}) {
+  const [text, setText] = useState("");
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const short = text.length < 2;
+    const t = setTimeout(
+      () => {
+        if (short) {
+          setPlaces([]);
+          return;
+        }
+        api<{ places: Place[] }>(`/api/rides/geocode?q=${encodeURIComponent(text)}`)
+          .then((d) => {
+            setPlaces(d.places);
+            setOpen(true);
+          })
+          .catch(() => setPlaces([]));
+      },
+      short ? 0 : 250,
+    );
+    return () => clearTimeout(t);
+  }, [text]);
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2 rounded-[14px] border border-line bg-card px-3 py-2.5">
+        {icon}
+        <input
+          value={value ? `${value.name}${value.area ? `, ${value.area}` : ""}` : text}
+          onChange={(e) => {
+            onSelect(null);
+            setText(e.target.value);
+          }}
+          onFocus={() => places.length > 0 && setOpen(true)}
+          placeholder={label}
+          className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-cocoa/50"
+        />
+      </div>
+      {open && places.length > 0 && !value && (
+        <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-line bg-card shadow-card">
+          {places.map((p) => (
+            <button
+              key={`${p.lat}-${p.lng}`}
+              onClick={() => {
+                onSelect(p);
+                setOpen(false);
+                setText("");
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[13px] hover:bg-beige/40"
+            >
+              <MapPin size={14} className="shrink-0 text-accent" />
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-ink">{p.name}</span>
+                <span className="block truncate text-[11px] text-cocoa">{p.area}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function RidesPage() {
+  const router = useRouter();
+  const [pickup, setPickup] = useState<Place | null>(null);
+  const [drop, setDrop] = useState<Place | null>(null);
+  const [route, setRoute] = useState<RouteInfo | null>(null);
+  const [vehicle, setVehicle] = useState<(typeof VEHICLES)[number]>("any");
+  const [quotes, setQuotes] = useState<RideQuote[]>([]);
+  const [advice, setAdvice] = useState<Advice | null>(null);
+  const [selected, setSelected] = useState<RideQuote | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Reset-during-render when either endpoint is cleared.
+  const bothSet = Boolean(pickup && drop);
+  const [hadBoth, setHadBoth] = useState(bothSet);
+  if (hadBoth !== bothSet) {
+    setHadBoth(bothSet);
+    if (!bothSet) {
+      setRoute(null);
+      setQuotes([]);
+      setSelected(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!pickup || !drop) return;
+    api<RouteInfo>(
+      `/api/rides/route?fromLat=${pickup.lat}&fromLng=${pickup.lng}&toLat=${drop.lat}&toLng=${drop.lng}`,
+    )
+      .then(setRoute)
+      .catch(() => setError("Could not calculate the route"));
+  }, [pickup, drop]);
+
+  const loadQuotes = useCallback(() => {
+    if (!route) return;
+    api<{ quotes: RideQuote[]; advice?: Advice }>(
+      `/api/rides/quotes?distanceKm=${route.distanceKm.toFixed(2)}&rideMinutes=${route.rideMinutes}&vehicle=${vehicle}`,
+    )
+      .then((d) => {
+        setQuotes(d.quotes);
+        setAdvice(d.advice ?? null);
+        setSelected(d.quotes[0] ?? null);
+      })
+      .catch(() => setError("Could not fetch ride options"));
+  }, [route, vehicle]);
+
+  useEffect(loadQuotes, [loadQuotes]);
+
+  const mapPoints = useMemo(
+    () => ({
+      pickup: pickup ? { lat: pickup.lat, lng: pickup.lng } : null,
+      drop: drop ? { lat: drop.lat, lng: drop.lng } : null,
+    }),
+    [pickup, drop],
+  );
+
+  async function confirmRide() {
+    if (!selected || !pickup || !drop || !route) return;
+    setBusy(true);
+    setError("");
+    try {
+      const d = await api<{ order: { id: string } }>("/api/orders", {
+        method: "POST",
+        json: {
+          domain: "ride",
+          provider: selected.provider,
+          productName: selected.productName,
+          pickup: pickup.name,
+          drop: drop.name,
+          distanceKm: Number(route.distanceKm.toFixed(2)),
+          rideMinutes: route.rideMinutes,
+        },
+      });
+      router.push(`/pay/${d.order.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not book the ride");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh lg:flex-row">
+      {/* Map — top on mobile, left panel on desktop */}
+      <div className="h-[34dvh] shrink-0 lg:h-full lg:flex-1">
+        <RideMap
+          pickup={mapPoints.pickup}
+          drop={mapPoints.drop}
+          routeGeometry={route?.geometry ?? null}
+        />
+      </div>
+
+      {/* Booking panel */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-t-3xl border-t border-line bg-cream px-4 py-4 lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-t-0 lg:px-5">
+        <h1 className="text-[17px] font-bold text-ink">Select your location</h1>
+
+        <PlaceSearch
+          label="Pickup location"
+          icon={<CircleDot size={16} className="shrink-0 text-success" />}
+          value={pickup}
+          onSelect={setPickup}
+        />
+        <PlaceSearch
+          label="Search for a location…"
+          icon={<Search size={16} className="shrink-0 text-cocoa/60" />}
+          value={drop}
+          onSelect={setDrop}
+        />
+
+        {route && (
+          <p className="text-[12px] text-cocoa">
+            {route.distanceKm.toFixed(1)} km · about {route.rideMinutes} min
+          </p>
+        )}
+
+        {quotes.length > 0 && (
+          <>
+            {advice && <AdviceBanner advice={advice} />}
+            <div className="flex gap-2">
+              {VEHICLES.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setVehicle(v)}
+                  className={cn(
+                    "flex-1 rounded-pill border px-3 py-2 text-[12px] font-semibold capitalize transition-colors",
+                    v === vehicle
+                      ? "border-accent bg-accent-soft text-accent"
+                      : "border-line bg-card text-cocoa hover:bg-beige/40",
+                  )}
+                >
+                  {v === "any" ? "All" : v}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {quotes.map((q) => (
+                <button
+                  key={`${q.provider}-${q.productName}`}
+                  onClick={() => setSelected(q)}
+                  className="text-left"
+                >
+                  <Card
+                    className={cn(
+                      "py-3 transition-colors",
+                      selected === q && "border-accent/70 ring-1 ring-accent/30",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
+                          {q.productName}
+                          {q.badge && (
+                            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
+                              {q.badge}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cocoa">
+                          <span className="flex items-center gap-0.5">
+                            <Clock size={12} /> {q.pickupEtaMinutes} min
+                          </span>
+                          <span className="flex items-center gap-0.5">
+                            <Star size={12} className="fill-accent text-accent" />
+                            {q.driverRating}
+                          </span>
+                        </p>
+                        {q.offers[0] && (
+                          <p className="text-[11px] text-success">{q.offers[0].label}</p>
+                        )}
+                      </div>
+                      <p className="shrink-0 text-[16px] font-bold text-ink">
+                        {rupees(q.effectivePaise)}
+                      </p>
+                    </div>
+                  </Card>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {error && <p className="text-[13px] text-danger">{error}</p>}
+
+        <div className="sticky bottom-0 mt-auto bg-cream pb-1 pt-2">
+          <Button
+            onClick={confirmRide}
+            disabled={!selected || busy}
+            className="w-full"
+          >
+            {busy
+              ? "Booking…"
+              : selected
+                ? `Confirm ${selected.productName} · ${rupees(selected.effectivePaise)}`
+                : pickup && drop
+                  ? "Choose a ride"
+                  : "Select pickup & drop"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
