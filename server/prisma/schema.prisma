@@ -1,0 +1,157 @@
+// Radiues data model.
+// Dev runs on SQLite; production switches provider to "postgresql" and re-runs
+// migrations — fields below avoid SQLite-only or Postgres-only types so the
+// switch is a one-line change. Enum-like fields are strings validated by zod
+// at the API boundary (SQLite has no native enums).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String?
+  googleId      String?   @unique
+  phone         String?   @unique
+  emailVerified Boolean   @default(false)
+  phoneVerified Boolean   @default(false)
+  avatarUrl     String?
+  weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  addresses     Address[]
+  chatSessions  ChatSession[]
+  orders        Order[]
+  payments      Payment[]
+  otpCodes      OtpCode[]
+  refreshTokens RefreshToken[]
+}
+
+// One-time codes for email verification now; `channel` supports "phone"
+// so SMS OTP can be added later without a schema change.
+model OtpCode {
+  id         String    @id @default(cuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    String // "email" | "phone"
+  target     String // email address or phone number the code was sent to
+  codeHash   String // bcrypt hash — raw codes are never stored
+  purpose    String // "signup" | "login" | "reset"
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([target, purpose])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // "Home" | "Work" | custom
+  line1     String
+  city      String
+  state     String
+  pincode   String
+  lat       Float?
+  lng       Float?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // "user" | "assistant"
+  content   String
+  intent    String? // JSON: extracted intent / recommendation payload
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+// Unified order for both domains; domain-specific details live in `details` JSON.
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain      String // "food" | "ride"
+  status      String // "created" | "pending_payment" | "confirmed" | "in_progress" | "completed" | "cancelled"
+  provider    String // "ondc" | "swiggy" | "zomato" | "uber" | "ola" | "rapido" (simulated for now)
+  fulfillment String // "in_app" (ONDC) | "redirect" (closed platform)
+  title       String // human-readable summary, e.g. "Dum Biryani — Hotel Paradise"
+  details     String // JSON: items / route / provider quote snapshot
+  amount      Int // paise — integer money, never floats
+  savedPaise  Int      @default(0) // vs next-best option at decision time
+  currency    String   @default("INR")
+  addressId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payment        Payment?
+  trackingEvents TrackingEvent[]
+
+  @@index([userId, domain])
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gateway         String    @default("cashfree")
+  gatewayOrderId  String?   @unique // Cashfree order id
+  amount          Int // paise
+  currency        String    @default("INR")
+  status          String // "created" | "processing" | "success" | "failed" | "refunded"
+  method          String? // "upi" | "card" | "netbanking"
+  gatewayResponse String? // JSON: last webhook/verify payload
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model TrackingEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String // e.g. "order_placed" | "preparing" | "out_for_delivery" | "driver_assigned" | "arriving" | "completed"
+  message   String
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
