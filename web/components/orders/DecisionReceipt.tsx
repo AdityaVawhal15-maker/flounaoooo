@@ -1,22 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Check, Sparkles } from "lucide-react";
+import { Share2, Check, Sparkles, Download, Loader2 } from "lucide-react";
 import { rupees } from "@/lib/money";
+import { renderReceiptImage } from "@/lib/receiptImage";
 
 // Shareable proof-of-decision: what Radiues compared and what it saved.
+// Shares a branded PNG when the device supports it, otherwise downloads the
+// image or copies a text version — every share doubles as marketing.
 export function DecisionReceipt({
   comparedOptions,
   comparedPlatforms,
   savedPaise,
   domain,
+  title,
 }: {
   comparedOptions: number;
   comparedPlatforms: number;
   savedPaise: number;
   domain: "food" | "ride";
+  title: string;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "working" | "done">("idle");
+  // Feature-detect once: native file-share vs. download fallback decides the icon.
+  const [canNativeShare] = useState(
+    () => typeof navigator !== "undefined" && typeof navigator.canShare === "function",
+  );
   if (comparedOptions < 2) return null;
 
   const what = domain === "food" ? "my food order" : "my ride";
@@ -26,13 +35,52 @@ export function DecisionReceipt({
     ". Stop searching, start deciding 🔶";
 
   async function share() {
-    if (navigator.share) {
-      await navigator.share({ text: shareText }).catch(() => {});
-      return;
+    setState("working");
+    try {
+      const blob = await renderReceiptImage({
+        comparedOptions,
+        comparedPlatforms,
+        savedPaise,
+        domain,
+        title,
+      });
+
+      const file = blob
+        ? new File([blob], "radiues-savings.png", { type: "image/png" })
+        : null;
+
+      // 1. Native share with the image (mobile)
+      if (
+        file &&
+        navigator.canShare?.({ files: [file] }) &&
+        navigator.share
+      ) {
+        await navigator.share({ files: [file], text: shareText });
+        setState("idle");
+        return;
+      }
+
+      // 2. Download the image (desktop)
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "radiues-savings.png";
+        a.click();
+        URL.revokeObjectURL(url);
+        setState("done");
+        setTimeout(() => setState("idle"), 2500);
+        return;
+      }
+
+      // 3. Last resort: copy text
+      await navigator.clipboard.writeText(shareText);
+      setState("done");
+      setTimeout(() => setState("idle"), 2500);
+    } catch {
+      // user cancelled the share sheet, or something failed — reset quietly
+      setState("idle");
     }
-    await navigator.clipboard.writeText(shareText).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -56,10 +104,23 @@ export function DecisionReceipt({
       </p>
       <button
         onClick={share}
-        className="mt-3 flex items-center gap-1.5 rounded-pill bg-accent px-4 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#d4570f]"
+        disabled={state === "working"}
+        className="mt-3 flex items-center gap-1.5 rounded-pill bg-accent px-4 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#d4570f] disabled:opacity-60"
       >
-        {copied ? <Check size={13} /> : <Share2 size={13} />}
-        {copied ? "Copied!" : "Share"}
+        {state === "working" ? (
+          <Loader2 size={13} className="animate-spin" />
+        ) : state === "done" ? (
+          <Check size={13} />
+        ) : canNativeShare ? (
+          <Share2 size={13} />
+        ) : (
+          <Download size={13} />
+        )}
+        {state === "working"
+          ? "Creating…"
+          : state === "done"
+            ? "Saved!"
+            : "Share my savings"}
       </button>
     </div>
   );

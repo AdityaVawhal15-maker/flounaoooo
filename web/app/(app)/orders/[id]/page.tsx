@@ -156,6 +156,7 @@ export default function OrderDetailPage({
             comparedPlatforms={order.details.comparedPlatforms ?? 1}
             savedPaise={order.savedPaise}
             domain={order.domain}
+            title={order.title}
           />
         </div>
       )}
