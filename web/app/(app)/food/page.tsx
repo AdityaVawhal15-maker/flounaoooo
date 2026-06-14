@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Zap, MapPin, Star, Clock, ChevronRight } from "lucide-react";
+import { Search, Zap, MapPin, Star, Clock, ChevronRight, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
@@ -83,6 +83,22 @@ export default function FoodLandingPage() {
       </div>
 
       {error && <p className="mt-6 text-[13px] text-danger">{error}</p>}
+
+      {!showSearch && (
+        <Link
+          href="/food/group"
+          className="mt-4 flex items-center gap-2.5 rounded-card border border-accent/40 bg-accent-soft/50 px-4 py-3 transition-colors hover:bg-accent-soft"
+        >
+          <Users size={18} className="shrink-0 text-accent" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-bold text-ink">Order as a group</p>
+            <p className="text-[12px] text-cocoa">
+              Everyone adds their items, the bill splits equally
+            </p>
+          </div>
+          <ChevronRight size={16} className="shrink-0 text-cocoa/50" />
+        </Link>
+      )}
 
       {showSearch ? (
         <section className="mt-6">

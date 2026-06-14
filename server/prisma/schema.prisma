@@ -34,6 +34,41 @@ model User {
   otpCodes      OtpCode[]
   refreshTokens RefreshToken[]
   pushSubscriptions PushSubscription[]
+  hostedCarts   GroupCart[]     @relation("HostedCarts")
+  groupCartItems GroupCartItem[]
+}
+
+// Group ordering: a shared cart one person hosts and others join via a code.
+// Each member adds their own items; the bill splits equally on checkout.
+model GroupCart {
+  id          String   @id @default(cuid())
+  code        String   @unique // short human-shareable join code
+  hostId      String
+  host        User     @relation("HostedCarts", fields: [hostId], references: [id], onDelete: Cascade)
+  platform    String // "ondc" | "swiggy" | "zomato"
+  status      String   @default("open") // "open" | "locked" | "ordered" | "cancelled"
+  orderId     String? // set once the host places the combined order
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items GroupCartItem[]
+
+  @@index([hostId])
+}
+
+model GroupCartItem {
+  id         String    @id @default(cuid())
+  cartId     String
+  cart       GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dishId     String
+  name       String
+  pricePaise Int // unit effective price snapshot
+  qty        Int       @default(1)
+  createdAt  DateTime  @default(now())
+
+  @@index([cartId])
 }
 
 // Observed best prices over time. Every quote generation logs one row, so the
