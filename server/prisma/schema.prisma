@@ -36,6 +36,20 @@ model User {
   pushSubscriptions PushSubscription[]
 }
 
+// Observed best prices over time. Every quote generation logs one row, so the
+// timing advisor can learn real hour-of-day patterns instead of fixed rules.
+model PriceObservation {
+  id          String   @id @default(cuid())
+  domain      String // "food" | "ride"
+  key         String // dishId (food) or vehicle type (ride)
+  hour        Int // 0–23, local hour the quote was seen
+  weekday     Int // 0–6 (Mon=0)
+  bestPaise   Int // cheapest effective price at that moment
+  createdAt   DateTime @default(now())
+
+  @@index([domain, key, hour])
+}
+
 // Web Push subscriptions (W3C Push API). One row per browser/device a user
 // has granted notification permission on. `endpoint` is unique per device.
 model PushSubscription {

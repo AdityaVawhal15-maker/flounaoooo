@@ -4,6 +4,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 import { quoteRides } from "./rides.service.js";
 import { adviseRide } from "../advisor/advisor.service.js";
+import { recordObservation } from "../advisor/priceHistory.service.js";
 
 export const ridesRouter = Router();
 ridesRouter.use(requireAuth);
@@ -142,7 +143,7 @@ ridesRouter.get("/route", async (req, res, next) => {
   }
 });
 
-ridesRouter.get("/quotes", (req, res, next) => {
+ridesRouter.get("/quotes", async (req, res, next) => {
   try {
     const parsed = z
       .object({
@@ -151,7 +152,13 @@ ridesRouter.get("/quotes", (req, res, next) => {
         vehicle: z.enum(["bike", "auto", "cab", "any"]).default("any"),
       })
       .parse(req.query);
-    res.json({ quotes: quoteRides(parsed), advice: adviseRide() });
+    const quotes = quoteRides(parsed);
+    const cheapest = quotes[0];
+    if (cheapest) recordObservation("ride", cheapest.vehicle, cheapest.effectivePaise);
+    res.json({
+      quotes,
+      advice: await adviseRide(cheapest?.vehicle ?? null),
+    });
   } catch (err) {
     next(err);
   }

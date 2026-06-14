@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { adviseFood, adviseRide } from "../src/modules/advisor/advisor.service.js";
+import {
+  adviseFoodByRules as adviseFood,
+  adviseRideByRules as adviseRide,
+} from "../src/modules/advisor/advisor.service.js";
 
 function at(hour: number, minute = 0): Date {
   const d = new Date("2026-06-15T00:00:00");

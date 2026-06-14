@@ -4,6 +4,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { recommendFood, searchFood } from "./food.service.js";
 import { dishes } from "../../data/restaurants.js";
 import { adviseFood } from "../advisor/advisor.service.js";
+import { recordObservation } from "../advisor/priceHistory.service.js";
 
 export const foodRouter = Router();
 foodRouter.use(requireAuth);
@@ -11,7 +12,7 @@ foodRouter.use(requireAuth);
 const CATEGORIES = ["All", "Burger", "Pizza", "Healthy", "South Indian", "Dessert"];
 
 // Landing feed: AI picks + smart suggestion stats, per the Figma food landing.
-foodRouter.get("/feed", (_req, res) => {
+foodRouter.get("/feed", async (_req, res) => {
   const picks = ["quinoa-bowl", "mushroom-pasta", "masala-dosa"]
     .map((id) => dishes.find((d) => d.id === id))
     .filter((d) => d !== undefined)
@@ -33,7 +34,7 @@ foodRouter.get("/feed", (_req, res) => {
       nearestKm: 1.5,
       topRatedCount: topRated,
     },
-    advice: adviseFood(),
+    advice: await adviseFood(null),
   });
 });
 

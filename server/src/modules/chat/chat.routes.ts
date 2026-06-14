@@ -11,6 +11,7 @@ import type { Intent } from "./llm/types.js";
 import { recommendFood } from "../food/food.service.js";
 import { quoteRides } from "../rides/rides.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
+import { recordObservation } from "../advisor/priceHistory.service.js";
 
 export const chatRouter = Router();
 chatRouter.use(requireAuth);
@@ -52,18 +53,22 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
     });
+    if (foodRec) recordObservation("food", foodRec.best.dishId, foodRec.best.effectivePaise);
+    if (rideQuotes[0]) recordObservation("ride", rideQuotes[0].vehicle, rideQuotes[0].effectivePaise);
     return {
       reply: intent.reply,
       intent,
       recommendation: {
         type: "combo",
-        food: foodRec ? { ...foodRec, advice: adviseFood() } : null,
+        food: foodRec
+          ? { ...foodRec, advice: await adviseFood(foodRec.best.dishId) }
+          : null,
         ride: {
           drop: intent.ride.drop,
           pickup: intent.ride.pickup,
           quotes: rideQuotes.slice(0, 3),
           why: `Cheapest fare is ${rideQuotes[0]?.productName} — open Rides to set exact pickup.`,
-          advice: adviseRide(),
+          advice: await adviseRide(rideQuotes[0]?.vehicle ?? null),
         },
       },
     };
@@ -76,10 +81,15 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
       dietary: intent.food.dietary,
     });
     if (rec) {
+      recordObservation("food", rec.best.dishId, rec.best.effectivePaise);
       return {
         reply: intent.reply,
         intent,
-        recommendation: { type: "food", ...rec, advice: adviseFood() },
+        recommendation: {
+          type: "food",
+          ...rec,
+          advice: await adviseFood(rec.best.dishId),
+        },
       };
     }
     return {
@@ -92,6 +102,7 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
     // Without live geocoding in chat we quote a typical city trip;
     // exact fares come from the rides screen once locations are picked.
     const quotes = quoteRides({ distanceKm: 8, rideMinutes: 24, vehicle: intent.ride.vehicle });
+    if (quotes[0]) recordObservation("ride", quotes[0].vehicle, quotes[0].effectivePaise);
     return {
       reply: intent.reply,
       intent,
@@ -101,7 +112,7 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
         pickup: intent.ride.pickup,
         quotes: quotes.slice(0, 5),
         why: `Cheapest effective fare is ${quotes[0]?.productName} after offers — open Rides to set exact pickup and book.`,
-        advice: adviseRide(),
+        advice: await adviseRide(quotes[0]?.vehicle ?? null),
       },
     };
   }

@@ -1,11 +1,14 @@
-// Price-intelligence & timing engine (rule-based v1).
-// Encodes real Indian platform pricing patterns: meal-window food offers and
-// commute-hour ride surge. Swapped for an ML model on live data later —
-// the response shape is the contract, not the rules.
+// Price-intelligence & timing engine.
+// Primary: learned hour-of-day patterns from observed prices (priceHistory).
+// Fallback (cold start): rule-based meal-window / commute-surge heuristics.
+
+import { predictFromHistory } from "./priceHistory.service.js";
 
 export type Advice = {
   action: "order_now" | "wait";
   message: string;
+  // "history" once we have enough observed data, else "rules"
+  source?: "history" | "rules";
   // present only for "wait"
   expectedSavingPaise?: number;
   waitMinutes?: number;
@@ -34,7 +37,7 @@ function minutesUntilHour(now: Date, hour: number): number {
   return Math.round((target.getTime() - now.getTime()) / 60_000);
 }
 
-export function adviseFood(now: Date = new Date()): Advice {
+export function adviseFoodByRules(now: Date = new Date()): Advice {
   const hour = now.getHours();
 
   const active = FOOD_WINDOWS.find((w) => hour >= w.startHour && hour < w.endHour);
@@ -75,7 +78,7 @@ const RIDE_SURGE = [
   { startHour: 17, endHour: 21, dropPaise: 5000 },
 ];
 
-export function adviseRide(now: Date = new Date()): Advice {
+export function adviseRideByRules(now: Date = new Date()): Advice {
   const hour = now.getHours();
   const surge = RIDE_SURGE.find((s) => hour >= s.startHour && hour < s.endHour);
 
@@ -108,4 +111,29 @@ function formatWait(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
+// ---- History-first entry points (used by routes) ----
+// Try learned patterns; fall back to rules until enough data accumulates.
+
+export async function adviseFood(
+  dishKey: string | null,
+  now: Date = new Date(),
+): Promise<Advice> {
+  if (dishKey) {
+    const learned = await predictFromHistory("food", dishKey, now);
+    if (learned) return learned;
+  }
+  return { ...adviseFoodByRules(now), source: "rules" };
+}
+
+export async function adviseRide(
+  vehicleKey: string | null,
+  now: Date = new Date(),
+): Promise<Advice> {
+  if (vehicleKey) {
+    const learned = await predictFromHistory("ride", vehicleKey, now);
+    if (learned) return learned;
+  }
+  return { ...adviseRideByRules(now), source: "rules" };
 }
