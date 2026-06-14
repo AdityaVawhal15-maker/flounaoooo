@@ -35,6 +35,12 @@ const envSchema = z.object({
   MAPTILER_KEY: z.string().optional(),
   GEOAPIFY_KEY: z.string().optional(),
   ORS_KEY: z.string().optional(),
+
+  // Web push (VAPID). Generate with: npx web-push generate-vapid-keys
+  // Public key is also exposed to the browser as NEXT_PUBLIC_VAPID_PUBLIC_KEY.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:support@radiues.app"),
 });
 
 const parsed = envSchema.safeParse(process.env);

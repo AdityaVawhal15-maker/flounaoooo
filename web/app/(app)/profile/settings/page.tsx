@@ -1,28 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wallet } from "lucide-react";
+import { Wallet, Bell } from "lucide-react";
 import { api } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import {
+  disablePush,
+  enablePush,
+  getSubscriptionState,
+} from "@/lib/push";
 import { cn } from "@/lib/cn";
 
-// Stored locally for now; moves to user preferences on the API when
-// notifications ship.
-const SETTINGS = [
-  { key: "push", label: "Push notifications", subtitle: "Order updates and offers" },
+// Local-only preferences (no server effect yet).
+const LOCAL_SETTINGS = [
   { key: "email", label: "Email updates", subtitle: "Receipts and announcements" },
   { key: "tips", label: "Smart suggestions", subtitle: "AI picks based on your orders" },
 ];
 
 export default function SettingsPage() {
   const [values, setValues] = useState<Record<string, boolean>>({
-    push: true,
     email: true,
     tips: true,
   });
+  const [pushState, setPushState] = useState<
+    "loading" | "unsupported" | "denied" | "subscribed" | "default"
+  >("loading");
+  const [pushBusy, setPushBusy] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
   const [budgetSaved, setBudgetSaved] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +39,25 @@ export default function SettingsPage() {
         if (d.budgetPaise !== null) setBudgetInput(String(d.budgetPaise / 100));
       })
       .catch(() => {});
+    getSubscriptionState()
+      .then(setPushState)
+      .catch(() => setPushState("unsupported"));
   }, []);
+
+  async function togglePush() {
+    setPushBusy(true);
+    try {
+      if (pushState === "subscribed") {
+        await disablePush();
+        setPushState("default");
+      } else {
+        const result = await enablePush();
+        setPushState(result === "subscribed" ? "subscribed" : result === "denied" ? "denied" : pushState);
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function saveBudget(clear: boolean) {
     setBusy(true);
@@ -88,13 +112,52 @@ export default function SettingsPage() {
         )}
       </Card>
 
+      {/* Push notifications — real Web Push subscription */}
+      <Card className="mb-4">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-beige/70">
+            <Bell size={16} className="text-accent" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-medium text-ink">Push notifications</p>
+            <p className="text-[12px] text-cocoa">
+              {pushState === "unsupported"
+                ? "Not supported in this browser"
+                : pushState === "denied"
+                  ? "Blocked — enable in browser settings"
+                  : "Order updates and live offers"}
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={pushState === "subscribed"}
+            aria-label="Push notifications"
+            disabled={
+              pushBusy || pushState === "unsupported" || pushState === "denied" || pushState === "loading"
+            }
+            onClick={togglePush}
+            className={cn(
+              "h-6 w-11 rounded-full p-0.5 transition-colors disabled:opacity-50",
+              pushState === "subscribed" ? "bg-accent" : "bg-line",
+            )}
+          >
+            <span
+              className={cn(
+                "block size-5 rounded-full bg-white shadow transition-transform",
+                pushState === "subscribed" && "translate-x-5",
+              )}
+            />
+          </button>
+        </div>
+      </Card>
+
       <Card className="p-0">
-        {SETTINGS.map((s, i) => (
+        {LOCAL_SETTINGS.map((s, i) => (
           <div
             key={s.key}
             className={cn(
               "flex items-center gap-3 px-4 py-3.5",
-              i < SETTINGS.length - 1 && "border-b border-line/70",
+              i < LOCAL_SETTINGS.length - 1 && "border-b border-line/70",
             )}
           >
             <div className="min-w-0 flex-1">

@@ -12,6 +12,7 @@ import { ordersRouter } from "./modules/orders/orders.routes.js";
 import { ridesRouter } from "./modules/rides/rides.routes.js";
 import { paymentsRouter } from "./modules/payments/payments.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 
 export function createApp() {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp() {
   app.use("/api/rides", ridesRouter);
   app.use("/api/payments", paymentsRouter);
   app.use("/api/users", usersRouter);
+  app.use("/api/notifications", notificationsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

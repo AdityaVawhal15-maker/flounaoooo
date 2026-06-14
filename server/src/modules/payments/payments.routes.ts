@@ -10,6 +10,7 @@ import {
   createCashfreeOrder,
   verifyCashfreeWebhook,
 } from "./cashfree.js";
+import { sendPushToUser } from "../notifications/push.service.js";
 
 export const paymentsRouter = Router();
 
@@ -50,6 +51,17 @@ async function markPaid(orderId: string, method: string, gatewayResponse?: strin
       })),
     }),
   ]);
+
+  // Fire-and-forget confirmation push (no-op if push isn't configured).
+  void sendPushToUser(order.userId, {
+    title: order.domain === "food" ? "Order confirmed 🍽️" : "Ride booked 🚕",
+    body:
+      order.domain === "food"
+        ? `${order.title} is being prepared.`
+        : `${order.title} — your driver is on the way.`,
+    url: `/orders/${order.id}`,
+  });
+
   return updated;
 }
 

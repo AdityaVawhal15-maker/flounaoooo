@@ -33,6 +33,21 @@ model User {
   payments      Payment[]
   otpCodes      OtpCode[]
   refreshTokens RefreshToken[]
+  pushSubscriptions PushSubscription[]
+}
+
+// Web Push subscriptions (W3C Push API). One row per browser/device a user
+// has granted notification permission on. `endpoint` is unique per device.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String // client public key
+  auth      String // client auth secret
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // One-time codes for email verification now; `channel` supports "phone"
