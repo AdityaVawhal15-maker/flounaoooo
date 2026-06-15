@@ -1,17 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { Star, Clock, Sparkles, Truck } from "lucide-react";
+import { Star, Clock, Sparkles, Truck, Utensils, Package } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
+import { FadeIn } from "@/components/ui/motion";
+import { CategoryTile } from "@/components/ui/CategoryTile";
 import { rupees } from "@/lib/money";
 import type { FoodQuote, ProductQuote, Recommendation, RideQuote } from "./types";
 
 function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
   return (
-    <Card className={highlight ? "border-accent/60 ring-1 ring-accent/30" : ""}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <Card
+      className={
+        highlight
+          ? "border-accent/60 shadow-card ring-1 ring-accent/30"
+          : "transition-all hover:-translate-y-0.5 hover:shadow-card"
+      }
+    >
+      <div className="flex items-start gap-3">
+        <span className="shrink-0">
+          <CategoryTile icon={Utensils} theme={highlight ? "orange" : "amber"} size={46} />
+        </span>
+        <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}
           </span>
@@ -50,7 +61,7 @@ export function FoodRecommendation({
   rec: Extract<Recommendation, { type: "food" }>;
 }) {
   return (
-    <div className="flex w-full flex-col gap-2.5">
+    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
         <Sparkles size={13} /> Radiues pick
       </p>
@@ -68,13 +79,19 @@ export function FoodRecommendation({
           ))}
         </>
       )}
-    </div>
+    </FadeIn>
   );
 }
 
 function RideQuoteRow({ q }: { q: RideQuote }) {
   return (
-    <Card className={q.badge === "BEST PRICE" ? "border-accent/60 ring-1 ring-accent/30" : ""}>
+    <Card
+      className={
+        q.badge === "BEST PRICE"
+          ? "border-accent/60 shadow-card ring-1 ring-accent/30"
+          : "transition-all hover:-translate-y-0.5 hover:shadow-card"
+      }
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
@@ -117,7 +134,7 @@ export function RideRecommendation({
   rec: Extract<Recommendation, { type: "ride" }>;
 }) {
   return (
-    <div className="flex w-full flex-col gap-2.5">
+    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
         <Sparkles size={13} /> Rides to {rec.drop}
       </p>
@@ -126,7 +143,7 @@ export function RideRecommendation({
         <RideQuoteRow key={q.productName} q={q} />
       ))}
       <p className="text-[12px] leading-relaxed text-cocoa">{rec.why}</p>
-    </div>
+    </FadeIn>
   );
 }
 
@@ -155,9 +172,18 @@ export function ComboRecommendation({
 
 function ProductRow({ q, highlight }: { q: ProductQuote; highlight?: boolean }) {
   return (
-    <Card className={highlight ? "border-accent/60 ring-1 ring-accent/30" : ""}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+    <Card
+      className={
+        highlight
+          ? "border-accent/60 shadow-card ring-1 ring-accent/30"
+          : "transition-all hover:-translate-y-0.5 hover:shadow-card"
+      }
+    >
+      <div className="flex items-start gap-3">
+        <span className="shrink-0">
+          <CategoryTile icon={Package} theme="purple" size={46} />
+        </span>
+        <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}
           </span>
@@ -196,7 +222,7 @@ export function ShopRecommendation({
   rec: Extract<Recommendation, { type: "shop" }>;
 }) {
   return (
-    <div className="flex w-full flex-col gap-2.5">
+    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
         <Sparkles size={13} /> Radiues pick
       </p>
@@ -213,6 +239,6 @@ export function ShopRecommendation({
           ))}
         </>
       )}
-    </div>
+    </FadeIn>
   );
 }
