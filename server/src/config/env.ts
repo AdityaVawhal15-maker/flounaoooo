@@ -21,10 +21,14 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("Radiues <no-reply@radiues.app>"),
 
-  // LLM providers — chat falls back to a scripted demo mode if neither key is set.
-  LLM_PROVIDER: z.enum(["anthropic", "deepseek", "demo"]).default("demo"),
+  // LLM providers — hybrid setup (Claude / Gemini / DeepSeek). Chat falls back
+  // to a scripted demo mode if the selected provider's key is unset.
+  LLM_PROVIDER: z.enum(["anthropic", "google", "deepseek", "demo"]).default("demo"),
   ANTHROPIC_API_KEY: z.string().optional(),
   DEEPSEEK_API_KEY: z.string().optional(),
+  // Google AI Studio (Gemini). Free-tier friendly; model is overridable.
+  GOOGLE_AI_API_KEY: z.string().optional(),
+  GOOGLE_AI_MODEL: z.string().default("gemini-2.0-flash"),
 
   // Cashfree sandbox
   CASHFREE_APP_ID: z.string().optional(),
