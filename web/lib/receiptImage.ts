@@ -196,38 +196,43 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
   ctx.strokeStyle = BEIGE;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(centerX - 140, 740);
-  ctx.lineTo(centerX + 140, 740);
+  ctx.moveTo(centerX - 140, 728);
+  ctx.lineTo(centerX + 140, 728);
   ctx.stroke();
 
-  // What was compared
+  // What was compared (one or two lines — baseline of the last line returned)
   ctx.fillStyle = INK;
   ctx.font = "600 42px Inter, system-ui, sans-serif";
   const afterCompare = wrapText(
     ctx,
     `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
     centerX,
-    810,
+    792,
     cardW - 160,
-    56,
+    54,
   );
 
-  // Order title chip
-  const chipY = afterCompare + 36;
-  ctx.font = "600 34px Inter, system-ui, sans-serif";
+  // Order title chip — below the compare text but clamped so it can never
+  // collide with the pinned tagline (chip must end by `chipMaxBottom`).
+  const chipH = 68;
+  const chipMaxBottom = cardY + cardH - 110; // leave room for the tagline
+  const chipY = Math.min(afterCompare + 30, chipMaxBottom - chipH);
+  ctx.font = "600 32px Inter, system-ui, sans-serif";
   const clippedTitle =
-    data.title.length > 40 ? `${data.title.slice(0, 39)}…` : data.title;
-  const chipW = Math.min(cardW - 120, ctx.measureText(clippedTitle).width + 80);
+    data.title.length > 38 ? `${data.title.slice(0, 37)}…` : data.title;
+  const chipW = Math.min(cardW - 120, ctx.measureText(clippedTitle).width + 72);
   ctx.fillStyle = "#fdeee4";
-  roundRect(ctx, centerX - chipW / 2, chipY, chipW, 72, 36);
+  roundRect(ctx, centerX - chipW / 2, chipY, chipW, chipH, chipH / 2);
   ctx.fill();
   ctx.fillStyle = ACCENT_DARK;
-  ctx.fillText(clippedTitle, centerX, chipY + 48);
+  ctx.textBaseline = "middle";
+  ctx.fillText(clippedTitle, centerX, chipY + chipH / 2);
+  ctx.textBaseline = "alphabetic";
 
-  // Tagline footer
+  // Tagline footer — pinned to the card bottom, always clear of the chip.
   ctx.fillStyle = COCOA;
-  ctx.font = "italic 700 38px Inter, system-ui, sans-serif";
-  ctx.fillText("Stop searching. Start deciding.", centerX, cardY + cardH - 48);
+  ctx.font = "italic 700 36px Inter, system-ui, sans-serif";
+  ctx.fillText("Stop searching. Start deciding.", centerX, cardY + cardH - 46);
 
   return new Promise((resolve) =>
     canvas.toBlob((blob) => resolve(blob), "image/png", 0.95),
