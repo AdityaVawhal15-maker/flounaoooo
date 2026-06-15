@@ -24,6 +24,11 @@ model User {
   phoneVerified Boolean   @default(false)
   avatarUrl     String?
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
+  // Radiues Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
+  // deeper AI, waived convenience fees and the savings guarantee.
+  plusActive    Boolean   @default(false)
+  plusSince     DateTime?
+  plusUntil     DateTime? // current period end; expired = treated as inactive
   failedLogins  Int       @default(0) // consecutive failed login attempts
   lockedUntil   DateTime? // set after too many failures (backoff window)
   createdAt     DateTime  @default(now())

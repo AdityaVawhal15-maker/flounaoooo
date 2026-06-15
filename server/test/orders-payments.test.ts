@@ -11,8 +11,9 @@ describe("orders", () => {
       .post("/api/orders")
       .send({ domain: "food", dishId: "masala-dosa", platform: "ondc", amount: 1 })
       .expect(201);
-    // ONDC masala dosa: 12900 + 1000 delivery - 1000 offer = 12900
-    expect(res.body.order.amount).toBe(12900);
+    // ONDC masala dosa: 12900 dish + 700 in-app convenience fee (free users,
+    // waived for Radiues Plus) = 13600.
+    expect(res.body.order.amount).toBe(13600);
     expect(res.body.order.status).toBe("pending_payment");
   });
 
@@ -121,8 +122,9 @@ describe("budget guardian", () => {
 
     res = await agent.get("/api/users/budget").expect(200);
     expect(res.body.budgetPaise).toBe(50000);
-    expect(res.body.spentPaise).toBe(12900);
-    expect(res.body.remainingPaise).toBe(37100);
+    // 12900 dish + 700 convenience fee (free user).
+    expect(res.body.spentPaise).toBe(13600);
+    expect(res.body.remainingPaise).toBe(36400);
   });
 
   it("rejects nonsense budget values", async () => {
