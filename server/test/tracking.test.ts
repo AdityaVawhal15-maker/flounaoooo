@@ -154,4 +154,45 @@ describe("ride tracking endpoint", () => {
     const { agent: b } = await authedAgent();
     await b.get(`/api/orders/${orderId}/track`).expect(404);
   });
+
+  it("cancels a confirmed ride and reports a cancelled state", async () => {
+    const { agent } = await authedAgent();
+    const orderId = await bookAndPay(agent);
+
+    const res = await agent
+      .post(`/api/orders/${orderId}/cancel`)
+      .send({ reason: "changed my mind" })
+      .expect(200);
+    expect(res.body.order.status).toBe("cancelled");
+
+    // Tracking now reports the terminal cancelled state.
+    const track = await agent.get(`/api/orders/${orderId}/track`).expect(200);
+    expect(track.body.tracking.state).toBe("cancelled");
+  });
+
+  it("won't cancel a ride twice", async () => {
+    const { agent } = await authedAgent();
+    const orderId = await bookAndPay(agent);
+    await agent.post(`/api/orders/${orderId}/cancel`).send({}).expect(200);
+    await agent.post(`/api/orders/${orderId}/cancel`).send({}).expect(409);
+  });
+
+  it("won't cancel a food order via the ride endpoint", async () => {
+    const { agent } = await authedAgent();
+    const food = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(201);
+    await agent
+      .post(`/api/orders/${food.body.order.id}/cancel`)
+      .send({})
+      .expect(400);
+  });
+
+  it("won't let someone cancel another user's ride", async () => {
+    const { agent: a } = await authedAgent();
+    const orderId = await bookAndPay(a);
+    const { agent: b } = await authedAgent();
+    await b.post(`/api/orders/${orderId}/cancel`).send({}).expect(404);
+  });
 });

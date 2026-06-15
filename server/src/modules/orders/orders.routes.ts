@@ -12,6 +12,7 @@ import {
   isPlusActive,
   CONVENIENCE_FEE_PAISE,
 } from "../subscription/subscription.service.js";
+import { sendPushToUser } from "../notifications/push.service.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
@@ -243,6 +244,23 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
     if (order.status === "pending_payment")
       throw new ApiError(409, "Ride not confirmed yet");
 
+    // A cancelled ride reports a terminal state — the provider clock no longer
+    // applies.
+    if (order.status === "cancelled") {
+      return res.json({
+        tracking: {
+          providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+          state: "cancelled",
+          otp: "----",
+          driver: null,
+          driverLocation: null,
+          pickupEtaMinutes: 0,
+          dropEtaMinutes: 0,
+          statusMessage: "This ride was cancelled",
+        },
+      });
+    }
+
     const d = JSON.parse(order.details) as {
       pickupLat?: number;
       pickupLng?: number;
@@ -287,3 +305,48 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
     next(err);
   }
 });
+
+// Cancel a ride. Allowed while the order is confirmed/in progress; never once
+// completed or already cancelled. Tells the provider, marks the order, and
+// confirms with a push. (No cancellation fee in simulation; the real ONDC
+// adapter would apply network policy.)
+ordersRouter.post(
+  "/:id/cancel",
+  validateBody(
+    z.object({ reason: z.string().trim().max(200).optional() }),
+  ),
+  async (req, res, next) => {
+    try {
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.id, userId: req.userId! },
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+      if (order.domain !== "ride")
+        throw new ApiError(400, "Only rides can be cancelled here");
+      if (order.status === "completed")
+        throw new ApiError(409, "This trip is already completed");
+      if (order.status === "cancelled")
+        throw new ApiError(409, "This ride is already cancelled");
+
+      await rideProvider.cancel({
+        orderId: order.id,
+        providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+      });
+
+      const updated = await prisma.order.update({
+        where: { id: order.id },
+        data: { status: "cancelled" },
+      });
+
+      void sendPushToUser(order.userId, {
+        title: "Ride cancelled",
+        body: `${order.title} was cancelled.`,
+        url: `/orders/${order.id}`,
+      });
+
+      res.json({ order: { ...updated, details: JSON.parse(updated.details) } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
