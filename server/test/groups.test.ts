@@ -35,12 +35,38 @@ describe("group ordering", () => {
     expect(afterFriend.body.equalSplitPaise).toBe(Math.round((12900 + 22900) / 2));
     expect(afterFriend.body.members).toHaveLength(2);
 
-    // Host checks out → creates one combined order
-    const checkout = await host.agent.post(`/api/groups/${id}/checkout`).expect(200);
+    // Host checks out with their UPI → combined order + per-member shares.
+    const checkout = await host.agent
+      .post(`/api/groups/${id}/checkout`)
+      .send({ hostUpiId: "host@okhdfcbank" })
+      .expect(200);
+    expect(checkout.body.totalPaise).toBe(35800);
+    // Shares are by what each member ordered, not a flat split.
+    const friendShare = checkout.body.shares.find((s: { isHost: boolean }) => !s.isHost);
+    const hostShare = checkout.body.shares.find((s: { isHost: boolean }) => s.isHost);
+    expect(friendShare.sharePaise).toBe(22900); // friend's dum biryani
+    expect(hostShare.sharePaise).toBe(12900); // host's masala dosa
+    expect(friendShare.upiLink).toContain("upi://pay");
+    expect(friendShare.upiLink).toContain("host%40okhdfcbank");
+    expect(hostShare.upiLink).toBeNull(); // host doesn't pay themselves
+
     const orderRes = await host.agent.get(`/api/orders/${checkout.body.orderId}`).expect(200);
     expect(orderRes.body.order.amount).toBe(35800);
     expect(orderRes.body.order.details.group).toBe(true);
     expect(orderRes.body.order.details.memberCount).toBe(2);
+  });
+
+  it("rejects an invalid host UPI ID at checkout", async () => {
+    const { agent } = await authedAgent();
+    const cart = await agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    await agent
+      .post(`/api/groups/${cart.body.id}/items`)
+      .send({ dishId: "masala-dosa" })
+      .expect(201);
+    await agent
+      .post(`/api/groups/${cart.body.id}/checkout`)
+      .send({ hostUpiId: "not a upi" })
+      .expect(400);
   });
 
   it("prices items server-side, ignoring client-sent price", async () => {

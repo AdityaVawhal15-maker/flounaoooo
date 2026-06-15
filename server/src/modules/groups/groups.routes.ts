@@ -229,53 +229,122 @@ groupsRouter.delete("/:id/items/:itemId", async (req, res, next) => {
   }
 });
 
+// Builds a UPI deep link (upi://pay) that opens any UPI app pre-filled with
+// the payee, amount, and a note. The standard, integration-free way to collect
+// a friend's share in India.
+function upiLink(opts: {
+  payeeUpi: string;
+  payeeName: string;
+  amountPaise: number;
+  note: string;
+}): string {
+  const params = new URLSearchParams({
+    pa: opts.payeeUpi,
+    pn: opts.payeeName,
+    am: (opts.amountPaise / 100).toFixed(2),
+    cu: "INR",
+    tn: opts.note,
+  });
+  return `upi://pay?${params.toString()}`;
+}
+
+const VALID_UPI = /^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/;
+
 // ---------- host places the combined order ----------
-groupsRouter.post("/:id/checkout", async (req, res, next) => {
-  try {
-    const cart = await prisma.groupCart.findUnique({
-      where: { id: req.params.id },
-      include: { items: true },
-    });
-    if (!cart) throw new ApiError(404, "Group order not found");
-    if (cart.hostId !== req.userId!) {
-      throw new ApiError(403, "Only the host can place the order");
+// H3 (Option C): the host pays the full bill now; the response includes each
+// member's share — by what they actually ordered — plus a UPI link the host
+// shares so friends settle their portion.
+groupsRouter.post(
+  "/:id/checkout",
+  validateBody(
+    z.object({
+      // Optional: the host's UPI ID to collect shares into. If omitted, the
+      // breakdown is returned without payable links.
+      hostUpiId: z
+        .string()
+        .trim()
+        .regex(VALID_UPI, "Enter a valid UPI ID, e.g. name@bank")
+        .optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { hostUpiId } = req.body as { hostUpiId?: string };
+      const cart = await prisma.groupCart.findUnique({
+        where: { id: req.params.id },
+        include: { items: { include: { user: { select: { id: true, name: true } } } } },
+      });
+      if (!cart) throw new ApiError(404, "Group order not found");
+      if (cart.hostId !== req.userId!) {
+        throw new ApiError(403, "Only the host can place the order");
+      }
+      if (cart.status !== "open") throw new ApiError(409, "Already checked out");
+      if (cart.items.length === 0) throw new ApiError(400, "The cart is empty");
+
+      const totalPaise = cart.items.reduce((s, i) => s + i.pricePaise * i.qty, 0);
+
+      // Each member owes for what THEY added (fairer than a flat equal split).
+      const owed = new Map<string, { name: string; sharePaise: number }>();
+      for (const item of cart.items) {
+        const cur = owed.get(item.userId) ?? { name: item.user.name, sharePaise: 0 };
+        cur.sharePaise += item.pricePaise * item.qty;
+        owed.set(item.userId, cur);
+      }
+      const hostName =
+        owed.get(cart.hostId)?.name ?? cart.items[0]?.user.name ?? "Host";
+
+      const shares = [...owed.entries()].map(([userId, m]) => ({
+        userId,
+        name: m.name,
+        sharePaise: m.sharePaise,
+        isHost: userId === cart.hostId,
+        // Host doesn't pay themselves; others get a UPI link if host gave an ID.
+        upiLink:
+          userId === cart.hostId || !hostUpiId
+            ? null
+            : upiLink({
+                payeeUpi: hostUpiId,
+                payeeName: hostName,
+                amountPaise: m.sharePaise,
+                note: `Group order share (${m.name})`,
+              }),
+      }));
+
+      const order = await prisma.order.create({
+        data: {
+          userId: req.userId!,
+          domain: "food",
+          status: "pending_payment",
+          provider: cart.platform,
+          fulfillment: cart.platform === "ondc" ? "in_app" : "redirect",
+          title: `Group order · ${cart.items.length} items · ${owed.size} people`,
+          details: JSON.stringify({
+            group: true,
+            memberCount: owed.size,
+            items: cart.items.map((i) => ({
+              name: i.name,
+              qty: i.qty,
+              pricePaise: i.pricePaise,
+            })),
+            shares: shares.map((s) => ({
+              name: s.name,
+              sharePaise: s.sharePaise,
+              isHost: s.isHost,
+            })),
+            comparedOptions: 0,
+          }),
+          amount: totalPaise,
+        },
+      });
+
+      await prisma.groupCart.update({
+        where: { id: cart.id },
+        data: { status: "ordered", orderId: order.id },
+      });
+
+      res.json({ orderId: order.id, totalPaise, shares });
+    } catch (err) {
+      next(err);
     }
-    if (cart.status !== "open") throw new ApiError(409, "Already checked out");
-    if (cart.items.length === 0) throw new ApiError(400, "The cart is empty");
-
-    const totalPaise = cart.items.reduce((s, i) => s + i.pricePaise * i.qty, 0);
-    const memberCount = new Set(cart.items.map((i) => i.userId)).size;
-
-    const order = await prisma.order.create({
-      data: {
-        userId: req.userId!,
-        domain: "food",
-        status: "pending_payment",
-        provider: cart.platform,
-        fulfillment: cart.platform === "ondc" ? "in_app" : "redirect",
-        title: `Group order · ${cart.items.length} items · ${memberCount} people`,
-        details: JSON.stringify({
-          group: true,
-          memberCount,
-          items: cart.items.map((i) => ({
-            name: i.name,
-            qty: i.qty,
-            pricePaise: i.pricePaise,
-          })),
-          equalSplitPaise: Math.round(totalPaise / memberCount),
-          comparedOptions: 0,
-        }),
-        amount: totalPaise,
-      },
-    });
-
-    await prisma.groupCart.update({
-      where: { id: cart.id },
-      data: { status: "ordered", orderId: order.id },
-    });
-
-    res.json({ orderId: order.id });
-  } catch (err) {
-    next(err);
-  }
-});
+  },
+);

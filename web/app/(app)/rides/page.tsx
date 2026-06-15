@@ -170,8 +170,12 @@ export default function RidesPage() {
           productName: selected.productName,
           pickup: pickup.name,
           drop: drop.name,
-          distanceKm: Number(route.distanceKm.toFixed(2)),
-          rideMinutes: route.rideMinutes,
+          // Server recomputes distance & fare from these — it ignores any
+          // client-side distance, so the fare can't be tampered with.
+          pickupLat: pickup.lat,
+          pickupLng: pickup.lng,
+          dropLat: drop.lat,
+          dropLng: drop.lng,
         },
       });
       router.push(`/pay/${d.order.id}`);

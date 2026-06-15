@@ -1,6 +1,43 @@
 // Simulated ride-provider quotes (Uber/Ola/Rapido/ONDC). Same adapter shape
 // real provider/ONDC-mobility integrations will implement later.
 
+// Great-circle distance between two coordinates.
+export function haversineKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) *
+      Math.cos((bLat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+// Authoritative trip estimate from coordinates — the ONLY trusted source of
+// distance/time for fare calculation. Never trust a client-supplied distance,
+// or a tampering tool could fake a short trip to underpay. (When ORS/Geoapify
+// keys are configured the /route endpoint refines this; the order endpoint
+// always recomputes from coordinates so the booked fare can't be gamed.)
+export function estimateTrip(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): { distanceKm: number; rideMinutes: number } {
+  const crowKm = haversineKm(fromLat, fromLng, toLat, toLng);
+  const distanceKm = Math.max(1, crowKm * 1.3); // road-winding factor
+  return {
+    distanceKm,
+    rideMinutes: Math.max(5, Math.round((distanceKm / 25) * 60)),
+  };
+}
+
 export type VehicleType = "bike" | "auto" | "cab";
 
 export type RideQuote = {

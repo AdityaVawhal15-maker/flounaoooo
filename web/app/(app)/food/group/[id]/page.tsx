@@ -10,13 +10,23 @@ import {
   Trash2,
   Search,
   ChevronLeft,
+  Send,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import type { GroupCart } from "@/components/food/GroupCartTypes";
 import type { FoodQuote } from "@/components/chat/types";
+
+type Share = {
+  userId: string;
+  name: string;
+  sharePaise: number;
+  isHost: boolean;
+  upiLink: string | null;
+};
 
 const REFRESH_MS = 5000;
 
@@ -33,6 +43,9 @@ export default function GroupCartPage({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodQuote[]>([]);
   const [busy, setBusy] = useState(false);
+  const [hostUpi, setHostUpi] = useState("");
+  const [shares, setShares] = useState<Share[] | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api<GroupCart>(`/api/groups/${id}`)
@@ -92,16 +105,30 @@ export default function GroupCartPage({
 
   async function checkout() {
     setBusy(true);
+    setError("");
     try {
-      const { orderId } = await api<{ orderId: string }>(
+      const res = await api<{ orderId: string; shares: Share[] }>(
         `/api/groups/${id}/checkout`,
-        { method: "POST" },
+        { method: "POST", json: hostUpi.trim() ? { hostUpiId: hostUpi.trim() } : {} },
       );
-      router.push(`/pay/${orderId}`);
+      // Show the per-member split + share links before the host pays.
+      setOrderId(res.orderId);
+      setShares(res.shares);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not place order");
+    } finally {
       setBusy(false);
     }
+  }
+
+  async function shareUpi(share: Share) {
+    if (!share.upiLink) return;
+    const text = `Hi ${share.name}, your share of our Radiues group order is ${rupees(share.sharePaise)}. Pay here: ${share.upiLink}`;
+    if (navigator.share) {
+      await navigator.share({ text }).catch(() => {});
+      return;
+    }
+    await navigator.clipboard.writeText(text).catch(() => {});
   }
 
   async function shareCode() {
@@ -260,8 +287,46 @@ export default function GroupCartPage({
 
       {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
 
-      {/* Host checkout */}
-      {ordered ? (
+      {/* Step: after checkout, show each member's share + UPI links to send */}
+      {shares && orderId ? (
+        <Card className="mt-5">
+          <p className="text-[14px] font-bold text-ink">Collect everyone&apos;s share</p>
+          <p className="mt-1 text-[12px] text-cocoa">
+            You&apos;re paying the full bill now. Send each friend their share to
+            settle up.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {shares.map((s) => (
+              <div
+                key={s.userId}
+                className="flex items-center justify-between gap-3 border-b border-line/60 pb-2 last:border-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium text-ink">
+                    {s.isHost ? `${s.name} (you)` : s.name}
+                  </p>
+                  <p className="text-[12px] text-cocoa">{rupees(s.sharePaise)}</p>
+                </div>
+                {s.isHost ? (
+                  <span className="text-[11px] text-cocoa">paying the bill</span>
+                ) : s.upiLink ? (
+                  <button
+                    onClick={() => shareUpi(s)}
+                    className="flex items-center gap-1 rounded-pill bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f]"
+                  >
+                    <Send size={12} /> Send link
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-cocoa/70">no UPI set</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button onClick={() => router.push(`/pay/${orderId}`)} className="mt-4 w-full">
+            Pay {rupees(cart.totalPaise)} &amp; place order
+          </Button>
+        </Card>
+      ) : ordered ? (
         <Button
           onClick={() => cart.orderId && router.push(`/orders/${cart.orderId}`)}
           className="mt-5 w-full"
@@ -269,13 +334,21 @@ export default function GroupCartPage({
           View order
         </Button>
       ) : cart.isHost ? (
-        <Button
-          onClick={checkout}
-          disabled={busy || cart.items.length === 0}
-          className="mt-5 w-full"
-        >
-          Place group order · {rupees(cart.totalPaise)}
-        </Button>
+        <Card className="mt-5">
+          <Input
+            label="Your UPI ID (optional — to collect shares)"
+            placeholder="name@bank"
+            value={hostUpi}
+            onChange={(e) => setHostUpi(e.target.value.trim())}
+          />
+          <Button
+            onClick={checkout}
+            disabled={busy || cart.items.length === 0}
+            className="mt-3 w-full"
+          >
+            Place group order · {rupees(cart.totalPaise)}
+          </Button>
+        </Card>
       ) : (
         <p className="mt-5 text-center text-[13px] text-cocoa">
           Waiting for the host to place the order…

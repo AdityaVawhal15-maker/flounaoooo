@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
-import { quoteRides } from "./rides.service.js";
+import { quoteRides, estimateTrip } from "./rides.service.js";
 import { adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
 
@@ -69,18 +69,6 @@ ridesRouter.get("/geocode", async (req, res, next) => {
   }
 });
 
-function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number) {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLng = ((bLng - aLng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((aLat * Math.PI) / 180) *
-      Math.cos((bLat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
 const routeQuery = z.object({
   fromLat: z.coerce.number().min(-90).max(90),
   fromLng: z.coerce.number().min(-180).max(180),
@@ -128,11 +116,10 @@ ridesRouter.get("/route", async (req, res, next) => {
     }
 
     // Fallback: straight-line distance with a road-winding factor at city speed.
-    const crowKm = haversineKm(fromLat, fromLng, toLat, toLng);
-    const distanceKm = Math.max(1, crowKm * 1.3);
+    const { distanceKm, rideMinutes } = estimateTrip(fromLat, fromLng, toLat, toLng);
     res.json({
       distanceKm,
-      rideMinutes: Math.max(5, Math.round((distanceKm / 25) * 60)),
+      rideMinutes,
       geometry: [
         [fromLng, fromLat],
         [toLng, toLat],

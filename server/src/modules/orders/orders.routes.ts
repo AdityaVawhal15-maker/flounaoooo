@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
-import { quoteRides } from "../rides/rides.service.js";
+import { quoteRides, estimateTrip } from "../rides/rides.service.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
@@ -16,14 +16,19 @@ const createFoodOrder = z.object({
   platform: z.enum(["ondc", "swiggy", "zomato"]),
 });
 
+// The client sends pickup/drop COORDINATES, not a distance. The server
+// recomputes distance+time itself so the fare can't be gamed by faking a
+// short trip. Labels (pickup/drop strings) are display-only.
 const createRideOrder = z.object({
   domain: z.literal("ride"),
   provider: z.enum(["uber", "ola", "rapido", "ondc"]),
   productName: z.string().max(60),
   pickup: z.string().max(160),
   drop: z.string().max(160),
-  distanceKm: z.number().positive().max(150),
-  rideMinutes: z.number().int().positive().max(600),
+  pickupLat: z.number().min(-90).max(90),
+  pickupLng: z.number().min(-180).max(180),
+  dropLat: z.number().min(-90).max(90),
+  dropLng: z.number().min(-180).max(180),
 });
 
 // Prices are always recomputed server-side from the catalog/quote engine —
@@ -81,10 +86,14 @@ ordersRouter.post(
         return res.status(201).json({ order });
       }
 
-      const quotes = quoteRides({
-        distanceKm: body.distanceKm,
-        rideMinutes: body.rideMinutes,
-      });
+      // Recompute the trip from coordinates — never trust a client distance.
+      const { distanceKm, rideMinutes } = estimateTrip(
+        body.pickupLat,
+        body.pickupLng,
+        body.dropLat,
+        body.dropLng,
+      );
+      const quotes = quoteRides({ distanceKm, rideMinutes });
       const quote = quotes.find(
         (q) => q.provider === body.provider && q.productName === body.productName,
       );

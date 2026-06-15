@@ -33,6 +33,30 @@ describe("orders", () => {
     expect(pricier.body.order.savedPaise).toBe(0);
   });
 
+  it("computes ride fare from coordinates server-side, ignoring client distance", async () => {
+    const { agent } = await authedAgent();
+    // Hitech City -> Airport, a long real trip. Client cannot send distanceKm.
+    const ride = await agent
+      .post("/api/orders")
+      .send({
+        domain: "ride",
+        provider: "ondc",
+        productName: "ONDC Auto",
+        pickup: "Hitech City",
+        drop: "Airport",
+        pickupLat: 17.4435,
+        pickupLng: 78.3772,
+        dropLat: 17.2403,
+        dropLng: 78.4294,
+        // Even if an attacker injects these, they're stripped by the schema:
+        distanceKm: 1,
+        amount: 1,
+      })
+      .expect(201);
+    // A ~30km auto ride costs far more than a faked 1km would.
+    expect(ride.body.order.amount).toBeGreaterThan(20000);
+  });
+
   it("rejects unknown dishes and ride products", async () => {
     const { agent } = await authedAgent();
     await agent
@@ -47,8 +71,10 @@ describe("orders", () => {
         productName: "Uber Helicopter",
         pickup: "A",
         drop: "B",
-        distanceKm: 5,
-        rideMinutes: 15,
+        pickupLat: 17.44,
+        pickupLng: 78.37,
+        dropLat: 17.24,
+        dropLng: 78.42,
       })
       .expect(404);
   });
