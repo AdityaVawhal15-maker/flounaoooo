@@ -1,12 +1,27 @@
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
+import { initRealtime } from "./realtime/socket.js";
+import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
 
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
   console.log(`radiues-api listening on http://localhost:${env.PORT}`);
 });
+
+// Realtime channel for live price-drop alerts.
+initRealtime(server);
+
+// Every minute, check active price alerts and notify owners on a match.
+const alertLoop = setInterval(async () => {
+  try {
+    const n = await checkPriceAlerts();
+    if (n > 0) console.log(`[alerts] triggered ${n} price alert(s)`);
+  } catch (err) {
+    console.error("[alerts] check failed:", err);
+  }
+}, 60_000);
 
 // Hourly housekeeping: expired OTP codes and dead refresh tokens never pile up.
 const cleanup = setInterval(
@@ -32,6 +47,7 @@ const cleanup = setInterval(
 async function shutdown(signal: string) {
   console.log(`[shutdown] ${signal} received`);
   clearInterval(cleanup);
+  clearInterval(alertLoop);
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

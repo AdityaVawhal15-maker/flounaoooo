@@ -11,6 +11,7 @@ import {
   Info,
   LogOut,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -20,6 +21,7 @@ import { Card } from "@/components/ui/Card";
 const MENU: { href: string; key: TranslationKey; icon: typeof UserRound }[] = [
   { href: "/profile/details", key: "profile.details", icon: UserRound },
   { href: "/profile/settings", key: "profile.settings", icon: Settings },
+  { href: "/profile/alerts", key: "profile.alerts", icon: Bell },
   { href: "/profile/addresses", key: "profile.address", icon: MapPin },
   { href: "/profile/help", key: "profile.help", icon: LifeBuoy },
   { href: "/profile/rewards", key: "profile.rewards", icon: Gift },

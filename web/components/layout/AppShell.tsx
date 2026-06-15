@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
+import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
 
 // Layout for all signed-in screens: persistent sidebar on desktop,
 // hamburger drawer + bottom tabs on mobile — one codebase, two views.
@@ -18,6 +19,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh w-full">
+      <PriceAlertListener />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">

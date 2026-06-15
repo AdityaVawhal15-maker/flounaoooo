@@ -39,6 +39,7 @@ model User {
   hostedCarts   GroupCart[]     @relation("HostedCarts")
   groupCartItems GroupCartItem[]
   groupCartMemberships GroupCartMember[]
+  priceAlerts   PriceAlert[]
 }
 
 // Group ordering: a shared cart one person hosts and others join via a code.
@@ -87,6 +88,25 @@ model GroupCartItem {
   createdAt  DateTime  @default(now())
 
   @@index([cartId])
+}
+
+// "Tell me when this drops below ₹X." A background loop checks active alerts
+// against the latest observed prices and fires a push + realtime event.
+model PriceAlert {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain        String // "food" | "ride"
+  itemKey       String // dishId (food) or vehicle type (ride)
+  itemName      String // human label shown in the notification
+  targetPaise   Int // notify when best price <= this
+  lastSeenPaise Int // price at the time the alert was created
+  active        Boolean   @default(true)
+  triggeredAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, active])
+  @@index([domain, itemKey, active])
 }
 
 // Observed best prices over time. Every quote generation logs one row, so the

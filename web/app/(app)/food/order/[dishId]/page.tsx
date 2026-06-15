@@ -3,11 +3,12 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Star, Clock, BadgePercent, ShieldCheck, MapPin } from "lucide-react";
+import { Star, Clock, BadgePercent, ShieldCheck, MapPin, Bell, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { useBudget } from "@/components/food/BudgetBar";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
@@ -28,6 +29,28 @@ export default function FoodOrderPage({
     { label: string; line1: string; city: string } | null | undefined
   >(undefined);
   const budget = useBudget();
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTarget, setAlertTarget] = useState("");
+  const [alertDone, setAlertDone] = useState(false);
+  const [alertBusy, setAlertBusy] = useState(false);
+
+  async function createAlert() {
+    const target = Number(alertTarget);
+    if (!Number.isInteger(target) || target < 10) return;
+    setAlertBusy(true);
+    try {
+      await api("/api/alerts", {
+        method: "POST",
+        json: { domain: "food", itemKey: dishId, targetRupees: target },
+      });
+      setAlertDone(true);
+      setAlertOpen(false);
+    } catch {
+      // surfaced inline below if it fails
+    } finally {
+      setAlertBusy(false);
+    }
+  }
 
   useEffect(() => {
     api<{ addresses: Array<{ label: string; line1: string; city: string; isDefault: boolean }> }>(
@@ -196,6 +219,55 @@ export default function FoodOrderPage({
       <p className="mt-3 flex items-center justify-center gap-1 text-[11px] text-cocoa/70">
         <ShieldCheck size={12} /> Offers are pre-applied at checkout
       </p>
+
+      {/* Price-drop alert */}
+      <Card className="mt-5">
+        {alertDone ? (
+          <p className="flex items-center gap-2 text-[13px] font-medium text-success">
+            <Check size={15} /> We&apos;ll notify you when {selected.name} drops to
+            your target.
+          </p>
+        ) : alertOpen ? (
+          <div>
+            <p className="text-[13px] font-bold text-ink">
+              Notify me when it drops below
+            </p>
+            <div className="mt-2 flex items-end gap-2">
+              <Input
+                label="Target price (₹)"
+                inputMode="numeric"
+                placeholder={String(Math.max(10, Math.round(selected.effectivePaise / 100) - 20))}
+                value={alertTarget}
+                onChange={(e) => setAlertTarget(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <Button
+                size="md"
+                onClick={createAlert}
+                disabled={alertBusy || !alertTarget}
+              >
+                Set alert
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAlertOpen(true)}
+            className="flex w-full items-center gap-2.5 text-left"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-beige/70">
+              <Bell size={16} className="text-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-bold text-ink">
+                Track this price
+              </span>
+              <span className="block text-[12px] text-cocoa">
+                Get a live alert if {selected.name} gets cheaper
+              </span>
+            </span>
+          </button>
+        )}
+      </Card>
     </div>
   );
 }
