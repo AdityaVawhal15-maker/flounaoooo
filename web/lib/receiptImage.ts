@@ -15,7 +15,9 @@ export type ReceiptData = {
 const CREAM = "#fff9f6";
 const INK = "#3d1c00";
 const ACCENT = "#e8651a";
+const ACCENT_DARK = "#d4570f";
 const COCOA = "#8b5e3c";
+const MUTED = "#a08a78";
 const BEIGE = "#f0e6de";
 
 const W = 1080;
@@ -27,14 +29,19 @@ function roundRect(
   y: number,
   w: number,
   h: number,
-  r: number,
+  r: number | { tl: number; tr: number; br: number; bl: number },
 ) {
+  const rad = typeof r === "number" ? { tl: r, tr: r, br: r, bl: r } : r;
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
+  ctx.moveTo(x + rad.tl, y);
+  ctx.lineTo(x + w - rad.tr, y);
+  ctx.arcTo(x + w, y, x + w, y + rad.tr, rad.tr);
+  ctx.lineTo(x + w, y + h - rad.br);
+  ctx.arcTo(x + w, y + h, x + w - rad.br, y + h, rad.br);
+  ctx.lineTo(x + rad.bl, y + h);
+  ctx.arcTo(x, y + h, x, y + h - rad.bl, rad.bl);
+  ctx.lineTo(x, y + rad.tl);
+  ctx.arcTo(x, y, x + rad.tl, y, rad.tl);
   ctx.closePath();
 }
 
@@ -64,6 +71,35 @@ function wrapText(
   return cursorY;
 }
 
+// Loads the brand logo and recolors its opaque pixels white so it reads on the
+// accent band. Returns null if it can't load (we then fall back to a drawn mark).
+async function loadWhiteLogo(): Promise<HTMLCanvasElement | null> {
+  try {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const loaded = new Promise<boolean>((resolve) => {
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+    });
+    img.src = "/logo.png";
+    if (!(await loaded)) return null;
+
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth || 500;
+    c.height = img.naturalHeight || 500;
+    const cx = c.getContext("2d");
+    if (!cx) return null;
+    cx.drawImage(img, 0, 0, c.width, c.height);
+    // Recolor: keep alpha, paint every visible pixel white.
+    cx.globalCompositeOperation = "source-in";
+    cx.fillStyle = "#ffffff";
+    cx.fillRect(0, 0, c.width, c.height);
+    return c;
+  } catch {
+    return null;
+  }
+}
+
 export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -71,87 +107,134 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
+  const logo = await loadWhiteLogo();
+
   // Background
   ctx.fillStyle = CREAM;
   ctx.fillRect(0, 0, W, H);
 
-  // Outer card
+  const M = 64; // outer margin
+  const cardX = M;
+  const cardY = M;
+  const cardW = W - M * 2;
+  const cardH = H - M * 2;
+  const radius = 56;
+
+  // Card shadow
+  ctx.save();
+  ctx.shadowColor = "rgba(61, 28, 0, 0.18)";
+  ctx.shadowBlur = 60;
+  ctx.shadowOffsetY = 24;
   ctx.fillStyle = "#ffffff";
-  roundRect(ctx, 70, 70, W - 140, H - 140, 48);
+  roundRect(ctx, cardX, cardY, cardW, cardH, radius);
+  ctx.fill();
+  ctx.restore();
+
+  // Accent header band (gradient) with rounded top corners only
+  const bandH = 230;
+  const grad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + bandH);
+  grad.addColorStop(0, "#ff8a4c");
+  grad.addColorStop(1, ACCENT);
+  ctx.fillStyle = grad;
+  roundRect(ctx, cardX, cardY, cardW, bandH, {
+    tl: radius,
+    tr: radius,
+    br: 0,
+    bl: 0,
+  });
   ctx.fill();
 
-  // Accent header band
-  ctx.fillStyle = ACCENT;
-  roundRect(ctx, 70, 70, W - 140, 200, 48);
-  ctx.fill();
-  ctx.fillStyle = ACCENT;
-  ctx.fillRect(70, 200, W - 140, 70); // square off the band bottom
-
-  // Logo mark (draw the brand triangle so we never depend on an image load)
-  drawLogo(ctx, W / 2, 150, 54);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.textAlign = "center";
-  ctx.font = "700 44px Inter, system-ui, sans-serif";
-  ctx.fillText("Radiues", W / 2, 240);
-
-  // Headline
-  ctx.textAlign = "center";
+  // Logo + wordmark, centered in the band
   const centerX = W / 2;
+  const logoSize = 96;
+  if (logo) {
+    ctx.drawImage(
+      logo,
+      centerX - logoSize / 2,
+      cardY + 36,
+      logoSize,
+      logoSize,
+    );
+  } else {
+    drawLogo(ctx, centerX, cardY + 84, 52);
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.font = "700 50px Inter, system-ui, sans-serif";
+  ctx.fillText("Radiues", centerX, cardY + bandH - 38);
 
+  // ---- Body ----
   if (data.savedPaise > 0) {
-    ctx.fillStyle = COCOA;
-    ctx.font = "500 38px Inter, system-ui, sans-serif";
-    ctx.fillText("I just saved", centerX, 430);
+    ctx.fillStyle = MUTED;
+    ctx.font = "500 40px Inter, system-ui, sans-serif";
+    ctx.fillText("I just saved", centerX, 470);
 
+    // Soft glow behind the big number
+    ctx.save();
+    ctx.shadowColor = "rgba(232, 101, 26, 0.28)";
+    ctx.shadowBlur = 50;
     ctx.fillStyle = ACCENT;
-    ctx.font = "800 150px Inter, system-ui, sans-serif";
-    ctx.fillText(rupees(data.savedPaise), centerX, 580);
+    ctx.font = "800 168px Inter, system-ui, sans-serif";
+    ctx.fillText(rupees(data.savedPaise), centerX, 620);
+    ctx.restore();
 
     ctx.fillStyle = INK;
-    ctx.font = "500 36px Inter, system-ui, sans-serif";
-    ctx.fillText("with Radiues", centerX, 650);
+    ctx.font = "600 40px Inter, system-ui, sans-serif";
+    ctx.fillText("with Radiues", centerX, 690);
   } else {
+    ctx.fillStyle = MUTED;
+    ctx.font = "500 40px Inter, system-ui, sans-serif";
+    ctx.fillText("Radiues picked", centerX, 470);
+
     ctx.fillStyle = ACCENT;
-    ctx.font = "800 84px Inter, system-ui, sans-serif";
-    ctx.fillText("Best pick,", centerX, 520);
-    ctx.fillText("decided.", centerX, 620);
+    ctx.font = "800 110px Inter, system-ui, sans-serif";
+    ctx.fillText("the best", centerX, 580);
+    ctx.fillText("option", centerX, 690);
   }
+
+  // Hairline divider
+  ctx.strokeStyle = BEIGE;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 140, 740);
+  ctx.lineTo(centerX + 140, 740);
+  ctx.stroke();
 
   // What was compared
   ctx.fillStyle = INK;
-  ctx.font = "600 40px Inter, system-ui, sans-serif";
-  wrapText(
+  ctx.font = "600 42px Inter, system-ui, sans-serif";
+  const afterCompare = wrapText(
     ctx,
-    `Radiues compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
+    `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
     centerX,
-    760,
-    W - 280,
-    54,
+    810,
+    cardW - 160,
+    56,
   );
 
   // Order title chip
-  ctx.fillStyle = BEIGE;
-  const chipW = Math.min(W - 220, ctx.measureText(data.title).width + 100);
-  roundRect(ctx, centerX - chipW / 2, 850, chipW, 70, 35);
-  ctx.fill();
-  ctx.fillStyle = COCOA;
-  ctx.font = "600 32px Inter, system-ui, sans-serif";
+  const chipY = afterCompare + 36;
+  ctx.font = "600 34px Inter, system-ui, sans-serif";
   const clippedTitle =
-    data.title.length > 38 ? `${data.title.slice(0, 37)}…` : data.title;
-  ctx.fillText(clippedTitle, centerX, 895);
+    data.title.length > 40 ? `${data.title.slice(0, 39)}…` : data.title;
+  const chipW = Math.min(cardW - 120, ctx.measureText(clippedTitle).width + 80);
+  ctx.fillStyle = "#fdeee4";
+  roundRect(ctx, centerX - chipW / 2, chipY, chipW, 72, 36);
+  ctx.fill();
+  ctx.fillStyle = ACCENT_DARK;
+  ctx.fillText(clippedTitle, centerX, chipY + 48);
 
-  // Tagline
+  // Tagline footer
   ctx.fillStyle = COCOA;
-  ctx.font = "italic 600 36px Inter, system-ui, sans-serif";
-  ctx.fillText("Stop searching. Start deciding.", centerX, 990);
+  ctx.font = "italic 700 38px Inter, system-ui, sans-serif";
+  ctx.fillText("Stop searching. Start deciding.", centerX, cardY + cardH - 48);
 
   return new Promise((resolve) =>
     canvas.toBlob((blob) => resolve(blob), "image/png", 0.95),
   );
 }
 
-// Recreates the interlocking-triangle logo so the card is self-contained.
+// Fallback mark if the logo file can't be loaded (offline edge cases).
 function drawLogo(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -169,7 +252,6 @@ function drawLogo(
   ctx.lineTo(cx - size, cy + h * 0.7);
   ctx.closePath();
   ctx.stroke();
-  // inner notch
   ctx.beginPath();
   ctx.moveTo(cx, cy - h * 0.2);
   ctx.lineTo(cx + size * 0.5, cy + h * 0.55);
