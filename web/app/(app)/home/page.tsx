@@ -15,6 +15,8 @@ import {
 } from "@/components/chat/RecommendationCards";
 import { VoiceButton } from "@/components/chat/VoiceButton";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { CategoryTile, type TILE_THEMES } from "@/components/ui/CategoryTile";
 import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
 import { cn } from "@/lib/cn";
@@ -25,10 +27,11 @@ const SUGGESTIONS: {
   key: TranslationKey;
   icon: typeof MapPin;
   prompt: string;
+  theme: keyof typeof TILE_THEMES;
 }[] = [
-  { key: "chat.bookRide", icon: MapPin, prompt: "Book a ride to " },
-  { key: "chat.orderPizza", icon: Pizza, prompt: "Order a pizza under ₹300" },
-  { key: "chat.shopNow", icon: ShoppingBag, prompt: "Find me a gaming laptop under ₹70000" },
+  { key: "chat.orderPizza", icon: Pizza, prompt: "Order a pizza under ₹300", theme: "orange" },
+  { key: "chat.bookRide", icon: MapPin, prompt: "Book a ride to ", theme: "blue" },
+  { key: "chat.shopNow", icon: ShoppingBag, prompt: "Find me a gaming laptop under ₹70000", theme: "purple" },
 ];
 
 export default function ChatHomePage() {
@@ -126,42 +129,60 @@ function ChatHome() {
   return (
     <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6">
       {empty ? (
-        <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <h1 className="text-[26px] font-bold leading-snug lg:text-[34px]">
-            <span className="text-ink">{t("chat.heading1")}</span>
-            <span className="block text-accent">{t("chat.heading2")}</span>
-          </h1>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {SUGGESTIONS.map(({ key, icon: Icon, prompt }) => (
-              <button
-                key={key}
-                onClick={() =>
-                  prompt.endsWith(" ") ? setInput(prompt) : send(prompt)
-                }
-                className="flex items-center gap-1.5 rounded-pill bg-beige px-4 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-[#e6d8cc]"
-              >
-                <Icon size={14} className="text-cocoa" />
-                {t(key)}
-              </button>
+        <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+          <FadeIn y={10}>
+            <p className="text-[13px] font-medium text-muted">
+              Hi {user?.name?.split(" ")[0]} 👋
+            </p>
+          </FadeIn>
+          <FadeIn delay={0.08} className="mt-2">
+            <h1 className="text-[30px] font-bold leading-[1.12] tracking-tight text-ink lg:text-[40px]">
+              {t("chat.heading1")}
+              <br className="hidden sm:block" />
+              <span className="italic text-accent">{t("chat.heading2")}</span>
+            </h1>
+          </FadeIn>
+
+          {/* Suggestion tiles */}
+          <Stagger delayChildren={0.18} className="mt-9 grid w-full max-w-md grid-cols-3 gap-3">
+            {SUGGESTIONS.map(({ key, icon: Icon, prompt, theme }) => (
+              <StaggerItem key={key}>
+                <button
+                  onClick={() =>
+                    prompt.endsWith(" ") ? setInput(prompt) : send(prompt)
+                  }
+                  className="flex w-full flex-col items-center gap-2 rounded-card border border-line/60 bg-card p-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card"
+                >
+                  <CategoryTile icon={Icon} theme={theme} size={42} />
+                  <span className="text-[12px] font-semibold text-ink">{t(key)}</span>
+                </button>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
 
           {usual && (
-            <Link
-              href={`/food/order/${usual.dishId}?platform=${usual.platform}`}
-              className="mt-4 flex items-center gap-2 rounded-pill border border-accent/50 bg-accent-soft px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:bg-[#ffdfc9]"
-            >
-              <RotateCcw size={14} className="text-accent" />
-              {t("chat.yourUsual")} {usual.name} · {rupees(usual.effectivePaise)}
-              <span className="text-[11px] font-normal text-cocoa">
-                ordered {usual.timesOrdered}×
-              </span>
-            </Link>
+            <FadeIn delay={0.4} className="mt-4 w-full max-w-md">
+              <Link
+                href={`/food/order/${usual.dishId}?platform=${usual.platform}`}
+                className="flex items-center gap-2.5 rounded-card border border-accent/40 bg-accent-soft/60 px-4 py-3 text-left transition-colors hover:bg-accent-soft"
+              >
+                <RotateCcw size={16} className="shrink-0 text-accent" />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                  {t("chat.yourUsual")} {usual.name}
+                </span>
+                <span className="shrink-0 text-[13px] font-bold text-accent">
+                  {rupees(usual.effectivePaise)}
+                </span>
+              </Link>
+            </FadeIn>
           )}
-          <p className="mt-8 text-[12px] text-cocoa/70">
-            Hi {user?.name?.split(" ")[0]} — I compare prices, offers and delivery
-            times across platforms, then pick the best one.
-          </p>
+
+          <FadeIn delay={0.5}>
+            <p className="mt-8 max-w-[300px] text-[12px] leading-relaxed text-muted">
+              I compare prices, offers and delivery times across platforms, then
+              pick the best one for you.
+            </p>
+          </FadeIn>
         </div>
       ) : (
         <div className="flex-1 space-y-4 overflow-y-auto py-6">
