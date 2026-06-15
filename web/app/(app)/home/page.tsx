@@ -3,7 +3,18 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MapPin, Pizza, Send, RotateCcw, ShoppingBag } from "lucide-react";
+import {
+  MapPin,
+  Pizza,
+  Send,
+  RotateCcw,
+  ShoppingBag,
+  Car,
+  Utensils,
+  Coffee,
+  Moon,
+  type LucideIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -17,21 +28,36 @@ import { VoiceButton } from "@/components/chat/VoiceButton";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CategoryTile, type TILE_THEMES } from "@/components/ui/CategoryTile";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
 import { cn } from "@/lib/cn";
 
 type Usual = FoodQuote & { timesOrdered: number };
 
-const SUGGESTIONS: {
-  key: TranslationKey;
-  icon: typeof MapPin;
+// Server-built personalized chips. `icon`/`theme` are string keys we map to
+// real components/themes here (they can't cross the JSON boundary).
+type Suggestion = {
+  label: string;
   prompt: string;
+  icon: string;
   theme: keyof typeof TILE_THEMES;
-}[] = [
-  { key: "chat.orderPizza", icon: Pizza, prompt: "Order a pizza under ₹300", theme: "orange" },
-  { key: "chat.bookRide", icon: MapPin, prompt: "Book a ride to ", theme: "blue" },
-  { key: "chat.shopNow", icon: ShoppingBag, prompt: "Find me a gaming laptop under ₹70000", theme: "purple" },
+};
+
+const ICONS: Record<string, LucideIcon> = {
+  pizza: Pizza,
+  mapPin: MapPin,
+  shoppingBag: ShoppingBag,
+  car: Car,
+  utensils: Utensils,
+  coffee: Coffee,
+  moon: Moon,
+  rotate: RotateCcw,
+};
+
+// Shown instantly while the personalized set loads (and if the request fails).
+const FALLBACK_SUGGESTIONS: Suggestion[] = [
+  { label: "Order pizza", prompt: "Order a pizza under ₹300", icon: "pizza", theme: "orange" },
+  { label: "Book a ride", prompt: "Book a ride to ", icon: "mapPin", theme: "blue" },
+  { label: "Shop a laptop", prompt: "Find me a gaming laptop under ₹70000", icon: "shoppingBag", theme: "purple" },
 ];
 
 export default function ChatHomePage() {
@@ -52,12 +78,18 @@ function ChatHome() {
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [thinking, setThinking] = useState(false);
   const [usual, setUsual] = useState<Usual | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api<{ usual: Usual | null }>("/api/users/usual")
       .then((d) => setUsual(d.usual))
       .catch(() => setUsual(null));
+    api<{ suggestions: Suggestion[] }>("/api/users/suggestions")
+      .then((d) => d.suggestions.length > 0 && setSuggestions(d.suggestions))
+      .catch(() => {
+        /* keep fallbacks */
+      });
   }, []);
 
   // "New Chat" (no ?chat param) resets the thread — reset-during-render.
@@ -143,21 +175,26 @@ function ChatHome() {
             </h1>
           </FadeIn>
 
-          {/* Suggestion tiles */}
-          <Stagger delayChildren={0.18} className="mt-9 grid w-full max-w-md grid-cols-3 gap-3">
-            {SUGGESTIONS.map(({ key, icon: Icon, prompt, theme }) => (
-              <StaggerItem key={key}>
-                <button
-                  onClick={() =>
-                    prompt.endsWith(" ") ? setInput(prompt) : send(prompt)
-                  }
-                  className="flex w-full flex-col items-center gap-2 rounded-card border border-line/60 bg-card p-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card"
-                >
-                  <CategoryTile icon={Icon} theme={theme} size={42} />
-                  <span className="text-[12px] font-semibold text-ink">{t(key)}</span>
-                </button>
-              </StaggerItem>
-            ))}
+          {/* Suggestion tiles — personalized server-side, fixed equal height */}
+          <Stagger delayChildren={0.18} className="mt-9 grid w-full max-w-md grid-cols-3 items-stretch gap-3">
+            {suggestions.map((s) => {
+              const Icon = ICONS[s.icon] ?? Pizza;
+              return (
+                <StaggerItem key={s.label} className="h-full">
+                  <button
+                    onClick={() =>
+                      s.prompt.endsWith(" ") ? setInput(s.prompt) : send(s.prompt)
+                    }
+                    className="flex h-full w-full flex-col items-center gap-2 rounded-card border border-line/60 bg-card p-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card"
+                  >
+                    <CategoryTile icon={Icon} theme={s.theme} size={42} />
+                    <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-ink">
+                      {s.label}
+                    </span>
+                  </button>
+                </StaggerItem>
+              );
+            })}
           </Stagger>
 
           {usual && (
