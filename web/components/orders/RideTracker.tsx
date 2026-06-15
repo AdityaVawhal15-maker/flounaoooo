@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Phone, Star, ShieldCheck, Navigation, Copy, Check } from "lucide-react";
+import { Phone, Star, ShieldCheck, Navigation, Copy, Check, Share2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { FadeIn } from "@/components/ui/motion";
@@ -55,6 +55,8 @@ export function RideTracker({
   const { t: tr } = useI18n();
   const [t, setT] = useState<Tracking | null>(null);
   const [copied, setCopied] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -71,13 +73,47 @@ export function RideTracker({
     };
   }, [orderId]);
 
-  // Stop polling once the trip completes.
+  // Stop polling once the trip reaches a terminal state.
   useEffect(() => {
-    if (t?.state === "completed" && timer.current) clearInterval(timer.current);
+    if ((t?.state === "completed" || t?.state === "cancelled") && timer.current)
+      clearInterval(timer.current);
   }, [t?.state]);
 
   const done = t?.state === "completed";
+  const cancelled = t?.state === "cancelled";
   const searching = !t || t.state === "searching";
+  // Cancellable while the ride is live (not searching's first beat, not done).
+  const canCancel = Boolean(t) && !done && !cancelled;
+
+  async function cancelRide() {
+    setCancelling(true);
+    try {
+      await api(`/api/orders/${orderId}/cancel`, { method: "POST", json: {} });
+      const d = await api<{ tracking: Tracking }>(`/api/orders/${orderId}/track`);
+      setT(d.tracking);
+      setConfirmCancel(false);
+    } catch {
+      // leave the tracker as-is; user can retry
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function shareTrip() {
+    const url = `${window.location.origin}/orders/${orderId}`;
+    const text = tr("track.shareText");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Radiues", text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }
+    } catch {
+      // user dismissed the share sheet
+    }
+  }
 
   return (
     <FadeIn y={10}>
@@ -90,28 +126,32 @@ export function RideTracker({
             </span>
             <div>
               <p className="text-[13px] font-bold text-ink">
-                {done
-                  ? tr("track.completed")
-                  : t?.state === "in_progress"
-                    ? `${tr("track.onTheWay")} · ${dropLabel}`
-                    : t?.state === "arrived"
-                      ? tr("track.arrived")
-                      : searching
-                        ? tr("track.searching")
-                        : tr("track.onTheWay")}
+                {cancelled
+                  ? tr("track.cancelled")
+                  : done
+                    ? tr("track.completed")
+                    : t?.state === "in_progress"
+                      ? `${tr("track.onTheWay")} · ${dropLabel}`
+                      : t?.state === "arrived"
+                        ? tr("track.arrived")
+                        : searching
+                          ? tr("track.searching")
+                          : tr("track.onTheWay")}
               </p>
               <p className="text-[11px] text-cocoa">
-                {done
-                  ? tr("track.enjoyed")
-                  : t?.state === "in_progress"
-                    ? `${t.dropEtaMinutes} ${tr("track.minToDrop")}`
-                    : t && t.pickupEtaMinutes > 0
-                      ? `${t.pickupEtaMinutes} ${tr("track.minAway")}`
-                      : t?.statusMessage ?? "…"}
+                {cancelled
+                  ? tr("track.cancelledSub")
+                  : done
+                    ? tr("track.enjoyed")
+                    : t?.state === "in_progress"
+                      ? `${t.dropEtaMinutes} ${tr("track.minToDrop")}`
+                      : t && t.pickupEtaMinutes > 0
+                        ? `${t.pickupEtaMinutes} ${tr("track.minAway")}`
+                        : t?.statusMessage ?? "…"}
               </p>
             </div>
           </div>
-          {!done && (
+          {!done && !cancelled && (
             <span className="flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
               <span className="size-1.5 animate-pulse rounded-full bg-success" /> {tr("track.live")}
             </span>
@@ -130,14 +170,29 @@ export function RideTracker({
 
         {/* Searching shimmer or driver card */}
         {searching ? (
-          <div className="flex items-center gap-3 px-4 py-4">
-            <div className="size-12 shrink-0 animate-pulse rounded-full bg-beige" />
-            <div className="flex-1 space-y-2">
-              <div className="h-3.5 w-1/2 animate-pulse rounded bg-beige" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-beige" />
+          <div className="px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="size-12 shrink-0 animate-pulse rounded-full bg-beige" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-1/2 animate-pulse rounded bg-beige" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-beige" />
+              </div>
             </div>
+            {canCancel && (
+              <button
+                onClick={() => (confirmCancel ? cancelRide() : setConfirmCancel(true))}
+                disabled={cancelling}
+                className="mt-3 w-full rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5 disabled:opacity-60"
+              >
+                {cancelling
+                  ? tr("track.cancelling")
+                  : confirmCancel
+                    ? tr("track.confirmCancel")
+                    : tr("track.cancelRide")}
+              </button>
+            )}
           </div>
-        ) : (
+        ) : cancelled ? null : (
           t?.driver && (
             <div className="px-4 py-4">
               <div className="flex items-center gap-3">
@@ -201,6 +256,44 @@ export function RideTracker({
                   >
                     <Phone size={17} />
                   </a>
+                </div>
+              )}
+
+              {/* Share + Cancel actions */}
+              {(canCancel || done) && (
+                <div className="mt-2.5 flex items-center gap-2.5">
+                  <button
+                    onClick={shareTrip}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
+                  >
+                    <Share2 size={14} className="text-accent" /> {tr("track.share")}
+                  </button>
+                  {canCancel &&
+                    (confirmCancel ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <button
+                          onClick={cancelRide}
+                          disabled={cancelling}
+                          className="flex-1 rounded-pill bg-danger py-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#c0392b] disabled:opacity-60"
+                        >
+                          {cancelling ? tr("track.cancelling") : tr("track.confirmCancel")}
+                        </button>
+                        <button
+                          onClick={() => setConfirmCancel(false)}
+                          disabled={cancelling}
+                          className="rounded-pill border border-line bg-card px-3 py-2.5 text-[12px] font-semibold text-cocoa"
+                        >
+                          {tr("track.keepRide")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmCancel(true)}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5"
+                      >
+                        <X size={14} /> {tr("track.cancelRide")}
+                      </button>
+                    ))}
                 </div>
               )}
             </div>

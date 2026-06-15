@@ -80,6 +80,14 @@ export const dictionaries = {
     "track.startOtp": "Start OTP",
     "track.live": "Live",
     "track.trips": "trips",
+    "track.cancelled": "Ride cancelled",
+    "track.cancelledSub": "This ride was cancelled",
+    "track.share": "Share trip",
+    "track.shareText": "Follow my Radiues ride live:",
+    "track.cancelRide": "Cancel ride",
+    "track.confirmCancel": "Confirm cancel",
+    "track.cancelling": "Cancelling…",
+    "track.keepRide": "Keep",
   },
 
   hi: {
@@ -152,6 +160,14 @@ export const dictionaries = {
     "track.startOtp": "स्टार्ट OTP",
     "track.live": "लाइव",
     "track.trips": "यात्राएँ",
+    "track.cancelled": "सवारी रद्द",
+    "track.cancelledSub": "यह सवारी रद्द कर दी गई",
+    "track.share": "ट्रिप शेयर करें",
+    "track.shareText": "मेरी Radiues सवारी लाइव देखें:",
+    "track.cancelRide": "सवारी रद्द करें",
+    "track.confirmCancel": "रद्द की पुष्टि करें",
+    "track.cancelling": "रद्द हो रही है…",
+    "track.keepRide": "रहने दें",
   },
 
   te: {
@@ -224,6 +240,14 @@ export const dictionaries = {
     "track.startOtp": "స్టార్ట్ OTP",
     "track.live": "లైవ్",
     "track.trips": "ప్రయాణాలు",
+    "track.cancelled": "రైడ్ రద్దు చేయబడింది",
+    "track.cancelledSub": "ఈ రైడ్ రద్దు చేయబడింది",
+    "track.share": "ట్రిప్ షేర్ చేయండి",
+    "track.shareText": "నా Radiues రైడ్ లైవ్‌లో చూడండి:",
+    "track.cancelRide": "రైడ్ రద్దు చేయండి",
+    "track.confirmCancel": "రద్దును నిర్ధారించండి",
+    "track.cancelling": "రద్దు అవుతోంది…",
+    "track.keepRide": "ఉంచండి",
   },
 } as const;
 
