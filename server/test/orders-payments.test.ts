@@ -55,6 +55,11 @@ describe("orders", () => {
       .expect(201);
     // A ~30km auto ride costs far more than a faked 1km would.
     expect(ride.body.order.amount).toBeGreaterThan(20000);
+
+    // Coordinates are persisted so the order screen can render a live map.
+    const detail = await agent.get(`/api/orders/${ride.body.order.id}`).expect(200);
+    expect(detail.body.order.details.pickupLat).toBeCloseTo(17.4435, 3);
+    expect(detail.body.order.details.dropLng).toBeCloseTo(78.4294, 3);
   });
 
   it("rejects unknown dishes and ride products", async () => {

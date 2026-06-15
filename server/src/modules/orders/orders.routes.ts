@@ -121,6 +121,12 @@ ordersRouter.post(
             ...quote,
             pickup: body.pickup,
             drop: body.drop,
+            // Coordinates power the live tracking map on the order screen.
+            pickupLat: body.pickupLat,
+            pickupLng: body.pickupLng,
+            dropLat: body.dropLat,
+            dropLng: body.dropLng,
+            distanceKm,
             comparedOptions: quotes.length,
             comparedPlatforms: new Set(quotes.map((q) => q.provider)).size,
           }),
