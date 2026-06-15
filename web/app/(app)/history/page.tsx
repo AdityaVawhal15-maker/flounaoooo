@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/Card";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 type OrderSummary = {
@@ -22,10 +24,20 @@ type OrderSummary = {
 };
 
 const TABS = [
-  { key: "", label: "All" },
-  { key: "food", label: "Food" },
-  { key: "ride", label: "Rides" },
-] as const;
+  { key: "", labelKey: "history.all" },
+  { key: "food", labelKey: "nav.food" },
+  { key: "ride", labelKey: "nav.rides" },
+] as const satisfies ReadonlyArray<{ key: string; labelKey: TranslationKey }>;
+
+// Maps a server status to a localized label key; unknown statuses fall back to
+// a humanized version of the raw value.
+const STATUS_KEYS: Record<string, TranslationKey> = {
+  confirmed: "status.confirmed",
+  in_progress: "status.in_progress",
+  completed: "status.completed",
+  pending_payment: "status.pending_payment",
+  cancelled: "status.cancelled",
+};
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-accent-soft text-accent",
@@ -36,6 +48,8 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function HistoryPage() {
+  const { t, lang } = useI18n();
+  const localeTag = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("");
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
   const [error, setError] = useState("");
@@ -51,28 +65,28 @@ export default function HistoryPage() {
   useEffect(() => {
     api<{ orders: OrderSummary[] }>(`/api/orders${tab ? `?domain=${tab}` : ""}`)
       .then((d) => setOrders(d.orders))
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
-  }, [tab]);
+      .catch(() => setError(t("history.loadError")));
+  }, [tab, t]);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-5 lg:px-6 lg:py-8">
       <FadeIn y={8}>
-        <h1 className="text-[20px] font-bold text-ink">History</h1>
+        <h1 className="text-[20px] font-bold text-ink">{t("history.title")}</h1>
       </FadeIn>
 
       <div className="mt-4 flex gap-2">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
+            key={tabItem.key}
+            onClick={() => setTab(tabItem.key)}
             className={cn(
               "rounded-pill px-5 py-2 text-[13px] font-semibold transition-colors",
-              tab === t.key
+              tab === tabItem.key
                 ? "bg-cocoa text-white"
                 : "border border-line bg-card text-cocoa hover:bg-beige/40",
             )}
           >
-            {t.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>
@@ -84,7 +98,7 @@ export default function HistoryPage() {
           Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         {orders?.length === 0 && (
           <p className="py-10 text-center text-[13px] text-cocoa">
-            Nothing here yet — ask Radiues for food or a ride to get started.
+            {t("history.empty")}
           </p>
         )}
         {orders?.map((o) => (
@@ -104,7 +118,7 @@ export default function HistoryPage() {
                     {o.title}
                   </p>
                   <p className="text-[11px] text-cocoa">
-                    {new Date(o.createdAt).toLocaleString("en-IN", {
+                    {new Date(o.createdAt).toLocaleString(localeTag, {
                       day: "numeric",
                       month: "short",
                       hour: "2-digit",
@@ -121,7 +135,9 @@ export default function HistoryPage() {
                       STATUS_STYLES[o.status] ?? "bg-beige text-cocoa",
                     )}
                   >
-                    {o.status.replace("_", " ")}
+                    {STATUS_KEYS[o.status]
+                      ? t(STATUS_KEYS[o.status]!)
+                      : o.status.replace("_", " ")}
                   </span>
                 </div>
                 <ChevronRight size={16} className="shrink-0 text-cocoa/50" />
