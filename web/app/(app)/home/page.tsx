@@ -13,14 +13,20 @@ import {
   RideRecommendation,
 } from "@/components/chat/RecommendationCards";
 import { VoiceButton } from "@/components/chat/VoiceButton";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
 import { cn } from "@/lib/cn";
 
 type Usual = FoodQuote & { timesOrdered: number };
 
-const SUGGESTIONS = [
-  { label: "Book a ride", icon: MapPin, prompt: "Book a ride to " },
-  { label: "Order pizza", icon: Pizza, prompt: "Order a pizza under ₹300" },
+const SUGGESTIONS: {
+  key: TranslationKey;
+  icon: typeof MapPin;
+  prompt: string;
+}[] = [
+  { key: "chat.bookRide", icon: MapPin, prompt: "Book a ride to " },
+  { key: "chat.orderPizza", icon: Pizza, prompt: "Order a pizza under ₹300" },
 ];
 
 export default function ChatHomePage() {
@@ -33,6 +39,7 @@ export default function ChatHomePage() {
 
 function ChatHome() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const chatParam = useSearchParams().get("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -119,20 +126,20 @@ function ChatHome() {
       {empty ? (
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <h1 className="text-[26px] font-bold leading-snug lg:text-[34px]">
-            <span className="text-ink">What do you want to </span>
-            <span className="block text-accent">choose today?</span>
+            <span className="text-ink">{t("chat.heading1")}</span>
+            <span className="block text-accent">{t("chat.heading2")}</span>
           </h1>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {SUGGESTIONS.map(({ label, icon: Icon, prompt }) => (
+            {SUGGESTIONS.map(({ key, icon: Icon, prompt }) => (
               <button
-                key={label}
+                key={key}
                 onClick={() =>
                   prompt.endsWith(" ") ? setInput(prompt) : send(prompt)
                 }
                 className="flex items-center gap-1.5 rounded-pill bg-beige px-4 py-2 text-[13px] font-medium text-ink transition-colors hover:bg-[#e6d8cc]"
               >
                 <Icon size={14} className="text-cocoa" />
-                {label}
+                {t(key)}
               </button>
             ))}
           </div>
@@ -143,7 +150,7 @@ function ChatHome() {
               className="mt-4 flex items-center gap-2 rounded-pill border border-accent/50 bg-accent-soft px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:bg-[#ffdfc9]"
             >
               <RotateCcw size={14} className="text-accent" />
-              Your usual? {usual.name} · {rupees(usual.effectivePaise)}
+              {t("chat.yourUsual")} {usual.name} · {rupees(usual.effectivePaise)}
               <span className="text-[11px] font-normal text-cocoa">
                 ordered {usual.timesOrdered}×
               </span>
@@ -213,7 +220,7 @@ function ChatHome() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Radiues"
+            placeholder={t("chat.placeholder")}
             maxLength={500}
             className="h-10 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
           />

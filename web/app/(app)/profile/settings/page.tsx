@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wallet, Bell } from "lucide-react";
+import { Wallet, Bell, Languages } from "lucide-react";
 import { api } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
 import { Card } from "@/components/ui/Card";
@@ -12,6 +12,8 @@ import {
   enablePush,
   getSubscriptionState,
 } from "@/lib/push";
+import { useI18n } from "@/components/i18n/I18nContext";
+import { LANGUAGES } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 // Local-only preferences (no server effect yet).
@@ -21,6 +23,7 @@ const LOCAL_SETTINGS = [
 ];
 
 export default function SettingsPage() {
+  const { t, lang, setLang } = useI18n();
   const [values, setValues] = useState<Record<string, boolean>>({
     email: true,
     tips: true,
@@ -82,11 +85,34 @@ export default function SettingsPage() {
   }
 
   return (
-    <SubPage title="Settings">
+    <SubPage title={t("profile.settings")}>
+      {/* Language */}
+      <Card className="mb-4">
+        <p className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
+          <Languages size={15} className="text-accent" /> {t("settings.language")}
+        </p>
+        <p className="mt-1 text-[12px] text-cocoa">{t("settings.languageSub")}</p>
+        <div className="mt-3 flex gap-2">
+          {LANGUAGES.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => setLang(l.code)}
+              className={
+                l.code === lang
+                  ? "flex-1 rounded-pill border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent"
+                  : "flex-1 rounded-pill border border-line bg-card px-3 py-2 text-[13px] text-cocoa hover:bg-beige/40"
+              }
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
       {/* Budget Guardian */}
       <Card className="mb-4">
         <p className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
-          <Wallet size={15} className="text-accent" /> Weekly food budget
+          <Wallet size={15} className="text-accent" /> {t("settings.budgetTitle")}
         </p>
         <p className="mt-1 text-[12px] text-cocoa">
           Radiues tracks your food spend Monday–Sunday and warns you before an
@@ -119,7 +145,7 @@ export default function SettingsPage() {
             <Bell size={16} className="text-accent" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-medium text-ink">Push notifications</p>
+            <p className="text-[14px] font-medium text-ink">{t("settings.pushTitle")}</p>
             <p className="text-[12px] text-cocoa">
               {pushState === "unsupported"
                 ? "Not supported in this browser"

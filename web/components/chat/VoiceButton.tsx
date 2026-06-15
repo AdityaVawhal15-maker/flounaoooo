@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 // Browser-native speech recognition (Chrome/Edge/Android). No API cost.
 type SpeechRecognitionLike = {
@@ -38,6 +39,7 @@ export function VoiceButton({
   onTranscript: (text: string) => void;
   onFinal: (text: string) => void;
 }) {
+  const { speechLang } = useI18n();
   // Lazy initializer runs client-side only (component is "use client"),
   // so feature detection is SSR-safe without an effect.
   const [supported] = useState(() => getRecognizer() !== null);
@@ -56,7 +58,7 @@ export function VoiceButton({
     const rec = getRecognizer();
     if (!rec) return;
     recRef.current = rec;
-    rec.lang = "en-IN"; // handles Indian English + common Hinglish phrasing
+    rec.lang = speechLang; // follows the user's chosen language (en/hi/te-IN)
     rec.interimResults = true;
     rec.continuous = false;
 

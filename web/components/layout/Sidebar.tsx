@@ -15,14 +15,16 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
-const navItems = [
-  { href: "/home", label: "Home", icon: Home },
-  { href: "/history", label: "History", icon: History },
-  { href: "/food", label: "Food", icon: Pizza },
-  { href: "/rides", label: "Rides", icon: Car },
+const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
+  { href: "/home", key: "nav.home", icon: Home },
+  { href: "/history", key: "nav.history", icon: History },
+  { href: "/food", key: "nav.food", icon: Pizza },
+  { href: "/rides", key: "nav.rides", icon: Car },
 ];
 
 export function Sidebar({
@@ -34,6 +36,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const [recent, setRecent] = useState<ChatSessionSummary[]>([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -83,11 +86,11 @@ export function Sidebar({
           className="mt-6 flex h-11 items-center justify-center gap-2 rounded-pill bg-accent-soft text-[14px] font-semibold text-ink hover:bg-[#ffdfc9] transition-colors"
         >
           <Plus size={16} />
-          New Chat
+          {t("nav.newChat")}
         </Link>
 
         <nav className="mt-6 flex flex-col gap-1">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, key, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
@@ -102,7 +105,7 @@ export function Sidebar({
                 )}
               >
                 <Icon size={18} className="text-cocoa" />
-                {label}
+                {t(key)}
               </Link>
             );
           })}
@@ -149,7 +152,7 @@ export function Sidebar({
           <span className="flex size-8 items-center justify-center rounded-full bg-card shadow-card">
             <User size={16} className="text-cocoa" />
           </span>
-          Profile
+          {t("nav.profile")}
         </Link>
       </aside>
     </>

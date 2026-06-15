@@ -8,6 +8,7 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { BudgetBar, useBudget } from "@/components/food/BudgetBar";
+import { useI18n } from "@/components/i18n/I18nContext";
 import type { FoodQuote } from "@/components/chat/types";
 
 type Feed = {
@@ -28,6 +29,7 @@ export default function FoodLandingPage() {
   const [results, setResults] = useState<FoodQuote[] | null>(null);
   const [error, setError] = useState("");
   const budget = useBudget();
+  const { t } = useI18n();
 
   useEffect(() => {
     api<Feed>("/api/food/feed")
@@ -59,7 +61,7 @@ export default function FoodLandingPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="What would you like to eat?"
+          placeholder={t("food.searchPlaceholder")}
           maxLength={120}
           className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
         />
@@ -91,10 +93,8 @@ export default function FoodLandingPage() {
         >
           <Users size={18} className="shrink-0 text-accent" />
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold text-ink">Order as a group</p>
-            <p className="text-[12px] text-cocoa">
-              Everyone adds their items, the bill splits equally
-            </p>
+            <p className="text-[13px] font-bold text-ink">{t("food.groupOrder")}</p>
+            <p className="text-[12px] text-cocoa">{t("food.groupOrderSub")}</p>
           </div>
           <ChevronRight size={16} className="shrink-0 text-cocoa/50" />
         </Link>
@@ -123,7 +123,7 @@ export default function FoodLandingPage() {
               AI Recommends ✦
             </p>
             <div className="mt-1 flex items-center justify-between">
-              <h2 className="text-[17px] font-bold text-ink">Meals picked for you</h2>
+              <h2 className="text-[17px] font-bold text-ink">{t("food.pickedForYou")}</h2>
               <Link
                 href="/home"
                 className="rounded-pill border border-accent px-3 py-1 text-[12px] font-semibold text-accent hover:bg-accent-soft"
@@ -140,7 +140,7 @@ export default function FoodLandingPage() {
 
           {/* Smart suggestions */}
           <section className="mt-8">
-            <h2 className="text-[17px] font-bold text-ink">Smart suggestions for you</h2>
+            <h2 className="text-[17px] font-bold text-ink">{t("food.smartSuggestions")}</h2>
             <p className="text-[12px] text-cocoa">
               Recommendations based on speed, distance &amp; ratings
             </p>
