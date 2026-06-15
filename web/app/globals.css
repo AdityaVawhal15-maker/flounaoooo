@@ -13,13 +13,22 @@
   --color-success: #1ca65c;
   --color-danger: #d93025;
 
+  /* Refined neutrals for premium hierarchy (warm-tinted greys) */
+  --color-muted: #a08a78; /* tertiary text */
+  --color-surface: #fffdfb; /* slightly-raised surface */
+  --color-hairline: #f2ebe4; /* even softer divider */
+
   --font-sans: var(--font-inter);
 
   --radius-pill: 28px;
-  --radius-card: 16px;
+  --radius-card: 20px;
+  --radius-tile: 18px;
 
   --shadow-glow: 0px 4px 10px 0px rgba(240, 101, 0, 0.25);
-  --shadow-card: 0px 2px 12px 0px rgba(61, 28, 0, 0.06);
+  /* Layered, soft elevation for a high-end feel */
+  --shadow-card: 0 1px 2px rgba(61, 28, 0, 0.04), 0 8px 24px -12px rgba(61, 28, 0, 0.12);
+  --shadow-soft: 0 1px 2px rgba(61, 28, 0, 0.03), 0 2px 8px -4px rgba(61, 28, 0, 0.06);
+  --shadow-lift: 0 2px 4px rgba(61, 28, 0, 0.05), 0 16px 40px -16px rgba(61, 28, 0, 0.18);
 }
 
 body {
