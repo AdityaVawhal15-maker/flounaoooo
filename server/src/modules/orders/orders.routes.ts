@@ -5,7 +5,13 @@ import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
-import { quoteRides, estimateTrip } from "../rides/rides.service.js";
+import { quoteRides, fetchRoute } from "../rides/rides.service.js";
+import { env } from "../../config/env.js";
+import { rideProvider } from "../providers/index.js";
+import {
+  isPlusActive,
+  CONVENIENCE_FEE_PAISE,
+} from "../subscription/subscription.service.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
@@ -64,6 +70,16 @@ ordersRouter.post(
           where: { userId: req.userId!, isDefault: true },
         });
 
+        // Radiues Plus perk: in-app convenience fee is waived for subscribers.
+        const me = await prisma.user.findUniqueOrThrow({
+          where: { id: req.userId! },
+          select: { plusActive: true, plusUntil: true },
+        });
+        const convenienceFeePaise =
+          quote.fulfillment === "in_app" && !isPlusActive(me)
+            ? CONVENIENCE_FEE_PAISE
+            : 0;
+
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
@@ -74,11 +90,12 @@ ordersRouter.post(
             title: `${quote.name} — ${quote.restaurant}`,
             details: JSON.stringify({
               ...quote,
+              convenienceFeePaise,
               // decision-receipt stats, frozen at decision time
               comparedOptions: allQuotes.length,
               comparedPlatforms: new Set(allQuotes.map((q) => q.platform)).size,
             }),
-            amount: quote.effectivePaise,
+            amount: quote.effectivePaise + convenienceFeePaise,
             savedPaise,
             addressId: defaultAddress?.id ?? null,
           },
@@ -87,12 +104,16 @@ ordersRouter.post(
       }
 
       // Recompute the trip from coordinates — never trust a client distance.
-      const { distanceKm, rideMinutes } = estimateTrip(
+      // Real road geometry (ORS when keyed, offline estimate otherwise) is
+      // stored so the live-tracking marker follows the actual route.
+      const route = await fetchRoute(
         body.pickupLat,
         body.pickupLng,
         body.dropLat,
         body.dropLng,
+        env.ORS_KEY,
       );
+      const { distanceKm, rideMinutes } = route;
       const quotes = quoteRides({ distanceKm, rideMinutes });
       const quote = quotes.find(
         (q) => q.provider === body.provider && q.productName === body.productName,
@@ -127,6 +148,9 @@ ordersRouter.post(
             dropLat: body.dropLat,
             dropLng: body.dropLng,
             distanceKm,
+            // For the fulfilment provider's live tracking.
+            vehicle: quote.vehicle,
+            routeGeometry: route.geometry,
             comparedOptions: quotes.length,
             comparedPlatforms: new Set(quotes.map((q) => q.provider)).size,
           }),
@@ -199,6 +223,66 @@ ordersRouter.get("/:id", async (req, res, next) => {
     res.json({
       order: { ...order, details: JSON.parse(order.details) },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Live fulfilment tracking for a ride — driver, OTP, vehicle and live GPS.
+// Backed by the active provider (simulation now, real ONDC once onboarded).
+// Works for every user; never gated behind subscription.
+ordersRouter.get("/:id/track", async (req, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      include: { trackingEvents: { orderBy: { createdAt: "asc" }, take: 1 } },
+    });
+    if (!order) throw new ApiError(404, "Order not found");
+    if (order.domain !== "ride")
+      throw new ApiError(400, "Live tracking is only available for rides");
+    if (order.status === "pending_payment")
+      throw new ApiError(409, "Ride not confirmed yet");
+
+    const d = JSON.parse(order.details) as {
+      pickupLat?: number;
+      pickupLng?: number;
+      dropLat?: number;
+      dropLng?: number;
+      vehicle?: "bike" | "auto" | "cab";
+      routeGeometry?: [number, number][];
+    };
+    if (
+      d.pickupLat == null ||
+      d.pickupLng == null ||
+      d.dropLat == null ||
+      d.dropLng == null
+    ) {
+      throw new ApiError(409, "This ride predates live tracking");
+    }
+
+    // The captain search begins when the ride is confirmed (first tracking
+    // event), so the simulation's clock is anchored there.
+    const bookedAt = order.trackingEvents[0]?.createdAt ?? order.createdAt;
+    const pickup = { lat: d.pickupLat, lng: d.pickupLng };
+    const drop = { lat: d.dropLat, lng: d.dropLng };
+    const geometry =
+      d.routeGeometry ??
+      ([
+        [d.pickupLng, d.pickupLat],
+        [d.dropLng, d.dropLat],
+      ] as [number, number][]);
+
+    const assignment = await rideProvider.track({
+      orderId: order.id,
+      providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+      vehicle: d.vehicle ?? "cab",
+      pickup,
+      drop,
+      routeGeometry: geometry,
+      bookedAt,
+    });
+
+    res.json({ tracking: assignment });
   } catch (err) {
     next(err);
   }

@@ -38,6 +38,66 @@ export function estimateTrip(
   };
 }
 
+export type RouteResult = {
+  distanceKm: number;
+  rideMinutes: number;
+  geometry: [number, number][]; // [lng, lat][]
+};
+
+// Server-side route lookup with offline fallback. Used by the /route endpoint
+// and at booking time so the live-tracking marker has real road geometry.
+export async function fetchRoute(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+  orsKey?: string,
+): Promise<RouteResult> {
+  if (orsKey) {
+    try {
+      const r = await fetch(
+        "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: orsKey },
+          body: JSON.stringify({
+            coordinates: [
+              [fromLng, fromLat],
+              [toLng, toLat],
+            ],
+          }),
+        },
+      );
+      if (r.ok) {
+        const data = (await r.json()) as {
+          features?: Array<{
+            geometry: { coordinates: [number, number][] };
+            properties: { summary: { distance: number; duration: number } };
+          }>;
+        };
+        const f = data.features?.[0];
+        if (f)
+          return {
+            distanceKm: f.properties.summary.distance / 1000,
+            rideMinutes: Math.round(f.properties.summary.duration / 60),
+            geometry: f.geometry.coordinates,
+          };
+      }
+    } catch {
+      // fall through to offline estimate
+    }
+  }
+  const { distanceKm, rideMinutes } = estimateTrip(fromLat, fromLng, toLat, toLng);
+  return {
+    distanceKm,
+    rideMinutes,
+    geometry: [
+      [fromLng, fromLat],
+      [toLng, toLat],
+    ],
+  };
+}
+
 export type VehicleType = "bike" | "auto" | "cab";
 
 export type RideQuote = {

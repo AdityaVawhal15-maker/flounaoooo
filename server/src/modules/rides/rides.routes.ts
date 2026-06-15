@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
-import { quoteRides, estimateTrip } from "./rides.service.js";
+import { quoteRides, fetchRoute } from "./rides.service.js";
 import { adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
 
@@ -79,52 +79,8 @@ const routeQuery = z.object({
 ridesRouter.get("/route", async (req, res, next) => {
   try {
     const { fromLat, fromLng, toLat, toLng } = routeQuery.parse(req.query);
-
-    if (env.ORS_KEY) {
-      const r = await fetch(
-        "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: env.ORS_KEY,
-          },
-          body: JSON.stringify({
-            coordinates: [
-              [fromLng, fromLat],
-              [toLng, toLat],
-            ],
-          }),
-        },
-      );
-      if (r.ok) {
-        const data = (await r.json()) as {
-          features?: Array<{
-            geometry: { coordinates: [number, number][] };
-            properties: { summary: { distance: number; duration: number } };
-          }>;
-        };
-        const feature = data.features?.[0];
-        if (feature) {
-          return res.json({
-            distanceKm: feature.properties.summary.distance / 1000,
-            rideMinutes: Math.round(feature.properties.summary.duration / 60),
-            geometry: feature.geometry.coordinates,
-          });
-        }
-      }
-    }
-
-    // Fallback: straight-line distance with a road-winding factor at city speed.
-    const { distanceKm, rideMinutes } = estimateTrip(fromLat, fromLng, toLat, toLng);
-    res.json({
-      distanceKm,
-      rideMinutes,
-      geometry: [
-        [fromLng, fromLat],
-        [toLng, toLat],
-      ],
-    });
+    const route = await fetchRoute(fromLat, fromLng, toLat, toLng, env.ORS_KEY);
+    res.json(route);
   } catch (err) {
     next(err);
   }
