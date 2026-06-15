@@ -18,19 +18,19 @@ type RouteInfo = {
   geometry: [number, number][]; // [lng, lat][]
 };
 
-// `progress` is 0→1 along the pickup→drop route; the driver marker sits there.
-// While the driver is still approaching (pre-pickup) `progress` stays 0 and we
-// show the driver a little behind the pickup so it visibly closes in.
+// Renders the route and a driver marker at the server-provided live location.
+// `driverLocation` comes from the fulfilment provider (simulation or real ONDC)
+// via /api/orders/:id/track — the client never invents the position.
 export function LiveTrackingMap({
   pickup,
   drop,
-  progress,
-  phase,
+  driverLocation,
+  done,
 }: {
   pickup: LatLng;
   drop: LatLng;
-  progress: number;
-  phase: "arriving" | "enroute" | "done";
+  driverLocation: LatLng | null;
+  done: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -142,14 +142,17 @@ export function LiveTrackingMap({
     return () => pins.forEach((p) => p.remove());
   }, [route, pickup.lat, pickup.lng, drop.lat, drop.lng]);
 
-  // Move the driver marker + trim the "covered" route as progress changes.
+  // Place the driver at the server-provided location; trim the covered route
+  // up to the nearest point on the polyline.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !route || route.geometry.length < 2) return;
+    if (!driverLocation && !done) return;
 
-    const pos = pointAlong(route.geometry, phase === "done" ? 1 : Math.max(0, Math.min(1, progress)));
+    const pos: [number, number] = done
+      ? route.geometry[route.geometry.length - 1]!
+      : [driverLocation!.lng, driverLocation!.lat];
 
-    // Driver marker (custom car bubble)
     if (!driverRef.current) {
       const el = document.createElement("div");
       el.className = "driver-pin";
@@ -161,42 +164,38 @@ export function LiveTrackingMap({
       driverRef.current.setLngLat(pos);
     }
 
-    // Trim the solid layer to the covered portion.
-    const trimToProgress = () => {
-      const src = map.getSource("route") as maplibregl.GeoJSONSource | undefined;
-      const covered = sliceRoute(route.geometry, phase === "done" ? 1 : progress);
-      if (map.getLayer("route-done")) {
-        // Re-point the done layer at a covered-only source.
-        if (map.getSource("route-covered")) {
-          (map.getSource("route-covered") as maplibregl.GeoJSONSource).setData({
+    // Covered portion = route up to the driver's projected position.
+    const t = done ? 1 : fractionAt(route.geometry, pos);
+    const covered = sliceRoute(route.geometry, t);
+    const trim = () => {
+      if (map.getSource("route-covered")) {
+        (map.getSource("route-covered") as maplibregl.GeoJSONSource).setData({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: covered },
+        });
+      } else if (map.getLayer("route-done")) {
+        map.addSource("route-covered", {
+          type: "geojson",
+          data: {
             type: "Feature",
             properties: {},
             geometry: { type: "LineString", coordinates: covered },
-          });
-        } else {
-          map.addSource("route-covered", {
-            type: "geojson",
-            data: {
-              type: "Feature",
-              properties: {},
-              geometry: { type: "LineString", coordinates: covered },
-            },
-          });
-          map.removeLayer("route-done");
-          map.addLayer({
-            id: "route-done",
-            type: "line",
-            source: "route-covered",
-            layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#e8651a", "line-width": 5, "line-opacity": 0.95 },
-          });
-        }
+          },
+        });
+        map.removeLayer("route-done");
+        map.addLayer({
+          id: "route-done",
+          type: "line",
+          source: "route-covered",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#e8651a", "line-width": 5, "line-opacity": 0.95 },
+        });
       }
-      void src;
     };
-    if (map.isStyleLoaded()) trimToProgress();
-    else map.once("load", trimToProgress);
-  }, [progress, phase, route]);
+    if (map.isStyleLoaded()) trim();
+    else map.once("load", trim);
+  }, [driverLocation, done, route]);
 
   return <div ref={containerRef} className="size-full min-h-[260px]" />;
 }
@@ -222,22 +221,28 @@ function totalLength(geom: [number, number][]): number {
   return len;
 }
 
-// Point at fraction `t` (0→1) along the polyline.
-function pointAlong(geom: [number, number][], t: number): [number, number] {
-  if (geom.length === 1) return geom[0]!;
-  const target = totalLength(geom) * t;
+// Fraction (0→1) along the polyline nearest to point `p` — used to know how
+// much of the route the driver has covered, for the solid "done" overlay.
+function fractionAt(geom: [number, number][], p: [number, number]): number {
+  const total = totalLength(geom);
+  if (total === 0) return 0;
   let acc = 0;
+  let best = { d: Infinity, len: 0 };
   for (let i = 1; i < geom.length; i++) {
-    const seg = dist(geom[i - 1]!, geom[i]!);
-    if (acc + seg >= target) {
-      const f = seg === 0 ? 0 : (target - acc) / seg;
-      const a = geom[i - 1]!;
-      const b = geom[i]!;
-      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-    }
+    const a = geom[i - 1]!;
+    const b = geom[i]!;
+    const seg = dist(a, b);
+    // Project p onto segment a→b in lat/lng space (good enough at city scale).
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len2 = dx * dx + dy * dy;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2));
+    const proj: [number, number] = [a[0] + dx * t, a[1] + dy * t];
+    const d = dist(p, proj);
+    if (d < best.d) best = { d, len: acc + seg * t };
     acc += seg;
   }
-  return geom[geom.length - 1]!;
+  return Math.max(0, Math.min(1, best.len / total));
 }
 
 // The portion of the route from the start up to fraction `t`.
