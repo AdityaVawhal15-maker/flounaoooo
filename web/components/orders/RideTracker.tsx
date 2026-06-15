@@ -6,6 +6,7 @@ import { Phone, Star, ShieldCheck, Navigation, Copy, Check } from "lucide-react"
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { FadeIn } from "@/components/ui/motion";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 const LiveTrackingMap = dynamic(
   () => import("./LiveTrackingMap").then((m) => m.LiveTrackingMap),
@@ -51,6 +52,7 @@ export function RideTracker({
   drop: LatLng;
   dropLabel: string;
 }) {
+  const { t: tr } = useI18n();
   const [t, setT] = useState<Tracking | null>(null);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -89,29 +91,29 @@ export function RideTracker({
             <div>
               <p className="text-[13px] font-bold text-ink">
                 {done
-                  ? "Trip completed"
+                  ? tr("track.completed")
                   : t?.state === "in_progress"
-                    ? `On the way to ${dropLabel}`
+                    ? `${tr("track.onTheWay")} · ${dropLabel}`
                     : t?.state === "arrived"
-                      ? "Driver has arrived"
+                      ? tr("track.arrived")
                       : searching
-                        ? "Finding your captain…"
-                        : "Driver is on the way"}
+                        ? tr("track.searching")
+                        : tr("track.onTheWay")}
               </p>
               <p className="text-[11px] text-cocoa">
                 {done
-                  ? "Hope you enjoyed the ride"
+                  ? tr("track.enjoyed")
                   : t?.state === "in_progress"
-                    ? `${t.dropEtaMinutes} min to drop`
+                    ? `${t.dropEtaMinutes} ${tr("track.minToDrop")}`
                     : t && t.pickupEtaMinutes > 0
-                      ? `${t.pickupEtaMinutes} min away`
-                      : t?.statusMessage ?? "Connecting…"}
+                      ? `${t.pickupEtaMinutes} ${tr("track.minAway")}`
+                      : t?.statusMessage ?? "…"}
               </p>
             </div>
           </div>
           {!done && (
             <span className="flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
-              <span className="size-1.5 animate-pulse rounded-full bg-success" /> Live
+              <span className="size-1.5 animate-pulse rounded-full bg-success" /> {tr("track.live")}
             </span>
           )}
         </div>
@@ -155,7 +157,7 @@ export function RideTracker({
                   </p>
                   <p className="truncate text-[12px] text-cocoa">
                     {t.driver.vehicle.color} {t.driver.vehicle.model} ·{" "}
-                    {t.driver.trips.toLocaleString("en-IN")} trips
+                    {t.driver.trips.toLocaleString("en-IN")} {tr("track.trips")}
                   </p>
                 </div>
                 {/* Number plate */}
@@ -180,7 +182,7 @@ export function RideTracker({
                     className="flex flex-1 items-center justify-between rounded-card border border-accent/40 bg-accent-soft/60 px-3 py-2.5"
                   >
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-cocoa">
-                      <ShieldCheck size={13} className="text-accent" /> Start OTP
+                      <ShieldCheck size={13} className="text-accent" /> {tr("track.startOtp")}
                     </span>
                     <span className="flex items-center gap-1.5 text-[18px] font-bold tracking-[0.2em] text-ink">
                       {t.otp}

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { SubPage } from "@/components/profile/SubPage";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 type PlusStatus = {
   active: boolean;
@@ -16,8 +17,10 @@ type PlusStatus = {
 };
 
 export default function PlusPage() {
+  const { t, lang } = useI18n();
   const [status, setStatus] = useState<PlusStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const localeTag = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
 
   const load = () =>
     api<PlusStatus>("/api/subscription")
@@ -49,7 +52,7 @@ export default function PlusPage() {
   }
 
   return (
-    <SubPage title="Radiues Plus">
+    <SubPage title={t("plus.title")}>
       <FadeIn y={10}>
         <div
           className="relative overflow-hidden rounded-card p-5 text-white shadow-lift"
@@ -62,22 +65,21 @@ export default function PlusPage() {
           <div className="relative flex items-center gap-2">
             <Crown size={20} className="text-accent" />
             <span className="text-[13px] font-bold uppercase tracking-wide text-accent">
-              Radiues Plus
+              {t("plus.title")}
             </span>
           </div>
           <p className="relative mt-2 text-[26px] font-bold leading-tight">
             {status ? rupees(status.pricePaise) : "—"}
-            <span className="text-[14px] font-medium text-white/70"> / month</span>
+            <span className="text-[14px] font-medium text-white/70"> {t("plus.perMonth")}</span>
           </p>
           <p className="relative mt-1 text-[12px] text-white/75">
-            Live tracking, the driver map and best-price AI are always free.
-            Plus adds the extras below.
+            {t("plus.freeNote")}
           </p>
           {status?.active && (
             <span className="relative mt-3 inline-flex items-center gap-1.5 rounded-pill bg-success/20 px-2.5 py-1 text-[11px] font-semibold text-[#7ef0b0]">
-              <Check size={12} /> Active
+              <Check size={12} /> {t("plus.active")}
               {status.until
-                ? ` until ${new Date(status.until).toLocaleDateString("en-IN", {
+                ? ` ${t("plus.activeUntil")} ${new Date(status.until).toLocaleDateString(localeTag, {
                     day: "numeric",
                     month: "short",
                   })}`
@@ -87,7 +89,8 @@ export default function PlusPage() {
         </div>
       </FadeIn>
 
-      <Stagger delayChildren={0.1} className="mt-5 flex flex-col gap-2.5">
+      <h2 className="mt-6 text-[14px] font-bold text-ink">{t("plus.perksHeading")}</h2>
+      <Stagger delayChildren={0.1} className="mt-2 flex flex-col gap-2.5">
         {(status?.perks ?? []).map((perk) => (
           <StaggerItem key={perk}>
             <div className="flex items-center gap-3 rounded-card border border-line/70 bg-card px-4 py-3">
@@ -108,7 +111,7 @@ export default function PlusPage() {
             className="flex w-full items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[14px] font-semibold text-cocoa transition-colors hover:bg-beige/40 disabled:opacity-60"
           >
             {busy && <Loader2 size={15} className="animate-spin" />}
-            Cancel subscription
+            {t("plus.cancel")}
           </button>
         ) : (
           <button
@@ -121,7 +124,9 @@ export default function PlusPage() {
             ) : (
               <Crown size={16} className="text-accent" />
             )}
-            {status ? `Get Plus for ${rupees(status.pricePaise)}/mo` : "Get Plus"}
+            {status
+              ? `${t("plus.subscribe")} · ${rupees(status.pricePaise)}${t("plus.perMonth")}`
+              : t("plus.subscribe")}
           </button>
         )}
       </div>
