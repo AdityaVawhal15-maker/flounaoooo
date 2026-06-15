@@ -172,6 +172,115 @@ usersRouter.get("/usual", async (req, res, next) => {
   }
 });
 
+// ---------- Autonomous chat suggestions ----------
+//
+// The chat home shows three "smart chips". Instead of a fixed list, we build
+// them from each user's own history — what they reorder, where they ride, and
+// the time of day — so the screen feels personal. New users get sensible
+// defaults. `icon` is a string key the web maps to an icon component (React
+// components can't cross the JSON boundary).
+
+type Suggestion = { label: string; prompt: string; icon: string; theme: string };
+
+// Time-of-day food nudge — what most people are deciding right now.
+function mealSuggestion(now = new Date()): Suggestion {
+  const h = now.getHours();
+  if (h < 11)
+    return { label: "Breakfast picks", prompt: "Find me a quick breakfast under ₹150", icon: "coffee", theme: "amber" };
+  if (h < 16)
+    return { label: "Lunch under ₹200", prompt: "Best lunch near me under ₹200", icon: "utensils", theme: "orange" };
+  if (h < 21)
+    return { label: "Dinner ideas", prompt: "What's good for dinner tonight?", icon: "utensils", theme: "orange" };
+  return { label: "Late-night bites", prompt: "Late-night food open now", icon: "moon", theme: "purple" };
+}
+
+// Pool of generic chips for filling empty slots (new users / sparse history).
+const DEFAULT_SUGGESTIONS: Suggestion[] = [
+  { label: "Order pizza", prompt: "Order a pizza under ₹300", icon: "pizza", theme: "orange" },
+  { label: "Book a ride", prompt: "Book a ride to ", icon: "mapPin", theme: "blue" },
+  { label: "Shop a laptop", prompt: "Find me a gaming laptop under ₹70000", icon: "shoppingBag", theme: "purple" },
+  { label: "Cheapest cab", prompt: "Find the cheapest cab right now", icon: "car", theme: "blue" },
+  { label: "Veg thali", prompt: "Best veg thali near me", icon: "utensils", theme: "green" },
+];
+
+usersRouter.get("/suggestions", async (req, res, next) => {
+  try {
+    const orders = await prisma.order.findMany({
+      where: {
+        userId: req.userId!,
+        status: { in: ["confirmed", "in_progress", "completed"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { domain: true, details: true },
+    });
+
+    const out: Suggestion[] = [];
+    const seen = new Set<string>();
+    const add = (s: Suggestion) => {
+      if (out.length >= 3 || seen.has(s.label)) return;
+      seen.add(s.label);
+      out.push(s);
+    };
+
+    // 1) Reorder the dish they buy most (a real habit = ordered ≥ 2x).
+    const dishCounts = new Map<string, { name: string; n: number }>();
+    const dropCounts = new Map<string, number>();
+    for (const o of orders) {
+      try {
+        const d = JSON.parse(o.details) as {
+          dishId?: string;
+          name?: string;
+          drop?: string;
+        };
+        if (o.domain === "food" && d.dishId) {
+          const cur = dishCounts.get(d.dishId);
+          dishCounts.set(d.dishId, {
+            name: d.name ?? cur?.name ?? "your usual",
+            n: (cur?.n ?? 0) + 1,
+          });
+        }
+        if (o.domain === "ride" && d.drop) {
+          dropCounts.set(d.drop, (dropCounts.get(d.drop) ?? 0) + 1);
+        }
+      } catch {
+        // ignore malformed snapshots
+      }
+    }
+
+    const topDish = [...dishCounts.values()].sort((a, b) => b.n - a.n)[0];
+    if (topDish && topDish.n >= 2) {
+      add({
+        label: `Reorder ${topDish.name}`,
+        prompt: `Order ${topDish.name} again`,
+        icon: "rotate",
+        theme: "orange",
+      });
+    }
+
+    // 2) Re-book a route they take often.
+    const topDrop = [...dropCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (topDrop && topDrop[1] >= 2) {
+      add({
+        label: `Ride to ${topDrop[0]}`,
+        prompt: `Book a ride to ${topDrop[0]}`,
+        icon: "mapPin",
+        theme: "blue",
+      });
+    }
+
+    // 3) Time-of-day meal nudge.
+    add(mealSuggestion());
+
+    // Fill any remaining slots with defaults (skipping duplicates by label).
+    for (const s of DEFAULT_SUGGESTIONS) add(s);
+
+    res.json({ suggestions: out.slice(0, 3) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- addresses ----------
 
 const addressBody = z.object({
