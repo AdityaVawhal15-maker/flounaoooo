@@ -72,6 +72,39 @@ describe("group ordering", () => {
     await agent.post("/api/groups/join").send({ code: "ZZZZZZ" }).expect(404);
   });
 
+  it("blocks a non-member from reading a cart by ID (H1)", async () => {
+    const host = await authedAgent();
+    const stranger = await authedAgent();
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    // Stranger knows the ID but never joined → must be denied.
+    await stranger.agent.get(`/api/groups/${cart.body.id}`).expect(403);
+    // Host can read their own cart.
+    await host.agent.get(`/api/groups/${cart.body.id}`).expect(200);
+  });
+
+  it("blocks a non-member from adding items by ID (H2)", async () => {
+    const host = await authedAgent();
+    const stranger = await authedAgent();
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    await stranger.agent
+      .post(`/api/groups/${cart.body.id}/items`)
+      .send({ dishId: "masala-dosa" })
+      .expect(403);
+  });
+
+  it("lets a member read and add after joining via code", async () => {
+    const host = await authedAgent();
+    const friend = await authedAgent();
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    // Join establishes membership, then read + add both succeed.
+    await friend.agent.post("/api/groups/join").send({ code: cart.body.code }).expect(200);
+    await friend.agent.get(`/api/groups/${cart.body.id}`).expect(200);
+    await friend.agent
+      .post(`/api/groups/${cart.body.id}/items`)
+      .send({ dishId: "masala-dosa" })
+      .expect(201);
+  });
+
   it("lets a member remove only their own item", async () => {
     const host = await authedAgent();
     const friend = await authedAgent();

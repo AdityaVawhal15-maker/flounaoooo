@@ -49,6 +49,33 @@ describe("auth", () => {
     expect(wrongPass.body.error).toBe(unknown.body.error); // no enumeration
   });
 
+  it("locks an account after repeated failed logins, and reset clears it (M3)", async () => {
+    const { email } = await authedAgent();
+    // 10 wrong passwords trip the lockout.
+    for (let i = 0; i < 10; i++) {
+      await request(app)
+        .post("/api/auth/login")
+        .send({ email, password: "definitely-wrong" })
+        .expect(401);
+    }
+    // Now even the CORRECT password is locked out (429).
+    await request(app)
+      .post("/api/auth/login")
+      .send({ email, password: "password123" })
+      .expect(429);
+
+    // A password reset clears the lock and restores access.
+    await request(app).post("/api/auth/forgot").send({ email }).expect(200);
+    await request(app)
+      .post("/api/auth/reset")
+      .send({ email, code: lastOtpFor(email), password: "recovered-pass1" })
+      .expect(200);
+    await request(app)
+      .post("/api/auth/login")
+      .send({ email, password: "recovered-pass1" })
+      .expect(200);
+  });
+
   it("blocks signup reuse of a verified email", async () => {
     const { email } = await authedAgent();
     await request(app)

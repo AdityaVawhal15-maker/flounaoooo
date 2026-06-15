@@ -101,6 +101,47 @@ describe("budget guardian", () => {
   });
 });
 
+// Builds a Cashfree-style webhook signed with a (by default fresh) epoch-second
+// timestamp, so tests can vary amount and timestamp independently.
+function signedWebhook(opts: {
+  orderId: string;
+  amountRupees: number;
+  timestampSec?: number;
+}) {
+  const body = JSON.stringify({
+    type: "PAYMENT_SUCCESS_WEBHOOK",
+    data: {
+      order: { order_id: opts.orderId, order_amount: opts.amountRupees },
+      payment: {
+        payment_status: "SUCCESS",
+        payment_group: "upi",
+        payment_amount: opts.amountRupees,
+      },
+    },
+  });
+  const timestamp = String(opts.timestampSec ?? Math.floor(Date.now() / 1000));
+  const signature = crypto
+    .createHmac("sha256", process.env.CASHFREE_SECRET_KEY!)
+    .update(timestamp + body)
+    .digest("base64");
+  return { body, timestamp, signature };
+}
+
+// agent is a supertest agent from authedAgent(); kept loosely typed for tests.
+async function freshPaidOrder(
+  agent: { post: (url: string) => ReturnType<typeof request> },
+  dishId = "dum-biryani",
+) {
+  const order = await agent
+    .post("/api/orders")
+    .send({ domain: "food", dishId, platform: "ondc" })
+    .expect(201);
+  const orderId = order.body.order.id as string;
+  const amount = order.body.order.amount as number;
+  await agent.post("/api/payments/checkout").send({ orderId }).expect(200);
+  return { orderId, amount };
+}
+
 describe("payments", () => {
   it("rejects unsigned webhooks", async () => {
     await request(app)
@@ -112,39 +153,72 @@ describe("payments", () => {
 
   it("accepts a correctly signed webhook and confirms the order", async () => {
     const { agent } = await authedAgent();
-    const order = await agent
-      .post("/api/orders")
-      .send({ domain: "food", dishId: "dum-biryani", platform: "ondc" })
-      .expect(201);
-    const orderId = order.body.order.id as string;
+    const { orderId, amount } = await freshPaidOrder(agent);
 
-    // checkout creates the payment row (simulated mode — no APP_ID in test env)
-    await agent.post("/api/payments/checkout").send({ orderId }).expect(200);
-
-    const body = JSON.stringify({
-      type: "PAYMENT_SUCCESS_WEBHOOK",
-      data: {
-        order: { order_id: orderId },
-        payment: { payment_status: "SUCCESS", payment_group: "upi" },
-      },
+    const { body, timestamp, signature } = signedWebhook({
+      orderId,
+      amountRupees: amount / 100,
     });
-    const timestamp = String(Date.now());
-    const signature = crypto
-      .createHmac("sha256", process.env.CASHFREE_SECRET_KEY!)
-      .update(timestamp + body)
-      .digest("base64");
 
     await request(app)
       .post("/api/payments/webhook/cashfree")
       .set("Content-Type", "application/json")
       .set("x-webhook-signature", signature)
       .set("x-webhook-timestamp", timestamp)
-      .send(JSON.parse(body)) // supertest re-serializes identically
+      .send(JSON.parse(body))
       .expect(200);
 
     const status = await agent.get(`/api/payments/status/${orderId}`).expect(200);
     expect(status.body.orderStatus).toBe("confirmed");
     expect(status.body.payment.status).toBe("success");
+  });
+
+  it("does NOT confirm an order when the paid amount is too low (C1)", async () => {
+    const { agent } = await authedAgent();
+    const { orderId, amount } = await freshPaidOrder(agent);
+
+    // Sign a webhook claiming only ₹1 was paid for a ₹200+ order.
+    const { body, timestamp, signature } = signedWebhook({
+      orderId,
+      amountRupees: 1,
+    });
+
+    await request(app)
+      .post("/api/payments/webhook/cashfree")
+      .set("Content-Type", "application/json")
+      .set("x-webhook-signature", signature)
+      .set("x-webhook-timestamp", timestamp)
+      .send(JSON.parse(body))
+      .expect(200); // we accept the delivery but must NOT confirm
+
+    const status = await agent.get(`/api/payments/status/${orderId}`).expect(200);
+    expect(status.body.orderStatus).toBe("pending_payment"); // unchanged
+    expect(status.body.payment.status).toBe("failed");
+    expect(amount).toBeGreaterThan(100);
+  });
+
+  it("rejects a stale (replayed) webhook timestamp (C2)", async () => {
+    const { agent } = await authedAgent();
+    const { orderId, amount } = await freshPaidOrder(agent);
+
+    // Timestamp 10 minutes in the past — still correctly signed.
+    const staleTs = Math.floor(Date.now() / 1000) - 600;
+    const { body, timestamp, signature } = signedWebhook({
+      orderId,
+      amountRupees: amount / 100,
+      timestampSec: staleTs,
+    });
+
+    await request(app)
+      .post("/api/payments/webhook/cashfree")
+      .set("Content-Type", "application/json")
+      .set("x-webhook-signature", signature)
+      .set("x-webhook-timestamp", timestamp)
+      .send(JSON.parse(body))
+      .expect(401); // stale → invalid signature path
+
+    const status = await agent.get(`/api/payments/status/${orderId}`).expect(200);
+    expect(status.body.orderStatus).toBe("pending_payment");
   });
 
   it("blocks paying someone else's order", async () => {

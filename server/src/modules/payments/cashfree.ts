@@ -51,14 +51,25 @@ export async function createCashfreeOrder(opts: {
   };
 }
 
+// Reject webhooks whose timestamp is older than this — blocks replay of a
+// captured-but-valid delivery. Cashfree sends epoch-second timestamps.
+const WEBHOOK_MAX_AGE_MS = 5 * 60_000;
+
 // Webhook authenticity: HMAC-SHA256(timestamp + rawBody, secret) must match
-// the signature header. Requests that fail this are discarded.
+// the signature header, AND the timestamp must be recent (anti-replay).
 export function verifyCashfreeWebhook(
   rawBody: string,
   signature: string,
   timestamp: string,
 ): boolean {
-  if (!env.CASHFREE_SECRET_KEY) return false;
+  if (!env.CASHFREE_SECRET_KEY || !timestamp || !signature) return false;
+
+  // Anti-replay: timestamp must be a recent epoch-second value.
+  const tsMs = Number(timestamp) * 1000;
+  if (!Number.isFinite(tsMs) || Math.abs(Date.now() - tsMs) > WEBHOOK_MAX_AGE_MS) {
+    return false;
+  }
+
   const expected = crypto
     .createHmac("sha256", env.CASHFREE_SECRET_KEY)
     .update(timestamp + rawBody)

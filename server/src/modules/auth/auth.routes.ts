@@ -17,6 +17,7 @@ import {
 import { validateBody } from "../../middleware/validate.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { ApiError } from "../../middleware/error.js";
+import { sessionLimiter } from "../../middleware/rateLimit.js";
 import { consumeOtp, createOtp } from "./otp.js";
 import { env } from "../../config/env.js";
 
@@ -169,6 +170,10 @@ authRouter.post(
 
 // ---------- login ----------
 
+// After this many consecutive failures, the account is locked for a window.
+const MAX_FAILED_LOGINS = 10;
+const LOCKOUT_MS = 15 * 60_000;
+
 authRouter.post(
   "/login",
   sensitiveLimit,
@@ -177,10 +182,39 @@ authRouter.post(
     try {
       const { email, password } = req.body as { email: string; password: string };
       const user = await prisma.user.findUnique({ where: { email } });
+
+      // Account-level lockout (M3): blocks slow distributed grinding that a
+      // per-IP limit alone wouldn't catch. Generic message — no enumeration.
+      if (user?.lockedUntil && user.lockedUntil > new Date()) {
+        throw new ApiError(429, "Too many attempts. Try again later.");
+      }
+
       // Single generic error for all failure modes — no account enumeration.
       if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
+        if (user) {
+          const failed = user.failedLogins + 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLogins: failed,
+              lockedUntil:
+                failed >= MAX_FAILED_LOGINS
+                  ? new Date(Date.now() + LOCKOUT_MS)
+                  : null,
+            },
+          });
+        }
         throw new ApiError(401, "Incorrect email or password");
       }
+
+      // Successful auth — clear any failure counter / lock.
+      if (user.failedLogins > 0 || user.lockedUntil) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLogins: 0, lockedUntil: null },
+        });
+      }
+
       if (!user.emailVerified) {
         const code = await createOtp({
           userId: user.id,
@@ -298,7 +332,12 @@ authRouter.post(
 
       const user = await prisma.user.update({
         where: { email },
-        data: { passwordHash: await hashPassword(password), emailVerified: true },
+        data: {
+          passwordHash: await hashPassword(password),
+          emailVerified: true,
+          failedLogins: 0,
+          lockedUntil: null, // a successful reset clears any lockout
+        },
       });
       // Changing the password signs out every other device.
       await prisma.refreshToken.updateMany({
@@ -320,7 +359,7 @@ authRouter.post("/phone/send-otp", sensitiveLimit, (_req, res) => {
 
 // ---------- session lifecycle ----------
 
-authRouter.post("/refresh", async (req, res, next) => {
+authRouter.post("/refresh", sessionLimiter, async (req, res, next) => {
   try {
     const raw = req.cookies?.refresh_token as string | undefined;
     if (!raw) throw new ApiError(401, "Not authenticated");
@@ -336,7 +375,7 @@ authRouter.post("/refresh", async (req, res, next) => {
   }
 });
 
-authRouter.post("/logout", async (req, res) => {
+authRouter.post("/logout", sessionLimiter, async (req, res) => {
   const raw = req.cookies?.refresh_token as string | undefined;
   if (raw) await revokeRefreshToken(raw);
   clearAuthCookies(res);

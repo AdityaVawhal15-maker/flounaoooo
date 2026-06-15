@@ -18,8 +18,29 @@ notificationsRouter.get("/vapid", (_req, res) => {
 
 notificationsRouter.use(requireAuth);
 
+// L1: only accept push endpoints from known browser push services, so a
+// stored endpoint can never point the server at an arbitrary host.
+const ALLOWED_PUSH_HOSTS = [
+  /\.googleapis\.com$/, // Chrome / Android (FCM)
+  /\.mozilla\.com$/, // Firefox (autopush)
+  /\.push\.apple\.com$/, // Safari / iOS
+  /\.windows\.com$/, // Edge (WNS)
+  /\.microsoft\.com$/,
+];
+
 const subscriptionBody = z.object({
-  endpoint: z.string().url().max(1000),
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .refine((url) => {
+      try {
+        const host = new URL(url).hostname;
+        return ALLOWED_PUSH_HOSTS.some((re) => re.test(host));
+      } catch {
+        return false;
+      }
+    }, "Unsupported push endpoint"),
   keys: z.object({
     p256dh: z.string().max(255),
     auth: z.string().max(255),

@@ -28,9 +28,26 @@ const RIDE_EVENTS = [
   { status: "in_ride", message: "Ride started — enjoy the trip" },
 ];
 
-async function markPaid(orderId: string, method: string, gatewayResponse?: string) {
+async function markPaid(
+  orderId: string,
+  method: string,
+  opts: { paidPaise?: number; gatewayResponse?: string } = {},
+) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || order.status !== "pending_payment") return order;
+
+  // Amount integrity: never confirm an order for less than it costs. The
+  // gateway is the source of truth for what was actually charged.
+  if (opts.paidPaise !== undefined && opts.paidPaise < order.amount) {
+    await prisma.payment.updateMany({
+      where: { orderId },
+      data: { status: "failed", gatewayResponse: opts.gatewayResponse },
+    });
+    console.error(
+      `[payments] amount mismatch on ${orderId}: paid ${opts.paidPaise} < owed ${order.amount}`,
+    );
+    return order;
+  }
 
   const [updated] = await prisma.$transaction([
     prisma.order.update({
@@ -39,7 +56,7 @@ async function markPaid(orderId: string, method: string, gatewayResponse?: strin
     }),
     prisma.payment.update({
       where: { orderId },
-      data: { status: "success", method, gatewayResponse },
+      data: { status: "success", method, gatewayResponse: opts.gatewayResponse },
     }),
     prisma.trackingEvent.createMany({
       data: (order.domain === "food" ? FOOD_EVENTS : RIDE_EVENTS).map((e, i) => ({
@@ -84,8 +101,12 @@ paymentsRouter.post(
       const event = JSON.parse(rawBody) as {
         type?: string;
         data?: {
-          order?: { order_id?: string };
-          payment?: { payment_status?: string; payment_group?: string };
+          order?: { order_id?: string; order_amount?: number };
+          payment?: {
+            payment_status?: string;
+            payment_group?: string;
+            payment_amount?: number;
+          };
         };
       };
       const orderId = event.data?.order?.order_id;
@@ -94,7 +115,16 @@ paymentsRouter.post(
         orderId &&
         event.data?.payment?.payment_status === "SUCCESS"
       ) {
-        await markPaid(orderId, event.data.payment.payment_group ?? "upi", rawBody);
+        // Cashfree reports rupees; we store paise. Use the captured payment
+        // amount (falls back to the order amount) to verify integrity.
+        const paidRupees =
+          event.data.payment.payment_amount ?? event.data.order?.order_amount;
+        const paidPaise =
+          paidRupees !== undefined ? Math.round(paidRupees * 100) : undefined;
+        await markPaid(orderId, event.data.payment.payment_group ?? "upi", {
+          paidPaise,
+          gatewayResponse: rawBody,
+        });
       }
       res.json({ ok: true });
     } catch {

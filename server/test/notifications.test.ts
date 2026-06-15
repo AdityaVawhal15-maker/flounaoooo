@@ -13,7 +13,7 @@ describe("notifications", () => {
     await request(app)
       .post("/api/notifications/subscribe")
       .send({
-        endpoint: "https://push.example.com/abc",
+        endpoint: "https://fcm.googleapis.com/fcm/send/abc",
         keys: { p256dh: "key", auth: "secret" },
       })
       .expect(401);
@@ -22,7 +22,7 @@ describe("notifications", () => {
   it("stores and removes a subscription, idempotently", async () => {
     const { agent } = await authedAgent();
     const sub = {
-      endpoint: "https://push.example.com/device-1",
+      endpoint: "https://fcm.googleapis.com/fcm/send/device-1",
       keys: { p256dh: "p256dh-key", auth: "auth-secret" },
     };
 
@@ -40,6 +40,17 @@ describe("notifications", () => {
     await agent
       .post("/api/notifications/subscribe")
       .send({ endpoint: "not-a-url", keys: { p256dh: "x", auth: "y" } })
+      .expect(400);
+  });
+
+  it("rejects push endpoints from untrusted hosts (L1)", async () => {
+    const { agent } = await authedAgent();
+    await agent
+      .post("/api/notifications/subscribe")
+      .send({
+        endpoint: "https://evil.attacker.com/steal",
+        keys: { p256dh: "x", auth: "y" },
+      })
       .expect(400);
   });
 });

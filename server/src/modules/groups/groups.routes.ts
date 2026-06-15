@@ -7,6 +7,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { joinLimiter } from "../../middleware/rateLimit.js";
 
 export const groupsRouter = Router();
 groupsRouter.use(requireAuth);
@@ -86,16 +87,25 @@ async function summarize(cartId: string, viewerId: string) {
   };
 }
 
-// Membership = host OR has at least one item in the cart.
+// Membership = host OR explicit GroupCartMember row (created on join).
 async function assertMember(cartId: string, userId: string) {
   const cart = await prisma.groupCart.findUnique({ where: { id: cartId } });
   if (!cart) throw new ApiError(404, "Group order not found");
   if (cart.hostId === userId) return cart;
-  const hasItem = await prisma.groupCartItem.findFirst({
-    where: { cartId, userId },
+  const member = await prisma.groupCartMember.findUnique({
+    where: { cartId_userId: { cartId, userId } },
   });
-  if (!hasItem) throw new ApiError(403, "Join this group order first");
+  if (!member) throw new ApiError(403, "Join this group order first");
   return cart;
+}
+
+// Idempotently record a user as a member of a cart.
+async function addMember(cartId: string, userId: string) {
+  await prisma.groupCartMember.upsert({
+    where: { cartId_userId: { cartId, userId } },
+    create: { cartId, userId },
+    update: {},
+  });
 }
 
 // ---------- create ----------
@@ -118,6 +128,7 @@ groupsRouter.post(
         }
       }
       if (!cart) throw new ApiError(500, "Could not create group order");
+      await addMember(cart.id, req.userId!); // host is a member
       res.status(201).json(await summarize(cart.id, req.userId!));
     } catch (err) {
       next(err);
@@ -128,6 +139,7 @@ groupsRouter.post(
 // ---------- join by code ----------
 groupsRouter.post(
   "/join",
+  joinLimiter,
   validateBody(z.object({ code: z.string().trim().toUpperCase().length(6) })),
   async (req, res, next) => {
     try {
@@ -137,6 +149,7 @@ groupsRouter.post(
       if (cart.status !== "open") {
         throw new ApiError(409, "This group order is closed");
       }
+      await addMember(cart.id, req.userId!); // joining establishes membership
       res.json(await summarize(cart.id, req.userId!));
     } catch (err) {
       next(err);
@@ -145,8 +158,11 @@ groupsRouter.post(
 );
 
 // ---------- view ----------
+// Only the host or a participating member may read the cart (H1: blocks
+// reading arbitrary carts by ID — members' names and items are private).
 groupsRouter.get("/:id", async (req, res, next) => {
   try {
+    await assertMember(req.params.id!, req.userId!);
     res.json(await summarize(req.params.id, req.userId!));
   } catch (err) {
     next(err);
@@ -162,8 +178,8 @@ groupsRouter.post(
   async (req, res, next) => {
     try {
       const { dishId, qty } = req.body as { dishId: string; qty: number };
-      const cart = await prisma.groupCart.findUnique({ where: { id: req.params.id } });
-      if (!cart) throw new ApiError(404, "Group order not found");
+      // H2: only members (host or someone who joined via code) may add items.
+      const cart = await assertMember(req.params.id!, req.userId!);
       if (cart.status !== "open") throw new ApiError(409, "This group order is closed");
 
       // Price comes from the cart's platform — server-trusted, never the client.
@@ -201,7 +217,7 @@ groupsRouter.post(
 // ---------- remove own item ----------
 groupsRouter.delete("/:id/items/:itemId", async (req, res, next) => {
   try {
-    await assertMember(req.params.id, req.userId!);
+    await assertMember(req.params.id!, req.userId!);
     // You can only remove your own items.
     const deleted = await prisma.groupCartItem.deleteMany({
       where: { id: req.params.itemId, cartId: req.params.id, userId: req.userId! },

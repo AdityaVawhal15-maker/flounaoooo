@@ -62,11 +62,18 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
   const base = {
     httpOnly: true,
     secure: isProd,
-    sameSite: "lax" as const,
   };
-  res.cookie("access_token", accessToken, { ...base, maxAge: 15 * 60_000 });
+  // Access token: lax so top-level navigation carries it.
+  res.cookie("access_token", accessToken, {
+    ...base,
+    sameSite: "lax" as const,
+    maxAge: 15 * 60_000,
+  });
+  // Refresh token: strict + scoped to /api/auth — it's only ever sent to the
+  // refresh/logout endpoints, so the tighter policy adds CSRF defense for free.
   res.cookie("refresh_token", refreshToken, {
     ...base,
+    sameSite: "strict" as const,
     path: "/api/auth",
     maxAge: env.REFRESH_TOKEN_TTL_DAYS * 86_400_000,
   });

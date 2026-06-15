@@ -24,6 +24,8 @@ model User {
   phoneVerified Boolean   @default(false)
   avatarUrl     String?
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
+  failedLogins  Int       @default(0) // consecutive failed login attempts
+  lockedUntil   DateTime? // set after too many failures (backoff window)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -36,6 +38,7 @@ model User {
   pushSubscriptions PushSubscription[]
   hostedCarts   GroupCart[]     @relation("HostedCarts")
   groupCartItems GroupCartItem[]
+  groupCartMemberships GroupCartMember[]
 }
 
 // Group ordering: a shared cart one person hosts and others join via a code.
@@ -51,9 +54,24 @@ model GroupCart {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  items GroupCartItem[]
+  items   GroupCartItem[]
+  members GroupCartMember[]
 
   @@index([hostId])
+}
+
+// Explicit membership: created when someone joins via code (and for the host).
+// Gates who may read/add to a cart, independent of whether they've added items.
+model GroupCartMember {
+  id        String    @id @default(cuid())
+  cartId    String
+  cart      GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([cartId, userId])
+  @@index([userId])
 }
 
 model GroupCartItem {
