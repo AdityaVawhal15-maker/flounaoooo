@@ -1,14 +1,23 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Circle, Receipt, ChevronLeft } from "lucide-react";
+import { CheckCircle2, Circle, Receipt, ChevronLeft, Navigation } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { cn } from "@/lib/cn";
+
+const LiveTrackingMap = dynamic(
+  () => import("@/components/orders/LiveTrackingMap").then((m) => m.LiveTrackingMap),
+  {
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full animate-pulse rounded-card bg-beige/50" />,
+  },
+);
 
 type TrackingEvent = {
   id: string;
@@ -33,6 +42,10 @@ type OrderDetail = {
     farePaise?: number;
     pickup?: string;
     drop?: string;
+    pickupLat?: number;
+    pickupLng?: number;
+    dropLat?: number;
+    dropLng?: number;
     comparedOptions?: number;
     comparedPlatforms?: number;
   };
@@ -59,11 +72,13 @@ export default function OrderDetailPage({
         .then((d) => setOrder(d.order))
         .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
     load();
-    const timer = setInterval(() => {
-      setNow(Date.now());
-      load();
-    }, POLL_MS);
-    return () => clearInterval(timer);
+    const fetchTimer = setInterval(load, POLL_MS);
+    // A faster local clock advances the driver marker smoothly between fetches.
+    const tickTimer = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      clearInterval(fetchTimer);
+      clearInterval(tickTimer);
+    };
   }, [id]);
 
   if (!order) {
@@ -83,6 +98,39 @@ export default function OrderDetailPage({
     (order.trackingEvents.length > 0 && reached.length === order.trackingEvents.length);
   const showInvoice = search.get("invoice") === "1";
 
+  // Live ride tracking: drive a map marker from pickup→drop across the span of
+  // the tracking timeline. Progress = how far "now" is between the first and
+  // last event time. Driver is "arriving" until the 2nd-to-last event, then
+  // "enroute" to the drop.
+  const d = order.details;
+  const hasRideCoords =
+    order.domain === "ride" &&
+    d.pickupLat != null &&
+    d.pickupLng != null &&
+    d.dropLat != null &&
+    d.dropLng != null;
+
+  let tripProgress = 0;
+  let tripPhase: "arriving" | "enroute" | "done" = "arriving";
+  if (hasRideCoords && order.trackingEvents.length >= 2) {
+    const times = order.trackingEvents.map((e) => new Date(e.createdAt).getTime());
+    const start = times[0]!;
+    const end = times[times.length - 1]!;
+    const span = Math.max(1, end - start);
+    const raw = (now - start) / span;
+    tripProgress = Math.max(0, Math.min(1, raw));
+    if (allDone) tripPhase = "done";
+    else if (reached.length >= order.trackingEvents.length - 1) tripPhase = "enroute";
+    else tripPhase = "arriving";
+  }
+
+  // Minutes until the final tracking event (driver's ETA).
+  const lastEventTime =
+    order.trackingEvents.length > 0
+      ? new Date(order.trackingEvents[order.trackingEvents.length - 1]!.createdAt).getTime()
+      : 0;
+  const etaMinutes = Math.max(0, Math.ceil((lastEventTime - now) / 60000));
+
   const discount =
     order.details.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
 
@@ -99,6 +147,49 @@ export default function OrderDetailPage({
       <p className="mt-0.5 text-[12px] uppercase text-cocoa">
         {order.provider} · {new Date(order.createdAt).toLocaleString("en-IN")}
       </p>
+
+      {/* Live ride map */}
+      {hasRideCoords && (
+        <Card className="mt-5 overflow-hidden p-0">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft">
+                <Navigation size={15} className="text-accent" />
+              </span>
+              <div>
+                <p className="text-[13px] font-bold text-ink">
+                  {tripPhase === "done"
+                    ? "Trip completed"
+                    : tripPhase === "enroute"
+                      ? `On the way to ${d.drop ?? "your drop"}`
+                      : "Driver is arriving"}
+                </p>
+                <p className="text-[11px] text-cocoa">
+                  {tripPhase === "done"
+                    ? "Hope you enjoyed the ride"
+                    : etaMinutes > 0
+                      ? `${etaMinutes} min away`
+                      : "Arriving now"}
+                </p>
+              </div>
+            </div>
+            {tripPhase !== "done" && (
+              <span className="flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[11px] font-semibold text-success">
+                <span className="size-1.5 animate-pulse rounded-full bg-success" />
+                Live
+              </span>
+            )}
+          </div>
+          <div className="h-[280px] w-full">
+            <LiveTrackingMap
+              pickup={{ lat: d.pickupLat!, lng: d.pickupLng! }}
+              drop={{ lat: d.dropLat!, lng: d.dropLng! }}
+              progress={tripProgress}
+              phase={tripPhase}
+            />
+          </div>
+        </Card>
+      )}
 
       {/* Tracking timeline */}
       {order.trackingEvents.length > 0 && (
