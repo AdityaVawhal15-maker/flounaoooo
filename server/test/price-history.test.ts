@@ -4,6 +4,7 @@ import {
   predictFromHistory,
   recordObservation,
 } from "../src/modules/advisor/priceHistory.service.js";
+import { authedAgent } from "./helpers.js";
 
 // Seed observations directly so we control the learned pattern.
 async function seed(
@@ -74,5 +75,33 @@ describe("price-history advisor", () => {
       where: { key: "test-vehicle" },
     });
     expect(count).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("price-history endpoint", () => {
+  it("returns daily low prices for a dish", async () => {
+    const { agent } = await authedAgent();
+    const day = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() - offset);
+      return d;
+    };
+    // Two days of data; day -1 has a lower min than day -2.
+    await prisma.priceObservation.createMany({
+      data: [
+        { domain: "food", key: "chart-dish", hour: 12, weekday: 0, bestPaise: 20000, createdAt: day(2) },
+        { domain: "food", key: "chart-dish", hour: 13, weekday: 0, bestPaise: 19000, createdAt: day(2) },
+        { domain: "food", key: "chart-dish", hour: 12, weekday: 0, bestPaise: 15000, createdAt: day(1) },
+      ],
+    });
+
+    const res = await agent
+      .get("/api/food/dishes/chart-dish/price-history?days=30")
+      .expect(200);
+    expect(res.body.points.length).toBe(2);
+    // Day -2 min should be 19000 (the lower of the two), day -1 should be 15000.
+    const prices = res.body.points.map((p: { pricePaise: number }) => p.pricePaise);
+    expect(prices).toContain(19000);
+    expect(prices).toContain(15000);
   });
 });

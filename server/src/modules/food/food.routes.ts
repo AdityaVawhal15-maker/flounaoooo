@@ -5,6 +5,7 @@ import { recommendFood, searchFood } from "./food.service.js";
 import { dishes } from "../../data/restaurants.js";
 import { adviseFood } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
+import { prisma } from "../../lib/prisma.js";
 
 export const foodRouter = Router();
 foodRouter.use(requireAuth);
@@ -81,4 +82,32 @@ foodRouter.get("/dishes/:dishId", (req, res) => {
     return res.status(404).json({ error: "Dish not found" });
   }
   res.json({ quotes });
+});
+
+// Daily price history for a dish, from observed quotes. Returns one point per
+// day (the day's lowest observed price). Powers the trend chart.
+foodRouter.get("/dishes/:dishId/price-history", async (req, res, next) => {
+  try {
+    const days = z.coerce.number().int().min(1).max(90).default(30).parse(req.query.days);
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    const rows = await prisma.priceObservation.findMany({
+      where: { domain: "food", key: req.params.dishId, createdAt: { gte: since } },
+      select: { bestPaise: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Bucket by calendar day → that day's minimum observed price.
+    const byDay = new Map<string, number>();
+    for (const r of rows) {
+      const day = r.createdAt.toISOString().slice(0, 10);
+      const cur = byDay.get(day);
+      if (cur === undefined || r.bestPaise < cur) byDay.set(day, r.bestPaise);
+    }
+    const points = [...byDay.entries()].map(([date, pricePaise]) => ({ date, pricePaise }));
+
+    res.json({ dishId: req.params.dishId, points });
+  } catch (err) {
+    next(err);
+  }
 });

@@ -9,9 +9,16 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import dynamic from "next/dynamic";
 import { useBudget } from "@/components/food/BudgetBar";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
+
+// Charts are client-only and heavy — load on demand.
+const PriceHistoryChart = dynamic(
+  () => import("@/components/food/PriceHistoryChart").then((m) => m.PriceHistoryChart),
+  { ssr: false },
+);
 
 export default function FoodOrderPage({
   params,
@@ -219,6 +226,9 @@ export default function FoodOrderPage({
       <p className="mt-3 flex items-center justify-center gap-1 text-[11px] text-cocoa/70">
         <ShieldCheck size={12} /> Offers are pre-applied at checkout
       </p>
+
+      {/* Price trend chart (shows only when we have ≥2 days of data) */}
+      <PriceHistoryChart dishId={dishId} />
 
       {/* Price-drop alert */}
       <Card className="mt-5">
