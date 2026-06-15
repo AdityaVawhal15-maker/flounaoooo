@@ -59,6 +59,7 @@ type FoodRec = {
   alternatives: FoodQuote[];
   why: string;
   advice?: Advice;
+  budgetNote?: string;
 };
 
 type RideRec = {

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Star, Clock, Sparkles, Truck, Utensils, Package } from "lucide-react";
+import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
 import { FadeIn } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { rupees } from "@/lib/money";
+import { cn } from "@/lib/cn";
 import type { FoodQuote, ProductQuote, Recommendation, RideQuote } from "./types";
 
 function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
@@ -67,6 +68,19 @@ export function FoodRecommendation({
       </p>
       <FoodQuoteRow q={rec.best} highlight />
       {rec.advice && <AdviceBanner advice={rec.advice} />}
+      {rec.budgetNote && (
+        <p
+          className={cn(
+            "flex items-center gap-1.5 rounded-card px-3 py-2 text-[12px] font-medium",
+            rec.budgetNote.startsWith("Heads up")
+              ? "bg-danger/10 text-danger"
+              : "bg-success/10 text-success",
+          )}
+        >
+          <Wallet size={13} className="shrink-0" />
+          {rec.budgetNote}
+        </p>
+      )}
       <p className="text-[12px] leading-relaxed text-cocoa">{rec.why}</p>
       <p className="text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
       {rec.alternatives.length > 0 && (
