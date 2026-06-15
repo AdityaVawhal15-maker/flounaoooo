@@ -13,6 +13,10 @@ import { quoteRides } from "../rides/rides.service.js";
 import { recommendProduct } from "../shop/shop.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
+import { weeklyFoodBudget } from "../users/budget.service.js";
+
+// Paise → "₹123" for chat copy.
+const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
 
 export const chatRouter = Router();
 chatRouter.use(requireAuth);
@@ -33,7 +37,23 @@ type AssistantPayload = {
   recommendation?: unknown;
 };
 
-async function buildAssistantPayload(message: string): Promise<AssistantPayload> {
+// A short budget line shown under a food pick — only when a budget is set.
+function budgetNoteFor(
+  budget: Awaited<ReturnType<typeof weeklyFoodBudget>>,
+  pickPaise: number,
+): string | null {
+  if (budget.remainingPaise == null) return null;
+  const afterPaise = budget.remainingPaise - pickPaise;
+  if (afterPaise < 0) {
+    return `Heads up — this is ${rupees(-afterPaise)} over your weekly food budget.`;
+  }
+  return `${rupees(afterPaise)} left in your weekly food budget after this.`;
+}
+
+async function buildAssistantPayload(
+  message: string,
+  userId: string,
+): Promise<AssistantPayload> {
   let intent: Intent;
   try {
     intent = await llm.extractIntent(message);
@@ -44,9 +64,15 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
   }
 
   if (intent.domain === "combo" && intent.food && intent.ride) {
+    const comboBudget = await weeklyFoodBudget(userId);
+    const comboCap =
+      intent.food.budgetPaise ??
+      (comboBudget.remainingPaise && comboBudget.remainingPaise > 0
+        ? comboBudget.remainingPaise
+        : null);
     const foodRec = recommendFood({
       query: intent.food.item,
-      budgetPaise: intent.food.budgetPaise,
+      budgetPaise: comboCap,
       dietary: intent.food.dietary,
     });
     const rideQuotes = quoteRides({
@@ -76,13 +102,26 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
   }
 
   if (intent.domain === "food" && intent.food) {
+    // Budget Guardian awareness: if the user didn't name a budget but has a
+    // weekly food budget set, cap suggestions at what's left this week.
+    const budget = await weeklyFoodBudget(userId);
+    const weeklyCap =
+      budget.remainingPaise != null && budget.remainingPaise > 0
+        ? budget.remainingPaise
+        : null;
+    const effectiveBudget = intent.food.budgetPaise ?? weeklyCap;
+
     const rec = recommendFood({
       query: intent.food.item,
-      budgetPaise: intent.food.budgetPaise,
+      budgetPaise: effectiveBudget,
       dietary: intent.food.dietary,
     });
     if (rec) {
       recordObservation("food", rec.best.dishId, rec.best.effectivePaise);
+      // If the best in-budget pick still exceeds what's left, the engine returns
+      // the cheapest option anyway — we surface that honestly via the note
+      // rather than hiding it or refusing.
+      const budgetNote = budgetNoteFor(budget, rec.best.effectivePaise);
       return {
         reply: intent.reply,
         intent,
@@ -90,6 +129,7 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
           type: "food",
           ...rec,
           advice: await adviseFood(rec.best.dishId),
+          ...(budgetNote ? { budgetNote } : {}),
         },
       };
     }
@@ -178,7 +218,7 @@ chatRouter.post(
       });
 
       const payload: AssistantPayload = verdict.ok
-        ? await buildAssistantPayload(message.trim())
+        ? await buildAssistantPayload(message.trim(), req.userId!)
         : {
             reply: FIREWALL_REPLIES[verdict.reason],
             intent: { domain: "out_of_scope", reply: FIREWALL_REPLIES[verdict.reason] },
