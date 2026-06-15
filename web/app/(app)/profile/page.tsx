@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronRight,
   Bell,
+  Crown,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -26,6 +27,7 @@ const MENU: {
   icon: typeof UserRound;
   theme: keyof typeof TILE_THEMES;
 }[] = [
+  { href: "/profile/plus", key: "profile.plus", icon: Crown, theme: "amber" },
   { href: "/profile/details", key: "profile.details", icon: UserRound, theme: "blue" },
   { href: "/profile/settings", key: "profile.settings", icon: Settings, theme: "cocoa" },
   { href: "/profile/alerts", key: "profile.alerts", icon: Bell, theme: "amber" },
