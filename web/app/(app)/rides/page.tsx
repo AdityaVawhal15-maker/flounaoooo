@@ -9,6 +9,7 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
+import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
 import type { RideQuote } from "@/components/chat/types";
 
@@ -198,7 +199,9 @@ export default function RidesPage() {
 
       {/* Booking panel */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-t-3xl border-t border-line bg-cream px-4 py-4 lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-t-0 lg:px-5">
-        <h1 className="text-[17px] font-bold text-ink">Select your location</h1>
+        <FadeIn y={8}>
+          <h1 className="text-[17px] font-bold text-ink">Select your location</h1>
+        </FadeIn>
 
         <PlaceSearch
           label="Pickup location"
@@ -239,16 +242,16 @@ export default function RidesPage() {
               ))}
             </div>
 
-            <div className="flex flex-col gap-2">
+            <Stagger className="flex flex-col gap-2">
               {quotes.map((q) => (
+                <StaggerItem key={`${q.provider}-${q.productName}`}>
                 <button
-                  key={`${q.provider}-${q.productName}`}
                   onClick={() => setSelected(q)}
-                  className="text-left"
+                  className="w-full text-left"
                 >
                   <Card
                     className={cn(
-                      "py-3 transition-colors",
+                      "py-3 transition-all hover:-translate-y-0.5 hover:shadow-card",
                       selected === q && "border-accent/70 ring-1 ring-accent/30",
                     )}
                   >
@@ -281,8 +284,9 @@ export default function RidesPage() {
                     </div>
                   </Card>
                 </button>
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           </>
         )}
 

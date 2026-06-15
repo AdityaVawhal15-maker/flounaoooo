@@ -6,6 +6,9 @@ import { Pizza, Car, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
+import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { CategoryTile } from "@/components/ui/CategoryTile";
+import { CardSkeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
 
 type OrderSummary = {
@@ -53,7 +56,9 @@ export default function HistoryPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-5 lg:px-6 lg:py-8">
-      <h1 className="text-[20px] font-bold text-ink">History</h1>
+      <FadeIn y={8}>
+        <h1 className="text-[20px] font-bold text-ink">History</h1>
+      </FadeIn>
 
       <div className="mt-4 flex gap-2">
         {TABS.map((t) => (
@@ -74,25 +79,25 @@ export default function HistoryPage() {
 
       {error && <p className="mt-6 text-[13px] text-danger">{error}</p>}
 
-      <div className="mt-5 flex flex-col gap-2.5">
-        {orders === null && !error && (
-          <p className="text-[13px] text-cocoa">Loading…</p>
-        )}
+      <Stagger className="mt-5 flex flex-col gap-2.5">
+        {orders === null && !error &&
+          Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         {orders?.length === 0 && (
           <p className="py-10 text-center text-[13px] text-cocoa">
             Nothing here yet — ask Radiues for food or a ride to get started.
           </p>
         )}
         {orders?.map((o) => (
-          <Link key={o.id} href={`/orders/${o.id}`}>
-            <Card className="transition-colors hover:bg-beige/30">
+          <StaggerItem key={o.id}>
+          <Link href={`/orders/${o.id}`}>
+            <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
               <div className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-beige/70">
-                  {o.domain === "food" ? (
-                    <Pizza size={18} className="text-accent" />
-                  ) : (
-                    <Car size={18} className="text-cocoa" />
-                  )}
+                <span className="shrink-0">
+                  <CategoryTile
+                    icon={o.domain === "food" ? Pizza : Car}
+                    theme={o.domain === "food" ? "orange" : "blue"}
+                    size={40}
+                  />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-semibold text-ink">
@@ -123,8 +128,9 @@ export default function HistoryPage() {
               </div>
             </Card>
           </Link>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
     </div>
   );
 }
