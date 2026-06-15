@@ -45,31 +45,28 @@ function roundRect(
   ctx.closePath();
 }
 
-// Word-wrap helper — returns the y position after the last line.
-function wrapText(
+// Splits text into lines that fit `maxWidth` (measure-only, no drawing).
+function wrapLines(
   ctx: CanvasRenderingContext2D,
   text: string,
-  x: number,
-  y: number,
   maxWidth: number,
-  lineHeight: number,
-): number {
+): string[] {
   const words = text.split(" ");
+  const lines: string[] = [];
   let line = "";
-  let cursorY = y;
   for (const word of words) {
     const test = line ? `${line} ${word}` : word;
     if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, cursorY);
+      lines.push(line);
       line = word;
-      cursorY += lineHeight;
     } else {
       line = test;
     }
   }
-  if (line) ctx.fillText(line, x, cursorY);
-  return cursorY;
+  if (line) lines.push(line);
+  return lines;
 }
+
 
 // Loads the brand logo and recolors its opaque pixels white so it reads on the
 // accent band. Returns null if it can't load (we then fall back to a drawn mark).
@@ -164,75 +161,86 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
   ctx.fillText("Radiues", centerX, cardY + bandH - 38);
 
   // ---- Body ----
+  // Hero block (label / figure / sublabel) sits in the upper area.
+  const heroTop = cardY + bandH; // 294
   if (data.savedPaise > 0) {
     ctx.fillStyle = MUTED;
     ctx.font = "500 40px Inter, system-ui, sans-serif";
-    ctx.fillText("I just saved", centerX, 470);
+    ctx.fillText("I just saved", centerX, heroTop + 100);
 
-    // Soft glow behind the big number
     ctx.save();
     ctx.shadowColor = "rgba(232, 101, 26, 0.28)";
     ctx.shadowBlur = 50;
     ctx.fillStyle = ACCENT;
-    ctx.font = "800 168px Inter, system-ui, sans-serif";
-    ctx.fillText(rupees(data.savedPaise), centerX, 620);
+    ctx.font = "800 150px Inter, system-ui, sans-serif";
+    ctx.fillText(rupees(data.savedPaise), centerX, heroTop + 240);
     ctx.restore();
 
     ctx.fillStyle = INK;
     ctx.font = "600 40px Inter, system-ui, sans-serif";
-    ctx.fillText("with Radiues", centerX, 690);
+    ctx.fillText("with Radiues", centerX, heroTop + 310);
   } else {
     ctx.fillStyle = MUTED;
     ctx.font = "500 40px Inter, system-ui, sans-serif";
-    ctx.fillText("Radiues picked", centerX, 470);
+    ctx.fillText("Radiues picked", centerX, heroTop + 100);
 
     ctx.fillStyle = ACCENT;
-    ctx.font = "800 110px Inter, system-ui, sans-serif";
-    ctx.fillText("the best", centerX, 580);
-    ctx.fillText("option", centerX, 690);
+    ctx.font = "800 104px Inter, system-ui, sans-serif";
+    ctx.fillText("the best", centerX, heroTop + 210);
+    ctx.fillText("option", centerX, heroTop + 310);
   }
 
-  // Hairline divider
+  // ---- Lower block: lay out bottom-up so nothing can collide. ----
+  // Reserve fixed slots measured from the card bottom.
+  ctx.font = "600 42px Inter, system-ui, sans-serif";
+  const compareLines = wrapLines(
+    ctx,
+    `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
+    cardW - 160,
+  );
+  const compareLH = 52;
+  const chipH = 66;
+  const taglineGap = 56; // gap between chip bottom and the tagline baseline
+  const lineToChipGap = 28; // gap between compare text and the chip
+
+  // Anchor from the bottom: tagline → chip → compare block → divider.
+  const taglineBaseline = cardY + cardH - 48;
+  const chipTop = taglineBaseline - taglineGap - chipH;
+  const compareBlockH = compareLines.length * compareLH;
+  const compareTop = chipTop - lineToChipGap - compareBlockH;
+
+  // Hairline divider sits above the compare block.
   ctx.strokeStyle = BEIGE;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(centerX - 140, 728);
-  ctx.lineTo(centerX + 140, 728);
+  ctx.moveTo(centerX - 140, compareTop - 34);
+  ctx.lineTo(centerX + 140, compareTop - 34);
   ctx.stroke();
 
-  // What was compared (one or two lines — baseline of the last line returned)
+  // Draw compare lines.
   ctx.fillStyle = INK;
   ctx.font = "600 42px Inter, system-ui, sans-serif";
-  const afterCompare = wrapText(
-    ctx,
-    `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
-    centerX,
-    792,
-    cardW - 160,
-    54,
-  );
+  compareLines.forEach((line, i) => {
+    ctx.fillText(line, centerX, compareTop + compareLH * (i + 1) - 12);
+  });
 
-  // Order title chip — below the compare text but clamped so it can never
-  // collide with the pinned tagline (chip must end by `chipMaxBottom`).
-  const chipH = 68;
-  const chipMaxBottom = cardY + cardH - 110; // leave room for the tagline
-  const chipY = Math.min(afterCompare + 30, chipMaxBottom - chipH);
+  // Order title chip.
   ctx.font = "600 32px Inter, system-ui, sans-serif";
   const clippedTitle =
     data.title.length > 38 ? `${data.title.slice(0, 37)}…` : data.title;
   const chipW = Math.min(cardW - 120, ctx.measureText(clippedTitle).width + 72);
   ctx.fillStyle = "#fdeee4";
-  roundRect(ctx, centerX - chipW / 2, chipY, chipW, chipH, chipH / 2);
+  roundRect(ctx, centerX - chipW / 2, chipTop, chipW, chipH, chipH / 2);
   ctx.fill();
   ctx.fillStyle = ACCENT_DARK;
   ctx.textBaseline = "middle";
-  ctx.fillText(clippedTitle, centerX, chipY + chipH / 2);
+  ctx.fillText(clippedTitle, centerX, chipTop + chipH / 2);
   ctx.textBaseline = "alphabetic";
 
-  // Tagline footer — pinned to the card bottom, always clear of the chip.
+  // Tagline footer.
   ctx.fillStyle = COCOA;
   ctx.font = "italic 700 36px Inter, system-ui, sans-serif";
-  ctx.fillText("Stop searching. Start deciding.", centerX, cardY + cardH - 46);
+  ctx.fillText("Stop searching. Start deciding.", centerX, taglineBaseline);
 
   return new Promise((resolve) =>
     canvas.toBlob((blob) => resolve(blob), "image/png", 0.95),
