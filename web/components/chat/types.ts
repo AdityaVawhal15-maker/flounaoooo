@@ -29,6 +29,23 @@ export type RideQuote = {
   badge?: string;
 };
 
+export type ProductQuote = {
+  productId: string;
+  name: string;
+  brand: string;
+  category: string;
+  rating: number;
+  reviews: number;
+  tag: string;
+  reviewSummary: string;
+  platform: string;
+  basePaise: number;
+  offers: { label: string; discountPaise: number }[];
+  effectivePaise: number;
+  deliveryDays: number;
+  inStock: boolean;
+};
+
 export type Advice = {
   action: "order_now" | "wait";
   message: string;
@@ -53,9 +70,17 @@ type RideRec = {
   advice?: Advice;
 };
 
+type ShopRec = {
+  type: "shop";
+  best: ProductQuote;
+  alternatives: ProductQuote[];
+  why: string;
+};
+
 export type Recommendation =
   | FoodRec
   | RideRec
+  | ShopRec
   | {
       type: "combo";
       food: Omit<FoodRec, "type"> | null;

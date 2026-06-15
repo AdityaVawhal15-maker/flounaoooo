@@ -8,6 +8,7 @@ import {
   History,
   Pizza,
   Car,
+  ShoppingBag,
   Plus,
   User,
   PenSquare,
@@ -25,6 +26,7 @@ const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
   { href: "/history", key: "nav.history", icon: History },
   { href: "/food", key: "nav.food", icon: Pizza },
   { href: "/rides", key: "nav.rides", icon: Car },
+  { href: "/shop", key: "nav.shop", icon: ShoppingBag },
 ];
 
 export function Sidebar({

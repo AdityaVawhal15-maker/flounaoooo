@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MapPin, Pizza, Send, RotateCcw } from "lucide-react";
+import { MapPin, Pizza, Send, RotateCcw, ShoppingBag } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -11,6 +11,7 @@ import {
   ComboRecommendation,
   FoodRecommendation,
   RideRecommendation,
+  ShopRecommendation,
 } from "@/components/chat/RecommendationCards";
 import { VoiceButton } from "@/components/chat/VoiceButton";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -27,6 +28,7 @@ const SUGGESTIONS: {
 }[] = [
   { key: "chat.bookRide", icon: MapPin, prompt: "Book a ride to " },
   { key: "chat.orderPizza", icon: Pizza, prompt: "Order a pizza under ₹300" },
+  { key: "chat.shopNow", icon: ShoppingBag, prompt: "Find me a gaming laptop under ₹70000" },
 ];
 
 export default function ChatHomePage() {
@@ -183,6 +185,11 @@ function ChatHome() {
                   {m.recommendation?.type === "ride" && (
                     <div className="mt-3">
                       <RideRecommendation rec={m.recommendation} />
+                    </div>
+                  )}
+                  {m.recommendation?.type === "shop" && (
+                    <div className="mt-3">
+                      <ShopRecommendation rec={m.recommendation} />
                     </div>
                   )}
                   {m.recommendation?.type === "combo" && (

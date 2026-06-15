@@ -3,17 +3,41 @@ import type { Intent, LlmProvider } from "./types.js";
 // Keyless fallback so the whole product runs without any LLM account.
 // Simple keyword rules — replaced in production by Anthropic/DeepSeek.
 const FOOD_WORDS =
-  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry|order)\b/i;
+  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry)\b/i;
 const RIDE_WORDS =
-  /\b(ride|cab|taxi|auto|bike|uber|ola|rapido|drop|pickup|pick me|airport|station|office|go to|take me|book)\b/i;
+  /\b(ride|cab|taxi|auto|bike|uber|ola|rapido|drop|pickup|pick me|airport|station|office|go to|take me)\b/i;
+const SHOP_WORDS =
+  /\b(laptop|phone|mobile|earbuds|headphones|tws|shoes|sneakers|tshirt|t-shirt|shirt|clothing|watch|smartwatch|air ?fryer|appliance|gaming|buy|shopping|electronics|fashion|gadget)\b/i;
 const GREETING_WORDS = /^(hi|hii+|hello|hey|good (morning|afternoon|evening)|thanks|thank you|namaste)\b/i;
 
 const OUT_OF_SCOPE_REPLY =
-  "I can help you order food or book rides — what would you like?";
+  "I can help you order food, book rides, or shop — what would you like?";
 
 function parseBudget(message: string): number | null {
-  const m = message.match(/(?:under|below|less than|within|max|upto|up to)?\s*(?:₹|rs\.?|inr)\s*(\d{2,5})/i);
-  return m?.[1] ? Number(m[1]) * 100 : null;
+  // Handles ₹300, Rs 1,29,900, under 70000, etc. (rupees → paise).
+  const m = message.match(
+    /(?:under|below|less than|within|max|upto|up to|budget)?\s*(?:₹|rs\.?|inr)?\s*([\d,]{2,8})/i,
+  );
+  const n = m?.[1] ? Number(m[1].replace(/,/g, "")) : null;
+  return n && n >= 10 ? n * 100 : null;
+}
+
+function extractShop(message: string) {
+  const itemMatch = message.match(
+    /\b(gaming laptop|laptop|phone|mobile|earbuds|headphones|shoes|sneakers|t-?shirt|smartwatch|watch|air ?fryer)\b/i,
+  );
+  const category = /\b(laptop|phone|earbuds|headphones|watch|smartwatch|electronics|gaming)\b/i.test(message)
+    ? ("electronics" as const)
+    : /\b(shoes|sneakers|t-?shirt|shirt|clothing|fashion)\b/i.test(message)
+      ? ("fashion" as const)
+      : /\b(air ?fryer|appliance|kitchen)\b/i.test(message)
+        ? ("appliances" as const)
+        : ("any" as const);
+  return {
+    item: itemMatch?.[0]?.toLowerCase() ?? "products",
+    budgetPaise: parseBudget(message),
+    category,
+  };
 }
 
 function extractFood(message: string) {
@@ -82,6 +106,14 @@ export class DemoProvider implements LlmProvider {
         domain: "food",
         reply: "Got it — finding the best deal for you.",
         food: extractFood(message),
+      };
+    }
+
+    if (SHOP_WORDS.test(message)) {
+      return {
+        domain: "shop",
+        reply: "On it — comparing prices across stores for you.",
+        shop: extractShop(message),
       };
     }
 

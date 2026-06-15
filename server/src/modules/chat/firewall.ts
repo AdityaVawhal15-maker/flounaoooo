@@ -36,5 +36,5 @@ export const FIREWALL_REPLIES: Record<
 > = {
   empty: "Type what you'd like — food or a ride?",
   too_long: "That's a bit long for me — try a short request like \"biryani under ₹300\".",
-  injection: "I can help you order food or book rides — what would you like?",
+  injection: "I can help you order food, book rides, or shop — what would you like?",
 };

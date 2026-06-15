@@ -15,6 +15,7 @@ import { usersRouter } from "./modules/users/users.routes.js";
 import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { groupsRouter } from "./modules/groups/groups.routes.js";
 import { alertsRouter } from "./modules/alerts/alerts.routes.js";
+import { shopRouter } from "./modules/shop/shop.routes.js";
 
 export function createApp() {
   const app = express();
@@ -82,6 +83,7 @@ export function createApp() {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/groups", groupsRouter);
   app.use("/api/alerts", alertsRouter);
+  app.use("/api/shop", shopRouter);
 
   app.use(notFound);
   app.use(errorHandler);

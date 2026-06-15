@@ -10,6 +10,7 @@ import { llm, demoFallback } from "./llm/index.js";
 import type { Intent } from "./llm/types.js";
 import { recommendFood } from "../food/food.service.js";
 import { quoteRides } from "../rides/rides.service.js";
+import { recommendProduct } from "../shop/shop.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
 
@@ -114,6 +115,25 @@ async function buildAssistantPayload(message: string): Promise<AssistantPayload>
         why: `Cheapest effective fare is ${quotes[0]?.productName} after offers — open Rides to set exact pickup and book.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null),
       },
+    };
+  }
+
+  if (intent.domain === "shop" && intent.shop) {
+    const rec = recommendProduct({
+      query: intent.shop.item,
+      budgetPaise: intent.shop.budgetPaise,
+      category: intent.shop.category === "any" ? null : intent.shop.category,
+    });
+    if (rec) {
+      return {
+        reply: intent.reply,
+        intent,
+        recommendation: { type: "shop", ...rec },
+      };
+    }
+    return {
+      reply: `I couldn't find "${intent.shop.item}" right now — try a laptop, earbuds, shoes, or a smartwatch?`,
+      intent,
     };
   }
 
