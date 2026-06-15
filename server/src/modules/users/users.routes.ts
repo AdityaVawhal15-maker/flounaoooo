@@ -5,6 +5,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
+import { weeklyFoodBudget } from "./budget.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -53,36 +54,9 @@ usersRouter.patch(
 
 // ---------- Budget Guardian ----------
 
-function startOfWeek(now = new Date()): Date {
-  const d = new Date(now);
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 usersRouter.get("/budget", async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: { weeklyFoodBudgetPaise: true },
-    });
-    const spent = await prisma.order.aggregate({
-      where: {
-        userId: req.userId!,
-        domain: "food",
-        status: { in: ["confirmed", "in_progress", "completed"] },
-        createdAt: { gte: startOfWeek() },
-      },
-      _sum: { amount: true },
-    });
-    const spentPaise = spent._sum.amount ?? 0;
-    const budgetPaise = user?.weeklyFoodBudgetPaise ?? null;
-    res.json({
-      budgetPaise,
-      spentPaise,
-      remainingPaise: budgetPaise === null ? null : budgetPaise - spentPaise,
-    });
+    res.json(await weeklyFoodBudget(req.userId!));
   } catch (err) {
     next(err);
   }
