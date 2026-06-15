@@ -50,7 +50,7 @@ export default function ShopLandingPage() {
         />
       </div>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto">
         {(feed?.categories ?? ["All"]).map((c) => (
           <button
             key={c}

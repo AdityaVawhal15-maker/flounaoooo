@@ -28,6 +28,16 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+/* Horizontal scroll rows (category chips, etc.) stay swipeable but hide the
+   scrollbar so it never shows on mobile or desktop. */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/old Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
 /* Account-setup transition (post-OTP) */
 @keyframes logo-glow {
   0%,
