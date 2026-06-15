@@ -41,6 +41,20 @@ const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:support@radiues.app"),
+
+  // Fulfilment provider. "simulation" runs the full booking/tracking flow with
+  // a simulated captain + driver GPS (works with no third-party access).
+  // "ondc" switches to the real ONDC mobility adapter — requires the network
+  // credentials below (your registered Buyer App). Flip this once onboarded.
+  PROVIDER_MODE: z.enum(["simulation", "ondc"]).default("simulation"),
+  ONDC_BASE_URL: z.string().url().optional(), // Buyer App gateway endpoint
+  ONDC_SUBSCRIBER_ID: z.string().optional(),
+  ONDC_SIGNING_PRIVATE_KEY: z.string().optional(),
+  ONDC_SIGNING_PUBLIC_KEY: z.string().optional(),
+
+  // ₹50/month premium tier. Reuses the Cashfree gateway for the recurring
+  // charge; falls back to a simulated activation in dev when unset.
+  SUBSCRIPTION_PRICE_PAISE: z.coerce.number().default(5000),
 });
 
 const parsed = envSchema.safeParse(process.env);
