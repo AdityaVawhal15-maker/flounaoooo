@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
-import { weeklyFoodBudget } from "./budget.service.js";
+import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -87,20 +87,47 @@ usersRouter.put(
   },
 );
 
-// Lifetime savings — sum across paid orders. Powers the rewards screen.
+// Savings insights — lifetime total plus a 6-week trend and a food/ride split.
+// All derived from paid orders' savedPaise (frozen at decision time).
 usersRouter.get("/savings", async (req, res, next) => {
   try {
-    const result = await prisma.order.aggregate({
+    const orders = await prisma.order.findMany({
       where: {
         userId: req.userId!,
         status: { in: ["confirmed", "in_progress", "completed"] },
       },
-      _sum: { savedPaise: true },
-      _count: { id: true },
+      select: { savedPaise: true, domain: true, createdAt: true },
     });
+
+    const totalSavedPaise = orders.reduce((s, o) => s + o.savedPaise, 0);
+
+    // Per-domain split.
+    const byDomain = { food: 0, ride: 0 };
+    for (const o of orders) {
+      if (o.domain === "food") byDomain.food += o.savedPaise;
+      else if (o.domain === "ride") byDomain.ride += o.savedPaise;
+    }
+
+    // Last 6 weeks (oldest → newest), bucketed by Monday-start week.
+    const WEEKS = 6;
+    const thisWeek = startOfWeek();
+    const weekly: { weekStart: string; savedPaise: number }[] = [];
+    for (let i = WEEKS - 1; i >= 0; i--) {
+      const start = new Date(thisWeek);
+      start.setDate(start.getDate() - i * 7);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      const savedPaise = orders
+        .filter((o) => o.createdAt >= start && o.createdAt < end)
+        .reduce((s, o) => s + o.savedPaise, 0);
+      weekly.push({ weekStart: start.toISOString(), savedPaise });
+    }
+
     res.json({
-      totalSavedPaise: result._sum.savedPaise ?? 0,
-      paidOrders: result._count.id,
+      totalSavedPaise,
+      paidOrders: orders.length,
+      byDomain,
+      weekly,
     });
   } catch (err) {
     next(err);
