@@ -9,6 +9,7 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { RideTracker } from "@/components/orders/RideTracker";
+import { LoadingView, ErrorView } from "@/components/ui/StatusView";
 import { cn } from "@/lib/cn";
 
 type TrackingEvent = {
@@ -62,7 +63,10 @@ export default function OrderDetailPage({
   useEffect(() => {
     const load = () =>
       api<{ order: OrderDetail }>(`/api/orders/${id}`)
-        .then((d) => setOrder(d.order))
+        .then((d) => {
+          setOrder(d.order);
+          setError("");
+        })
         .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
     load();
     const fetchTimer = setInterval(load, POLL_MS);
@@ -75,10 +79,16 @@ export default function OrderDetailPage({
   }, [id]);
 
   if (!order) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-10">
-        <p className="text-[14px] text-cocoa">{error || "Loading…"}</p>
-      </div>
+    return error ? (
+      <ErrorView
+        notFound
+        title="Order not found"
+        message="We couldn't find this order — it may have been removed."
+        backHref="/history"
+        backLabel="Back to History"
+      />
+    ) : (
+      <LoadingView rows={4} />
     );
   }
 

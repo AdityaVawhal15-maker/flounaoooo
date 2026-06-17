@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { LoadingView, ErrorView } from "@/components/ui/StatusView";
 import { cn } from "@/lib/cn";
 import type { ProductQuote } from "@/components/chat/types";
 
@@ -19,25 +20,55 @@ export default function ProductPage({
   const [quotes, setQuotes] = useState<ProductQuote[]>([]);
   const [platform, setPlatform] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Reset state when navigating to a different product (reset-during-render —
+  // the codebase's pattern instead of a synchronous setState inside an effect).
+  const [prevId, setPrevId] = useState(productId);
+  if (prevId !== productId) {
+    setPrevId(productId);
+    setQuotes([]);
+    setError("");
+    setLoading(true);
+  }
 
   useEffect(() => {
+    let active = true;
     api<{ quotes: ProductQuote[] }>(`/api/shop/products/${productId}`)
       .then((d) => {
+        if (!active) return;
         setQuotes(d.quotes);
         setPlatform(d.quotes[0]?.platform ?? "");
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+      .catch((e) => active && setError(e instanceof Error ? e.message : "Failed to load"))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
   }, [productId]);
 
   const selected = quotes.find((q) => q.platform === platform);
 
-  if (!selected) {
+  if (loading) return <LoadingView rows={3} />;
+  if (error)
     return (
-      <div className="mx-auto max-w-xl px-4 py-10">
-        <p className="text-[14px] text-cocoa">{error || "Loading…"}</p>
-      </div>
+      <ErrorView
+        title="Couldn't load this product"
+        message={error}
+        backHref="/shop"
+        backLabel="Back to Shop"
+      />
     );
-  }
+  if (!selected)
+    return (
+      <ErrorView
+        notFound
+        title="Product not found"
+        message="This product may no longer be available."
+        backHref="/shop"
+        backLabel="Back to Shop"
+      />
+    );
 
   const discount = selected.offers.reduce((s, o) => s + o.discountPaise, 0);
 
