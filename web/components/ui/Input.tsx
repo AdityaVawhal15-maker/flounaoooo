@@ -24,17 +24,18 @@ export function Input({
       )}
       <div className="relative">
         {icon && (
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-cocoa/60">
+          <span className="pointer-events-none absolute left-[18px] top-1/2 -translate-y-1/2 text-cocoa/55">
             {icon}
           </span>
         )}
         <input
           id={id}
           className={cn(
-            "h-13 w-full rounded-[14px] border border-line bg-card text-[15px] text-ink placeholder:text-cocoa/50",
-            icon ? "pl-11" : "pl-4",
-            trailing ? "pr-11" : "pr-4",
-            "outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20",
+            // Pill field with a faint warm border on a soft surface — matches Figma.
+            "h-[52px] w-full rounded-full border border-[#ece2d8] bg-surface text-[15px] text-ink placeholder:text-cocoa/45",
+            icon ? "pl-[46px]" : "pl-5",
+            trailing ? "pr-[46px]" : "pr-5",
+            "outline-none transition-colors focus:border-accent/60 focus:ring-2 focus:ring-accent/10",
             error && "border-danger focus:border-danger focus:ring-danger/20",
             className,
           )}
