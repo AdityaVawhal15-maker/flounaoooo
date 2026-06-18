@@ -14,8 +14,8 @@ export default function LandingPage() {
           <Image
             src="/logo.png"
             alt="Radiues"
-            width={140}
-            height={140}
+            width={230}
+            height={230}
             priority
             style={{ filter: "drop-shadow(0 6px 14px rgba(61,28,0,0.18))" }}
           />
