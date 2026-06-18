@@ -13,6 +13,13 @@
   --color-success: #1ca65c;
   --color-danger: #d93025;
 
+  /* Chat-home brand accents (exact Figma values) */
+  --color-navy: #1a3a5c; /* hero heading line 1 */
+  --color-terracotta: #c8855a; /* hero heading line 2 */
+  --color-chip: #e5ddd5; /* flat quick-chip background */
+  --color-chip-ink: #2d2d2d; /* quick-chip label */
+  --color-send: #e8a060; /* ask-bar send button */
+
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */
   --color-muted: #a08a78; /* tertiary text */
   --color-surface: #fffdfb; /* slightly-raised surface */
