@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import { BottomNav } from "./BottomNav";
 import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
 
 // Layout for all signed-in screens: persistent sidebar on desktop,
-// hamburger drawer + bottom tabs on mobile — one codebase, two views.
+// hamburger drawer on mobile — one codebase, two views. The drawer is the
+// single navigation surface (no bottom tab bar), matching the design.
 export function AppShell({
   children,
   title,
@@ -34,10 +34,8 @@ export function AppShell({
           {title && <h1 className="text-[16px] font-semibold">{title}</h1>}
         </header>
 
-        <main className="flex-1 pb-20 lg:pb-6">{children}</main>
+        <main className="flex-1 pb-6">{children}</main>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

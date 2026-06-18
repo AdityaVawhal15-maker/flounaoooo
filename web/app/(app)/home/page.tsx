@@ -279,7 +279,7 @@ function ChatHome() {
           e.preventDefault();
           send(input);
         }}
-        className="sticky bottom-20 z-10 pb-4 pt-2 lg:bottom-0"
+        className="sticky bottom-0 z-10 pb-4 pt-2"
       >
         <div className="flex items-center gap-2 rounded-pill border border-line bg-card py-1.5 pl-5 pr-1.5 shadow-card">
           <input
