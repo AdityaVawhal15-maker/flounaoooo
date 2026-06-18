@@ -2,17 +2,43 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Zap, MapPin, Star, Clock, ChevronRight, Users, Utensils } from "lucide-react";
+import {
+  Search,
+  Zap,
+  MapPin,
+  Star,
+  Clock,
+  ChevronRight,
+  Users,
+  Bell,
+  ShoppingCart,
+  Soup,
+  Beef,
+  Pizza,
+  Salad,
+  Grid2x2,
+  type LucideIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { BudgetBar, useBudget } from "@/components/food/BudgetBar";
 import { FadeIn, ScrollReveal, Stagger, StaggerItem } from "@/components/ui/motion";
-import { CategoryTile } from "@/components/ui/CategoryTile";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
+
+// Fixed category set matching the Figma food landing. `value` is the search
+// term sent to the backend ("" = All / unfiltered).
+const FOOD_CATEGORIES: { label: string; value: string; icon: LucideIcon }[] = [
+  { label: "All", value: "All", icon: Soup },
+  { label: "Burger", value: "Burger", icon: Beef },
+  { label: "Pizza", value: "Pizza", icon: Pizza },
+  { label: "Healthy", value: "Healthy", icon: Salad },
+  { label: "More", value: "More", icon: Grid2x2 },
+];
 
 type Feed = {
   categories: string[];
@@ -59,36 +85,67 @@ export default function FoodLandingPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-4 lg:px-6 lg:py-8">
-      {/* Search */}
+      {/* Top bar — search + bell + cart, matching Figma */}
       <FadeIn y={8}>
-        <div className="flex items-center gap-2 rounded-pill border border-line bg-card px-4 py-3 shadow-card">
-          <Search size={18} className="text-cocoa/60" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("food.searchPlaceholder")}
-            maxLength={120}
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-pill border border-line bg-card px-4 py-3 shadow-card">
+            <Search size={18} className="text-cocoa/60" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("food.searchPlaceholder")}
+              maxLength={120}
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
+            />
+          </div>
+          <button
+            aria-label="Notifications"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-cocoa transition-colors hover:bg-beige/50"
+          >
+            <Bell size={20} />
+          </button>
+          <Link
+            href="/history"
+            aria-label="Orders"
+            className="relative flex size-10 shrink-0 items-center justify-center rounded-full text-cocoa transition-colors hover:bg-beige/50"
+          >
+            <ShoppingCart size={20} />
+          </Link>
         </div>
       </FadeIn>
 
-      {/* Categories */}
+      {/* Categories — fixed Figma set as 52×64 icon tiles */}
       <FadeIn delay={0.06} y={8}>
-        <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto">
-          {(feed?.categories ?? ["All"]).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={
-                c === category
-                  ? "shrink-0 rounded-[14px] border border-accent bg-accent-soft px-4 py-2.5 text-[13px] font-semibold text-accent"
-                  : "shrink-0 rounded-[14px] border border-line bg-card px-4 py-2.5 text-[13px] text-cocoa transition-colors hover:bg-beige/40"
-              }
-            >
-              {c}
-            </button>
-          ))}
+        <div className="no-scrollbar mt-4 flex justify-between gap-2 overflow-x-auto">
+          {FOOD_CATEGORIES.map(({ label, value, icon: Icon }) => {
+            const active = category === value;
+            return (
+              <button
+                key={label}
+                onClick={() => setCategory(value)}
+                className="flex shrink-0 flex-col items-center gap-1.5"
+              >
+                <span
+                  className={cn(
+                    "flex size-[52px] items-center justify-center rounded-[16px] border transition-colors",
+                    active
+                      ? "border-accent bg-accent-soft text-accent"
+                      : "border-line bg-card text-cocoa hover:bg-beige/40",
+                  )}
+                >
+                  <Icon size={24} strokeWidth={2} />
+                </span>
+                <span
+                  className={cn(
+                    "text-[12px]",
+                    active ? "font-semibold text-accent" : "text-cocoa",
+                  )}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </FadeIn>
 
@@ -100,8 +157,8 @@ export default function FoodLandingPage() {
             href="/food/group"
             className="mt-4 flex items-center gap-2.5 rounded-card border border-accent/40 bg-accent-soft/50 px-4 py-3 transition-colors hover:bg-accent-soft"
           >
-            <span className="flex shrink-0">
-              <CategoryTile icon={Users} theme="orange" size={38} />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+              <Users size={18} className="text-accent" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-bold text-ink">{t("food.groupOrder")}</p>
@@ -166,10 +223,11 @@ export default function FoodLandingPage() {
             <p className="text-[12px] text-cocoa">
               Recommendations based on speed, distance &amp; ratings
             </p>
-            <div className="mt-3 flex flex-col gap-2.5">
+            <div className="mt-2 flex flex-col divide-y divide-line">
               <SuggestionRow
                 icon={Zap}
-                theme="orange"
+                iconBg="bg-accent-soft"
+                iconClass="text-accent"
                 title="Fastest Delivery"
                 subtitle="Get your food in the least time possible"
                 value={`From ${feed?.suggestions.fastestDeliveryMinutes ?? "–"} min`}
@@ -177,7 +235,8 @@ export default function FoodLandingPage() {
               />
               <SuggestionRow
                 icon={MapPin}
-                theme="green"
+                iconBg="bg-[#e3f6ec]"
+                iconClass="text-success"
                 title="Nearest to You"
                 subtitle="Top restaurants near your location"
                 value={`Within ${feed?.suggestions.nearestKm ?? "–"} km`}
@@ -185,7 +244,8 @@ export default function FoodLandingPage() {
               />
               <SuggestionRow
                 icon={Star}
-                theme="purple"
+                iconBg="bg-[#efe7fb]"
+                iconClass="text-[#8b5cf6]"
                 title="Top Rated Near You"
                 subtitle="Highly rated restaurants you'll love"
                 value="4.0+ rated"
@@ -199,32 +259,29 @@ export default function FoodLandingPage() {
   );
 }
 
+// Dish card — Figma layout: tag pill, name, clock · rating, price + Order now.
+// No left icon tile (matches the design).
 function DishRow({ q }: { q: FoodQuote }) {
   return (
     <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
       <div className="flex items-center gap-3">
-        <span className="shrink-0">
-          <CategoryTile icon={Utensils} theme="amber" size={48} />
-        </span>
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}
           </span>
           <p className="mt-1 truncate text-[15px] font-bold text-ink">{q.name}</p>
-          <p className="flex items-center gap-2 text-[12px] text-cocoa">
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-cocoa">
+            <Clock size={11} /> {q.etaMinutes} min
             <span className="flex items-center gap-0.5">
-              <Clock size={12} /> {q.etaMinutes} min
-            </span>
-            <span className="flex items-center gap-0.5">
-              <Star size={12} className="fill-accent text-accent" /> {q.rating}
+              <Star size={11} className="fill-accent text-accent" /> {q.rating}
             </span>
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 items-center gap-2.5">
           <p className="text-[16px] font-bold text-ink">{rupees(q.effectivePaise)}</p>
           <Link
             href={`/food/order/${q.dishId}?platform=${q.platform}`}
-            className="rounded-pill bg-accent px-4 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#d4570f]"
+            className="rounded-pill bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#d4570f]"
           >
             Order now
           </Link>
@@ -234,37 +291,44 @@ function DishRow({ q }: { q: FoodQuote }) {
   );
 }
 
+// Smart-suggestion row — Figma: 36px tinted circle icon, title, subtitle,
+// value + chevron, divider between rows.
 function SuggestionRow({
-  icon,
-  theme,
+  icon: Icon,
+  iconClass,
+  iconBg,
   title,
   subtitle,
   value,
   onPick,
 }: {
-  icon: React.ComponentProps<typeof CategoryTile>["icon"];
-  theme: React.ComponentProps<typeof CategoryTile>["theme"];
+  icon: LucideIcon;
+  iconClass: string;
+  iconBg: string;
   title: string;
   subtitle: string;
   value: string;
   onPick: () => void;
 }) {
   return (
-    <button onClick={onPick} className="text-left">
-      <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
-        <div className="flex items-center gap-3">
-          <span className="shrink-0">
-            <CategoryTile icon={icon} theme={theme} size={40} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-bold text-ink">{title}</p>
-            <p className="truncate text-[12px] text-cocoa">{subtitle}</p>
-          </div>
-          <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-cocoa">
-            {value} <ChevronRight size={14} />
-          </span>
+    <button onClick={onPick} className="w-full text-left">
+      <div className="flex items-center gap-3 py-3">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-full",
+            iconBg,
+          )}
+        >
+          <Icon size={18} className={iconClass} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-bold text-ink">{title}</p>
+          <p className="truncate text-[12px] text-cocoa">{subtitle}</p>
         </div>
-      </Card>
+        <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-cocoa">
+          {value} <ChevronRight size={14} />
+        </span>
+      </div>
     </button>
   );
 }
