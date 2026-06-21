@@ -8,7 +8,6 @@ import {
   History,
   Pizza,
   Car,
-  ShoppingBag,
   Plus,
   User,
   PenSquare,
@@ -21,12 +20,13 @@ import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
+// Matches the Figma sidebar: Home / History / Food / Rides (Shop is reachable
+// via chat and the food/shop surfaces, but not a top-level sidebar item).
 const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
   { href: "/home", key: "nav.home", icon: Home },
   { href: "/history", key: "nav.history", icon: History },
   { href: "/food", key: "nav.food", icon: Pizza },
   { href: "/rides", key: "nav.rides", icon: Car },
-  { href: "/shop", key: "nav.shop", icon: ShoppingBag },
 ];
 
 export function Sidebar({
@@ -91,7 +91,7 @@ export function Sidebar({
           {t("nav.newChat")}
         </Link>
 
-        <nav className="mt-6 flex flex-col gap-1">
+        <nav className="mt-6 flex flex-col gap-1.5">
           {navItems.map(({ href, key, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
@@ -100,13 +100,13 @@ export function Sidebar({
                 href={href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[15px] transition-colors",
+                  "flex items-center gap-3 rounded-pill px-4 py-3 text-[15px] transition-colors",
                   active
-                    ? "bg-card font-semibold text-ink shadow-card"
-                    : "text-ink/80 hover:bg-card/70",
+                    ? "bg-accent-soft font-semibold text-accent"
+                    : "text-ink/85 hover:bg-card/70",
                 )}
               >
-                <Icon size={18} className="text-cocoa" />
+                <Icon size={18} className={active ? "text-accent" : "text-cocoa"} />
                 {t(key)}
               </Link>
             );
