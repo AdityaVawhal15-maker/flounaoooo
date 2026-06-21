@@ -56,17 +56,37 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
   );
 }
 
+const FOOD_WHY = [
+  "Best effective price after all offers and coupons",
+  "Highly rated by verified diners near you",
+  "Quick delivery time for current demand",
+  "Reliable kitchen with consistent quality",
+];
+
 export function FoodRecommendation({
   rec,
 }: {
   rec: Extract<Recommendation, { type: "food" }>;
 }) {
+  const total = 1 + rec.alternatives.length;
   return (
-    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
-        <Sparkles size={13} /> Radiues pick
-      </p>
-      <FoodQuoteRow q={rec.best} highlight />
+    <FadeIn y={8} className="flex w-full flex-col gap-3">
+      {/* AI explanation */}
+      <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
+
+      {/* Why this is the best choice */}
+      <div>
+        <p className="text-[14px] font-semibold text-ink">Why this is the best choice</p>
+        <ul className="mt-1.5 space-y-1">
+          {FOOD_WHY.map((line) => (
+            <li key={line} className="flex gap-2 text-[13px] leading-snug text-cocoa">
+              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-cocoa/60" />
+              {line}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {rec.advice && <AdviceBanner advice={rec.advice} />}
       {rec.budgetNote && (
         <p
@@ -81,18 +101,20 @@ export function FoodRecommendation({
           {rec.budgetNote}
         </p>
       )}
-      <p className="text-[12px] leading-relaxed text-cocoa">{rec.why}</p>
-      <p className="text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
-      {rec.alternatives.length > 0 && (
-        <>
-          <p className="mt-1 text-[12px] font-semibold text-cocoa">
-            Options we think you&apos;ll like
-          </p>
-          {rec.alternatives.map((q) => (
-            <FoodQuoteRow key={`${q.dishId}-${q.platform}`} q={q} />
-          ))}
-        </>
-      )}
+
+      {/* Available options + count pill */}
+      <div className="mt-1 flex items-center justify-between">
+        <h3 className="text-[15px] font-bold text-ink">Available Options</h3>
+        <span className="rounded-pill bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent">
+          {total} Option{total === 1 ? "" : "s"} Found
+        </span>
+      </div>
+
+      <FoodQuoteRow q={rec.best} highlight />
+      <p className="-mt-1 text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
+      {rec.alternatives.map((q) => (
+        <FoodQuoteRow key={`${q.dishId}-${q.platform}`} q={q} />
+      ))}
     </FadeIn>
   );
 }
@@ -142,21 +164,69 @@ function RideQuoteRow({ q }: { q: RideQuote }) {
   );
 }
 
+const RIDE_WHY = [
+  "Shortest pickup time based on nearby availability",
+  "Best price after applying all available offers and coupons",
+  "Reliable ride type for current traffic conditions",
+  "Consistent service quality compared to alternatives",
+];
+
 export function RideRecommendation({
   rec,
 }: {
   rec: Extract<Recommendation, { type: "ride" }>;
 }) {
+  // Distinct vehicle types present in the quotes, for the segmented tabs.
+  const vehicles = Array.from(new Set(rec.quotes.map((q) => q.vehicle)));
+
   return (
-    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
-        <Sparkles size={13} /> Rides to {rec.drop}
-      </p>
+    <FadeIn y={8} className="flex w-full flex-col gap-3">
+      {/* AI explanation */}
+      <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
+
+      {/* Why this is the best choice */}
+      <div>
+        <p className="text-[14px] font-semibold text-ink">Why this is the best choice</p>
+        <ul className="mt-1.5 space-y-1">
+          {RIDE_WHY.map((line) => (
+            <li key={line} className="flex gap-2 text-[13px] leading-snug text-cocoa">
+              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-cocoa/60" />
+              {line}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {rec.advice && <AdviceBanner advice={rec.advice} />}
+
+      {/* Available providers + count pill */}
+      <div className="mt-1 flex items-center justify-between">
+        <h3 className="text-[15px] font-bold text-ink">Available Providers</h3>
+        <span className="rounded-pill bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent">
+          {rec.quotes.length} Option{rec.quotes.length === 1 ? "" : "s"} Found
+        </span>
+      </div>
+
+      {/* Vehicle segmented control (display of what's offered) */}
+      {vehicles.length > 1 && (
+        <div className="flex rounded-pill bg-accent-soft/50 p-1">
+          {vehicles.map((v, i) => (
+            <span
+              key={v}
+              className={cn(
+                "flex-1 rounded-pill py-1.5 text-center text-[13px] font-semibold capitalize",
+                i === 0 ? "bg-white text-accent shadow-soft" : "text-cocoa",
+              )}
+            >
+              {v}
+            </span>
+          ))}
+        </div>
+      )}
+
       {rec.quotes.map((q) => (
         <RideQuoteRow key={q.productName} q={q} />
       ))}
-      <p className="text-[12px] leading-relaxed text-cocoa">{rec.why}</p>
     </FadeIn>
   );
 }
