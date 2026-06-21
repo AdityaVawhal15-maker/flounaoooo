@@ -85,9 +85,9 @@ export function Sidebar({
         <Link
           href="/home"
           onClick={onClose}
-          className="mt-6 flex h-11 items-center justify-center gap-2 rounded-pill bg-accent-soft text-[14px] font-semibold text-ink hover:bg-[#ffdfc9] transition-colors"
+          className="mt-6 flex h-12 items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink shadow-soft transition-colors hover:bg-beige/40"
         >
-          <Plus size={16} />
+          <Plus size={16} className="text-ink" />
           {t("nav.newChat")}
         </Link>
 
