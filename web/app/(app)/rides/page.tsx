@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MapPin, Star, Clock, CircleDot } from "lucide-react";
+import { Search, MapPin, Star, Clock, CircleDot, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
@@ -34,7 +34,7 @@ function PlaceSearch({
   onSelect,
 }: {
   label: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   value: Place | null;
   onSelect: (p: Place | null) => void;
 }) {
@@ -65,7 +65,7 @@ function PlaceSearch({
   return (
     <div className="relative">
       <div className="flex items-center gap-2 rounded-[14px] border border-line bg-card px-3 py-2.5">
-        {icon}
+        {icon ?? <Search size={15} className="shrink-0 text-cocoa/50" />}
         <input
           value={value ? `${value.name}${value.area ? `, ${value.area}` : ""}` : text}
           onChange={(e) => {
@@ -324,18 +324,43 @@ function RidesInner() {
           </div>
         </FadeIn>
 
-        <PlaceSearch
-          label={locating ? "Locating you…" : "Pickup location"}
-          icon={<CircleDot size={16} className="shrink-0 text-success" />}
-          value={pickup}
-          onSelect={setPickup}
-        />
-        <PlaceSearch
-          label="Search for a location…"
-          icon={<Search size={16} className="shrink-0 text-cocoa/60" />}
-          value={drop}
-          onSelect={setDrop}
-        />
+        {/* Pickup → drop with the Figma connector line */}
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-3.5">
+            <CircleDot size={15} className="shrink-0 text-success" />
+            <span className="my-1 w-px flex-1 bg-line" />
+            <MapPin size={15} className="shrink-0 text-accent" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+            <PlaceSearch
+              label={locating ? "Locating you…" : "Pickup location"}
+              value={pickup}
+              onSelect={setPickup}
+            />
+            <PlaceSearch
+              label="Search for a location…"
+              value={drop}
+              onSelect={setDrop}
+            />
+          </div>
+        </div>
+
+        {/* Select on map / Add stops — Figma action row */}
+        <div className="flex gap-2.5">
+          <button
+            type="button"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[13px] font-semibold text-ink transition-colors hover:bg-beige/40"
+          >
+            <MapPin size={15} className="text-accent" /> Select on map
+          </button>
+          <button
+            type="button"
+            disabled
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[13px] font-semibold text-cocoa/60"
+          >
+            <Plus size={15} /> Add stops
+          </button>
+        </div>
 
         {route && (
           <p className="text-[12px] text-cocoa">
