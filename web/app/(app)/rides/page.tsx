@@ -113,6 +113,38 @@ export default function RidesPage() {
   const [selected, setSelected] = useState<RideQuote | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Start in "locating" if the browser can geolocate; the async callbacks below
+  // resolve it (no synchronous setState inside the effect).
+  const [locating, setLocating] = useState(
+    () => typeof navigator !== "undefined" && !!navigator.geolocation,
+  );
+
+  // Auto-fill pickup from the device's live location on first load. Falls back
+  // silently to manual entry if permission is denied or GPS is unavailable.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (cancelled) return;
+        // Don't override a pickup already chosen (e.g. carried from chat).
+        setPickup((prev) =>
+          prev ?? {
+            name: "Current location",
+            area: "Your live location",
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          },
+        );
+        setLocating(false);
+      },
+      () => !cancelled && setLocating(false),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Reset-during-render when either endpoint is cleared.
   const bothSet = Boolean(pickup && drop);
@@ -217,7 +249,7 @@ export default function RidesPage() {
         </FadeIn>
 
         <PlaceSearch
-          label="Pickup location"
+          label={locating ? "Locating you…" : "Pickup location"}
           icon={<CircleDot size={16} className="shrink-0 text-success" />}
           value={pickup}
           onSelect={setPickup}
