@@ -144,6 +144,12 @@ async function buildAssistantPayload(
     // exact fares come from the rides screen once locations are picked.
     const quotes = quoteRides({ distanceKm: 8, rideMinutes: 24, vehicle: intent.ride.vehicle });
     if (quotes[0]) recordObservation("ride", quotes[0].vehicle, quotes[0].effectivePaise);
+    // Send the full spread so the chat's Bike/Cab/Auto switcher always has
+    // every available vehicle type (we only cap when a specific type was asked).
+    const sent =
+      intent.ride.vehicle && intent.ride.vehicle !== "any"
+        ? quotes.slice(0, 5)
+        : quotes;
     return {
       reply: intent.reply,
       intent,
@@ -151,7 +157,7 @@ async function buildAssistantPayload(
         type: "ride",
         drop: intent.ride.drop,
         pickup: intent.ride.pickup,
-        quotes: quotes.slice(0, 5),
+        quotes: sent,
         why: `Cheapest effective fare is ${quotes[0]?.productName} after offers — open Rides to set exact pickup and book.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null),
       },

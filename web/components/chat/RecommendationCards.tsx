@@ -150,14 +150,22 @@ function RideQuoteRow({ q }: { q: RideQuote }) {
   );
 }
 
-// Minimal ride result: clean answer text, the best pick, others behind a toggle.
+// Clean ride result: answer text + a Bike/Cab/Auto switcher so the user can
+// change vehicle type, then the (cheapest-first) options for that type.
 export function RideRecommendation({
   rec,
 }: {
   rec: Extract<Recommendation, { type: "ride" }>;
 }) {
-  const [showMore, setShowMore] = useState(false);
-  const [best, ...rest] = rec.quotes;
+  // Vehicle types present, in a stable display order.
+  const order = ["bike", "auto", "cab"];
+  const vehicles = order.filter((v) => rec.quotes.some((q) => q.vehicle === v));
+  const [vehicle, setVehicle] = useState(vehicles[0] ?? "bike");
+
+  // Quotes for the chosen vehicle, cheapest first.
+  const shown = rec.quotes
+    .filter((q) => q.vehicle === vehicle)
+    .sort((a, b) => a.effectivePaise - b.effectivePaise);
 
   return (
     <FadeIn y={8} className="flex w-full flex-col gap-2.5">
@@ -165,22 +173,27 @@ export function RideRecommendation({
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
 
-      {best && <RideQuoteRow q={best} />}
-
-      {rest.length > 0 && (
-        <>
-          <button
-            onClick={() => setShowMore((v) => !v)}
-            className="self-start text-[12px] font-semibold text-accent hover:underline"
-          >
-            {showMore
-              ? "Hide other options"
-              : `See ${rest.length} other option${rest.length === 1 ? "" : "s"}`}
-          </button>
-          {showMore &&
-            rest.map((q) => <RideQuoteRow key={q.productName} q={q} />)}
-        </>
+      {/* Vehicle switcher */}
+      {vehicles.length > 1 && (
+        <div className="flex rounded-pill bg-accent-soft/40 p-1">
+          {vehicles.map((v) => (
+            <button
+              key={v}
+              onClick={() => setVehicle(v)}
+              className={cn(
+                "flex-1 rounded-pill py-1.5 text-[13px] font-semibold capitalize transition-colors",
+                v === vehicle ? "bg-white text-accent shadow-soft" : "text-cocoa hover:text-ink",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       )}
+
+      {shown.map((q) => (
+        <RideQuoteRow key={q.productName} q={q} />
+      ))}
     </FadeIn>
   );
 }
