@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, MapPin, Star, Clock, CircleDot } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -103,11 +103,26 @@ function PlaceSearch({
 }
 
 export default function RidesPage() {
+  return (
+    <Suspense fallback={null}>
+      <RidesInner />
+    </Suspense>
+  );
+}
+
+function RidesInner() {
   const router = useRouter();
+  const search = useSearchParams();
   const [pickup, setPickup] = useState<Place | null>(null);
   const [drop, setDrop] = useState<Place | null>(null);
   const [route, setRoute] = useState<RouteInfo | null>(null);
-  const [vehicle, setVehicle] = useState<(typeof VEHICLES)[number]>("any");
+  // Pre-select the vehicle carried from chat (?vehicle=cab), else "any".
+  const [vehicle, setVehicle] = useState<(typeof VEHICLES)[number]>(() => {
+    const v = search.get("vehicle");
+    return v && (VEHICLES as readonly string[]).includes(v)
+      ? (v as (typeof VEHICLES)[number])
+      : "any";
+  });
   const [quotes, setQuotes] = useState<RideQuote[]>([]);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [selected, setSelected] = useState<RideQuote | null>(null);
@@ -145,6 +160,24 @@ export default function RidesPage() {
       cancelled = true;
     };
   }, []);
+
+  // Carried from chat ("book a cab to X"): geocode the destination and set it as
+  // the drop, and pre-select the vehicle — so the screen opens ready, no asking.
+  const dropParam = search.get("drop");
+  useEffect(() => {
+    if (!dropParam) return;
+    let cancelled = false;
+    api<{ places: Place[] }>(`/api/rides/geocode?q=${encodeURIComponent(dropParam)}`)
+      .then((d) => {
+        if (cancelled) return;
+        const first = d.places[0];
+        if (first) setDrop(first);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [dropParam]);
 
   // Reset-during-render when either endpoint is cleared.
   const bothSet = Boolean(pickup && drop);

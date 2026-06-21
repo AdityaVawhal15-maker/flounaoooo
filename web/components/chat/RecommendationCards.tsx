@@ -105,7 +105,12 @@ export function FoodRecommendation({
   );
 }
 
-function RideQuoteRow({ q }: { q: RideQuote }) {
+function RideQuoteRow({ q, drop }: { q: RideQuote; drop?: string }) {
+  // Carry the destination + chosen vehicle so the rides screen opens ready —
+  // pickup comes from live GPS, drop is geocoded, no re-asking.
+  const href = drop
+    ? `/rides?drop=${encodeURIComponent(drop)}&vehicle=${q.vehicle}`
+    : "/rides";
   return (
     <Card
       className={
@@ -139,7 +144,7 @@ function RideQuoteRow({ q }: { q: RideQuote }) {
         <div className="shrink-0 text-right">
           <p className="text-[16px] font-bold text-ink">{rupees(q.effectivePaise)}</p>
           <Link
-            href="/rides"
+            href={href}
             className="mt-1.5 inline-block rounded-pill bg-accent px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f] transition-colors"
           >
             Select
@@ -192,7 +197,7 @@ export function RideRecommendation({
       )}
 
       {shown.map((q) => (
-        <RideQuoteRow key={q.productName} q={q} />
+        <RideQuoteRow key={q.productName} q={q} drop={rec.drop} />
       ))}
     </FadeIn>
   );
