@@ -197,10 +197,22 @@ export default function RidesPage() {
         />
       </div>
 
-      {/* Booking panel */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-t-3xl border-t border-line bg-cream px-4 py-4 lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-t-0 lg:px-5">
+      {/* Booking panel — styled as the Figma bottom sheet on mobile */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-t-[25px] border-t border-line bg-white px-4 py-5 shadow-[0_-4px_20px_-8px_rgba(0,0,0,0.12)] lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-t-0 lg:px-5 lg:shadow-none">
         <FadeIn y={8}>
-          <h1 className="text-[17px] font-bold text-ink">Select your location</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-[17px] font-bold text-[#1a1a2e]">Select your location</h1>
+            <button
+              type="button"
+              onClick={() => {
+                setPickup(null);
+                setDrop(null);
+              }}
+              className="rounded-[17px] bg-[#f0e8e0] px-3.5 py-1.5 text-[13px] font-semibold text-[#2d2d2d] transition-colors hover:bg-[#e6dccf]"
+            >
+              Change
+            </button>
+          </div>
         </FadeIn>
 
         <PlaceSearch
@@ -292,11 +304,11 @@ export default function RidesPage() {
 
         {error && <p className="text-[13px] text-danger">{error}</p>}
 
-        <div className="sticky bottom-0 mt-auto bg-cream pb-1 pt-2">
+        <div className="sticky bottom-0 mt-auto bg-white pb-1 pt-2">
           <Button
             onClick={confirmRide}
             disabled={!selected || busy}
-            className="w-full"
+            className="h-[59px] w-full rounded-[25px] text-[15px]"
           >
             {busy
               ? "Booking…"
@@ -304,7 +316,7 @@ export default function RidesPage() {
                 ? `Confirm ${selected.productName} · ${rupees(selected.effectivePaise)}`
                 : pickup && drop
                   ? "Choose a ride"
-                  : "Select pickup & drop"}
+                  : "Select Drop"}
           </Button>
         </div>
       </div>
