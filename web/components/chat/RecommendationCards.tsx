@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -56,45 +57,25 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
   );
 }
 
-const FOOD_WHY = [
-  "Best effective price after all offers and coupons",
-  "Highly rated by verified diners near you",
-  "Quick delivery time for current demand",
-  "Reliable kitchen with consistent quality",
-];
-
+// Minimal, ChatGPT/Claude-style result: the AI's answer as clean text, the one
+// best pick, and other options tucked behind a toggle.
 export function FoodRecommendation({
   rec,
 }: {
   rec: Extract<Recommendation, { type: "food" }>;
 }) {
-  const total = 1 + rec.alternatives.length;
+  const [showMore, setShowMore] = useState(false);
   return (
-    <FadeIn y={8} className="flex w-full flex-col gap-3">
-      {/* AI explanation */}
+    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
 
-      {/* Why this is the best choice */}
-      <div>
-        <p className="text-[14px] font-semibold text-ink">Why this is the best choice</p>
-        <ul className="mt-1.5 space-y-1">
-          {FOOD_WHY.map((line) => (
-            <li key={line} className="flex gap-2 text-[13px] leading-snug text-cocoa">
-              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-cocoa/60" />
-              {line}
-            </li>
-          ))}
-        </ul>
-      </div>
-
       {rec.advice && <AdviceBanner advice={rec.advice} />}
+
       {rec.budgetNote && (
         <p
           className={cn(
-            "flex items-center gap-1.5 rounded-card px-3 py-2 text-[12px] font-medium",
-            rec.budgetNote.startsWith("Heads up")
-              ? "bg-danger/10 text-danger"
-              : "bg-success/10 text-success",
+            "flex items-center gap-1.5 text-[12px] font-medium",
+            rec.budgetNote.startsWith("Heads up") ? "text-danger" : "text-success",
           )}
         >
           <Wallet size={13} className="shrink-0" />
@@ -102,19 +83,24 @@ export function FoodRecommendation({
         </p>
       )}
 
-      {/* Available options + count pill */}
-      <div className="mt-1 flex items-center justify-between">
-        <h3 className="text-[15px] font-bold text-ink">Available Options</h3>
-        <span className="rounded-pill bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent">
-          {total} Option{total === 1 ? "" : "s"} Found
-        </span>
-      </div>
-
       <FoodQuoteRow q={rec.best} highlight />
-      <p className="-mt-1 text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
-      {rec.alternatives.map((q) => (
-        <FoodQuoteRow key={`${q.dishId}-${q.platform}`} q={q} />
-      ))}
+
+      {rec.alternatives.length > 0 && (
+        <>
+          <button
+            onClick={() => setShowMore((v) => !v)}
+            className="self-start text-[12px] font-semibold text-accent hover:underline"
+          >
+            {showMore
+              ? "Hide other options"
+              : `See ${rec.alternatives.length} other option${rec.alternatives.length === 1 ? "" : "s"}`}
+          </button>
+          {showMore &&
+            rec.alternatives.map((q) => (
+              <FoodQuoteRow key={`${q.dishId}-${q.platform}`} q={q} />
+            ))}
+        </>
+      )}
     </FadeIn>
   );
 }
@@ -164,69 +150,37 @@ function RideQuoteRow({ q }: { q: RideQuote }) {
   );
 }
 
-const RIDE_WHY = [
-  "Shortest pickup time based on nearby availability",
-  "Best price after applying all available offers and coupons",
-  "Reliable ride type for current traffic conditions",
-  "Consistent service quality compared to alternatives",
-];
-
+// Minimal ride result: clean answer text, the best pick, others behind a toggle.
 export function RideRecommendation({
   rec,
 }: {
   rec: Extract<Recommendation, { type: "ride" }>;
 }) {
-  // Distinct vehicle types present in the quotes, for the segmented tabs.
-  const vehicles = Array.from(new Set(rec.quotes.map((q) => q.vehicle)));
+  const [showMore, setShowMore] = useState(false);
+  const [best, ...rest] = rec.quotes;
 
   return (
-    <FadeIn y={8} className="flex w-full flex-col gap-3">
-      {/* AI explanation */}
+    <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
-
-      {/* Why this is the best choice */}
-      <div>
-        <p className="text-[14px] font-semibold text-ink">Why this is the best choice</p>
-        <ul className="mt-1.5 space-y-1">
-          {RIDE_WHY.map((line) => (
-            <li key={line} className="flex gap-2 text-[13px] leading-snug text-cocoa">
-              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-cocoa/60" />
-              {line}
-            </li>
-          ))}
-        </ul>
-      </div>
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
 
-      {/* Available providers + count pill */}
-      <div className="mt-1 flex items-center justify-between">
-        <h3 className="text-[15px] font-bold text-ink">Available Providers</h3>
-        <span className="rounded-pill bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent">
-          {rec.quotes.length} Option{rec.quotes.length === 1 ? "" : "s"} Found
-        </span>
-      </div>
+      {best && <RideQuoteRow q={best} />}
 
-      {/* Vehicle segmented control (display of what's offered) */}
-      {vehicles.length > 1 && (
-        <div className="flex rounded-pill bg-accent-soft/50 p-1">
-          {vehicles.map((v, i) => (
-            <span
-              key={v}
-              className={cn(
-                "flex-1 rounded-pill py-1.5 text-center text-[13px] font-semibold capitalize",
-                i === 0 ? "bg-white text-accent shadow-soft" : "text-cocoa",
-              )}
-            >
-              {v}
-            </span>
-          ))}
-        </div>
+      {rest.length > 0 && (
+        <>
+          <button
+            onClick={() => setShowMore((v) => !v)}
+            className="self-start text-[12px] font-semibold text-accent hover:underline"
+          >
+            {showMore
+              ? "Hide other options"
+              : `See ${rest.length} other option${rest.length === 1 ? "" : "s"}`}
+          </button>
+          {showMore &&
+            rest.map((q) => <RideQuoteRow key={q.productName} q={q} />)}
+        </>
       )}
-
-      {rec.quotes.map((q) => (
-        <RideQuoteRow key={q.productName} q={q} />
-      ))}
     </FadeIn>
   );
 }

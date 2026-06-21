@@ -44,14 +44,37 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Horizontal scroll rows (category chips, etc.) stay swipeable but hide the
-   scrollbar so it never shows on mobile or desktop. */
-.no-scrollbar {
-  -ms-overflow-style: none; /* IE/old Edge */
+/* Hide scrollbars app-wide (clean edges on web, mobile and the wrapped app)
+   while keeping scroll fully functional. */
+* {
   scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/old Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge/WebView */
+  width: 0;
+  height: 0;
+}
+
+/* Kept for explicit horizontal swipe rows. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Edge */
+  display: none;
+}
+
+/* Fade-in for progressively revealed thinking steps */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Account-setup transition (post-OTP) */

@@ -25,6 +25,7 @@ import {
   ShopRecommendation,
 } from "@/components/chat/RecommendationCards";
 import { VoiceButton } from "@/components/chat/VoiceButton";
+import { ThinkingSteps } from "@/components/chat/ThinkingSteps";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { type TILE_THEMES } from "@/components/ui/CategoryTile";
@@ -244,17 +245,7 @@ function ChatHome() {
               )}
             </div>
           ))}
-          {thinking && (
-            <div className="flex items-center gap-1.5 pl-1">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="size-2 animate-bounce rounded-full bg-cocoa/50"
-                  style={{ animationDelay: `${i * 150}ms` }}
-                />
-              ))}
-            </div>
-          )}
+          {thinking && <ThinkingSteps />}
           <div ref={bottomRef} />
         </div>
       )}
