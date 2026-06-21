@@ -187,9 +187,10 @@ export default function RidesPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh lg:flex-row">
-      {/* Map — top on mobile, left panel on desktop */}
-      <div className="h-[34dvh] shrink-0 lg:h-full lg:flex-1">
+    <div className="relative flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh lg:flex-row">
+      {/* Map — fills the screen (Figma: ~70%); the sheet floats over the bottom.
+          On desktop it's the left panel. */}
+      <div className="absolute inset-0 lg:static lg:h-full lg:flex-1">
         <RideMap
           pickup={mapPoints.pickup}
           drop={mapPoints.drop}
@@ -197,8 +198,8 @@ export default function RidesPage() {
         />
       </div>
 
-      {/* Booking panel — styled as the Figma bottom sheet on mobile */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-t-[25px] border-t border-line bg-white px-4 py-5 shadow-[0_-4px_20px_-8px_rgba(0,0,0,0.12)] lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-t-0 lg:px-5 lg:shadow-none">
+      {/* Booking panel — floating bottom sheet over the map (Figma) */}
+      <div className="absolute inset-x-0 bottom-0 z-10 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-white px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-line lg:px-5 lg:shadow-none">
         <FadeIn y={8}>
           <div className="flex items-center justify-between">
             <h1 className="text-[17px] font-bold text-[#1a1a2e]">Select your location</h1>
