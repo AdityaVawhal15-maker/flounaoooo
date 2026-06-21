@@ -161,19 +161,62 @@ function RidesInner() {
     };
   }, []);
 
-  // Carried from chat ("book a cab to X"): geocode the destination and set it as
-  // the drop, and pre-select the vehicle — so the screen opens ready, no asking.
+  // Carried from chat ("book a cab to X"): resolve the destination and set it as
+  // the drop — so the screen opens ready, no asking. A saved place ("home" /
+  // "work") uses the user's saved address; anything else is geocoded.
   const dropParam = search.get("drop");
   useEffect(() => {
     if (!dropParam) return;
     let cancelled = false;
-    api<{ places: Place[] }>(`/api/rides/geocode?q=${encodeURIComponent(dropParam)}`)
-      .then((d) => {
-        if (cancelled) return;
-        const first = d.places[0];
-        if (first) setDrop(first);
-      })
-      .catch(() => {});
+
+    async function resolveDrop(query: string) {
+      const savedWords = ["home", "work", "office", "house"];
+      // 1) Saved place? Match a saved address by label (or the word "home").
+      if (savedWords.some((w) => query.toLowerCase().includes(w))) {
+        try {
+          const { addresses } = await api<{
+            addresses: {
+              label: string;
+              line1: string;
+              city: string;
+              lat: number | null;
+              lng: number | null;
+            }[];
+          }>("/api/users/addresses");
+          const match =
+            addresses.find((a) =>
+              query.toLowerCase().includes(a.label.toLowerCase()),
+            ) ?? addresses[0];
+          if (match) {
+            if (match.lat != null && match.lng != null) {
+              if (!cancelled)
+                setDrop({
+                  name: match.label,
+                  area: `${match.line1}, ${match.city}`,
+                  lat: match.lat,
+                  lng: match.lng,
+                });
+              return;
+            }
+            // No coords on the saved address → geocode its text.
+            query = `${match.line1} ${match.city}`;
+          }
+        } catch {
+          // fall through to plain geocode
+        }
+      }
+      // 2) Geocode the (possibly rewritten) query.
+      try {
+        const d = await api<{ places: Place[] }>(
+          `/api/rides/geocode?q=${encodeURIComponent(query)}`,
+        );
+        if (!cancelled && d.places[0]) setDrop(d.places[0]);
+      } catch {
+        // leave drop unset; user can search manually
+      }
+    }
+
+    void resolveDrop(dropParam);
     return () => {
       cancelled = true;
     };
