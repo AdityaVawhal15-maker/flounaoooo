@@ -55,6 +55,16 @@ export default function LandingPage() {
             </Link>
           </div>
         </FadeIn>
+
+        <FadeIn delay={0.5} className="mt-8 flex items-center gap-4 text-[12px] text-muted">
+          <Link href="/legal/privacy" className="hover:text-cocoa">
+            Privacy Policy
+          </Link>
+          <span className="text-line">·</span>
+          <Link href="/legal/terms" className="hover:text-cocoa">
+            Terms of Service
+          </Link>
+        </FadeIn>
       </div>
     </div>
   );
