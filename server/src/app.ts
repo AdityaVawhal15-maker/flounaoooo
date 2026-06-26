@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
+import { prisma } from "./lib/prisma.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
@@ -70,8 +71,28 @@ export function createApp() {
     }),
   );
 
-  app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "radiues-api" });
+  // Liveness + readiness: verifies the process is up AND the database is
+  // reachable. Uptime monitors and load balancers poll this.
+  app.get("/api/health", async (_req, res) => {
+    const started = Date.now();
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({
+        ok: true,
+        service: "radiues-api",
+        db: "ok",
+        uptimeSeconds: Math.round(process.uptime()),
+        latencyMs: Date.now() - started,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      res.status(503).json({
+        ok: false,
+        service: "radiues-api",
+        db: "unreachable",
+        timestamp: new Date().toISOString(),
+      });
+    }
   });
 
   app.use("/api/auth", authRouter);
