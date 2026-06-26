@@ -72,3 +72,26 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
+
+// Production safety gate: refuse to boot with a dev-grade configuration in
+// production, so we never accidentally ship with weak secrets or a dev database.
+if (isProd) {
+  const problems: string[] = [];
+  if (env.DATABASE_URL.startsWith("file:")) {
+    problems.push("DATABASE_URL points at a local SQLite file — use PostgreSQL in production");
+  }
+  if (env.JWT_ACCESS_SECRET.length < 48) {
+    problems.push("JWT_ACCESS_SECRET is too short for production (use 48+ random chars)");
+  }
+  if (env.JWT_REFRESH_SECRET.length < 48) {
+    problems.push("JWT_REFRESH_SECRET is too short for production (use 48+ random chars)");
+  }
+  if (!env.WEB_ORIGIN.startsWith("https://")) {
+    problems.push("WEB_ORIGIN must be https:// in production (secure cookies require it)");
+  }
+  if (problems.length > 0) {
+    console.error("Refusing to start: unsafe production configuration:");
+    for (const p of problems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+}
