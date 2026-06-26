@@ -12,6 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "db:provider": "node scripts/set-db-provider.mjs",
+    "db:deploy": "node scripts/set-db-provider.mjs postgresql && prisma migrate deploy && prisma generate",
     "lint": "tsc --noEmit",
     "test": "vitest run"
   },

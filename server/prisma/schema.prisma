@@ -1,8 +1,14 @@
 // Radiues data model.
-// Dev runs on SQLite; production switches provider to "postgresql" and re-runs
-// migrations — fields below avoid SQLite-only or Postgres-only types so the
-// switch is a one-line change. Enum-like fields are strings validated by zod
-// at the API boundary (SQLite has no native enums).
+// Dev runs on SQLite; production runs on PostgreSQL. Fields below avoid
+// SQLite-only or Postgres-only types so the same schema compiles on both.
+// Enum-like fields are strings validated by zod at the API boundary.
+//
+// Switching engines (the provider line below cannot use env(), so a script
+// rewrites it):
+//   Dev (default):   npm run db:provider          # -> sqlite
+//   Production:      DB_PROVIDER=postgresql npm run db:deploy
+//                    (sets postgresql, runs `prisma migrate deploy` + generate)
+// Set DATABASE_URL to the Postgres connection string in the prod environment.
 
 generator client {
   provider = "prisma-client-js"
