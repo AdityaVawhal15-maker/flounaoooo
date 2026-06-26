@@ -46,12 +46,15 @@ export function RideTracker({
   pickup,
   drop,
   dropLabel,
+  domain = "ride",
 }: {
   orderId: string;
   pickup: LatLng;
   drop: LatLng;
   dropLabel: string;
+  domain?: "ride" | "food";
 }) {
+  const isFood = domain === "food";
   const { t: tr } = useI18n();
   const [t, setT] = useState<Tracking | null>(null);
   const [copied, setCopied] = useState(false);
@@ -135,7 +138,9 @@ export function RideTracker({
                       : t?.state === "arrived"
                         ? tr("track.arrived")
                         : searching
-                          ? tr("track.searching")
+                          ? isFood
+                            ? "Finding a delivery partner…"
+                            : tr("track.searching")
                           : tr("track.onTheWay")}
               </p>
               <p className="text-[11px] text-cocoa">

@@ -133,7 +133,7 @@ describe("ride tracking endpoint", () => {
     );
   });
 
-  it("rejects tracking a food order", async () => {
+  it("tracks a food delivery too (delivery partner on a live map)", async () => {
     const { agent } = await authedAgent();
     const food = await agent
       .post("/api/orders")
@@ -145,7 +145,9 @@ describe("ride tracking endpoint", () => {
       .post("/api/payments/simulate")
       .send({ orderId, method: "upi" })
       .expect(200);
-    await agent.get(`/api/orders/${orderId}/track`).expect(400);
+    const res = await agent.get(`/api/orders/${orderId}/track`).expect(200);
+    expect(res.body.tracking.otp).toMatch(/^\d{4}$/);
+    expect(res.body.tracking.driverLocation ?? null).not.toBeUndefined();
   });
 
   it("404s for someone else's order", async () => {

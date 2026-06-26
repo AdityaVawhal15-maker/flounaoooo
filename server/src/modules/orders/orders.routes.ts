@@ -17,6 +17,28 @@ import { sendPushToUser } from "../notifications/push.service.js";
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
 
+// Deterministic restaurant → delivery coordinates near Hyderabad for the live
+// delivery map. Same dish always yields the same short route. Replaced by real
+// ONDC restaurant + delivery-address coordinates once the network is live.
+function simulateDeliveryCoords(seed: string): {
+  restaurantLat: number;
+  restaurantLng: number;
+  deliveryLat: number;
+  deliveryLng: number;
+} {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const baseLat = 17.43; // Hyderabad
+  const baseLng = 78.4;
+  const jitter = (n: number) => ((n % 1000) / 1000 - 0.5) * 0.06; // ~±3km
+  return {
+    restaurantLat: baseLat + jitter(h),
+    restaurantLng: baseLng + jitter(h >> 5),
+    deliveryLat: baseLat + jitter(h >> 10) + 0.015,
+    deliveryLng: baseLng + jitter(h >> 15) + 0.015,
+  };
+}
+
 const createFoodOrder = z.object({
   domain: z.literal("food"),
   dishId: z.string().max(60),
@@ -81,6 +103,12 @@ ordersRouter.post(
             ? CONVENIENCE_FEE_PAISE
             : 0;
 
+        // Restaurant → delivery coordinates power the live delivery map on the
+        // order screen. Simulated near a city centre for now (a short, realistic
+        // route); real ONDC restaurant + address coordinates replace these.
+        const { restaurantLat, restaurantLng, deliveryLat, deliveryLng } =
+          simulateDeliveryCoords(body.dishId);
+
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
@@ -92,6 +120,12 @@ ordersRouter.post(
             details: JSON.stringify({
               ...quote,
               convenienceFeePaise,
+              // Delivery map: restaurant (pickup) → delivery address (drop).
+              pickupLat: restaurantLat,
+              pickupLng: restaurantLng,
+              dropLat: deliveryLat,
+              dropLng: deliveryLng,
+              vehicle: "bike",
               // decision-receipt stats, frozen at decision time
               comparedOptions: allQuotes.length,
               comparedPlatforms: new Set(allQuotes.map((q) => q.platform)).size,
@@ -239,10 +273,9 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
       include: { trackingEvents: { orderBy: { createdAt: "asc" }, take: 1 } },
     });
     if (!order) throw new ApiError(404, "Order not found");
-    if (order.domain !== "ride")
-      throw new ApiError(400, "Live tracking is only available for rides");
+    // Both rides and food deliveries get live tracking (food = delivery partner).
     if (order.status === "pending_payment")
-      throw new ApiError(409, "Ride not confirmed yet");
+      throw new ApiError(409, "Order not confirmed yet");
 
     // A cancelled ride reports a terminal state — the provider clock no longer
     // applies.

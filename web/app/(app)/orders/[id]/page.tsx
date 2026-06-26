@@ -101,11 +101,10 @@ export default function OrderDetailPage({
     (order.trackingEvents.length > 0 && reached.length === order.trackingEvents.length);
   const showInvoice = search.get("invoice") === "1";
 
-  // Live ride tracking — driver, OTP and a moving map, served by the fulfilment
-  // provider. Shown for every ride with coordinates (free for all users).
+  // Live tracking — driver/delivery-partner, OTP and a moving map, served by
+  // the fulfilment provider. Shown for rides AND food deliveries with coords.
   const d = order.details;
-  const hasRideCoords =
-    order.domain === "ride" &&
+  const hasTrackingCoords =
     d.pickupLat != null &&
     d.pickupLng != null &&
     d.dropLat != null &&
@@ -128,14 +127,15 @@ export default function OrderDetailPage({
         {order.provider} · {new Date(order.createdAt).toLocaleString("en-IN")}
       </p>
 
-      {/* Live ride tracking — driver, OTP, moving map (free for everyone) */}
-      {hasRideCoords && (
+      {/* Live tracking — driver / delivery partner, OTP, moving map (free) */}
+      {hasTrackingCoords && (
         <div className="mt-5">
           <RideTracker
             orderId={order.id}
+            domain={order.domain}
             pickup={{ lat: d.pickupLat!, lng: d.pickupLng! }}
             drop={{ lat: d.dropLat!, lng: d.dropLng! }}
-            dropLabel={d.drop ?? "your drop"}
+            dropLabel={order.domain === "food" ? "your address" : d.drop ?? "your drop"}
           />
         </div>
       )}
