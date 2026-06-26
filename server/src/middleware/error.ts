@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { isProd } from "../config/env.js";
+import { captureError } from "../lib/monitoring.js";
 
 export class ApiError extends Error {
   constructor(
@@ -18,7 +19,7 @@ export function notFound(_req: Request, res: Response) {
 
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) {
@@ -31,7 +32,8 @@ export function errorHandler(
       details: err.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
     });
   }
-  console.error(err);
+  // Genuine unexpected error (500) — report to monitoring with request context.
+  captureError(err, { method: req.method, path: req.path });
   // Never leak stack traces or internals to clients in production.
   return res
     .status(500)

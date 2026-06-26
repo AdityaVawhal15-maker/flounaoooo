@@ -3,7 +3,9 @@ import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
+import { initMonitoring } from "./lib/monitoring.js";
 
+initMonitoring();
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {

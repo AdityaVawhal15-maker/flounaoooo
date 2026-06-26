@@ -59,6 +59,10 @@ const envSchema = z.object({
   // ₹50/month premium tier. Reuses the Cashfree gateway for the recurring
   // charge; falls back to a simulated activation in dev when unset.
   SUBSCRIPTION_PRICE_PAISE: z.coerce.number().default(5000),
+
+  // Error monitoring (Sentry). Optional — when unset, monitoring is a no-op
+  // and errors are logged to the console as today.
+  SENTRY_DSN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
