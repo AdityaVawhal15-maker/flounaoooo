@@ -2,11 +2,20 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Smartphone, CreditCard } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  Smartphone,
+  CreditCard,
+  Wallet,
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { FadeIn } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
 
 type Status = {
@@ -14,10 +23,19 @@ type Status = {
   amount: number;
   title: string;
   domain: "food" | "ride";
+  provider?: string;
+  details?: {
+    basePaise?: number;
+    deliveryFeePaise?: number;
+    convenienceFeePaise?: number;
+    farePaise?: number;
+    offers?: { label: string; discountPaise: number }[];
+  };
   payment: { status: string; method: string | null } | null;
 };
 
 type Stage = "select" | "processing" | "done";
+type Method = "upi" | "cash" | "card";
 
 declare global {
   interface Window {
@@ -33,9 +51,11 @@ export default function PayPage({
   params: Promise<{ orderId: string }>;
 }) {
   const { orderId } = use(params);
+  const router = useRouter();
   const [status, setStatus] = useState<Status | null>(null);
   const [stage, setStage] = useState<Stage>("select");
-  const [method, setMethod] = useState<"upi" | "card">("upi");
+  const [method, setMethod] = useState<Method>("upi");
+  const [showSummary, setShowSummary] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -58,7 +78,6 @@ export default function PayPage({
       }>("/api/payments/checkout", { method: "POST", json: { orderId } });
 
       if (d.mode === "cashfree" && d.paymentSessionId) {
-        // Real gateway: hand off to Cashfree's hosted checkout.
         await loadCashfreeSdk();
         window.Cashfree?.({ mode: d.cfEnv === "production" ? "production" : "sandbox" }).checkout({
           paymentSessionId: d.paymentSessionId,
@@ -67,11 +86,10 @@ export default function PayPage({
         return;
       }
 
-      // Simulated mode: show the processing state, then confirm server-side.
-      await new Promise((r) => setTimeout(r, 2200));
+      await new Promise((r) => setTimeout(r, 2400));
       await api("/api/payments/simulate", {
         method: "POST",
-        json: { orderId, method },
+        json: { orderId, method: method === "cash" ? "upi" : method },
       });
       setStage("done");
     } catch (e) {
@@ -88,40 +106,102 @@ export default function PayPage({
     );
   }
 
+  const d = status.details ?? {};
+  const discount = d.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
+  const isFood = status.domain === "food";
+  const fareLabel = isFood ? "Total Amount" : "Total Fare";
+
   return (
-    <div className="mx-auto w-full max-w-md px-4 py-8 lg:py-14">
-      {/* Total fare row — per Figma payments sheet */}
-      <Card>
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-[12px] text-cocoa">
-              {status.domain === "food" ? "Total amount" : "Total fare"}
-            </p>
-            <p className="truncate text-[13px] text-cocoa">{status.title}</p>
-          </div>
-          <p className="text-[22px] font-bold text-ink">{rupees(status.amount)}</p>
-        </div>
-      </Card>
+    <div className="mx-auto w-full max-w-md px-4 py-6 lg:py-10">
+      {/* Total Fare header — Figma: label left, amount + chevron right */}
+      <FadeIn y={8}>
+        <Card className="flex items-center justify-between">
+          <p className="text-[15px] font-bold text-ink">{fareLabel}</p>
+          <button
+            onClick={() => setShowSummary((v) => !v)}
+            className="flex items-center gap-1 text-[18px] font-bold text-ink"
+          >
+            {rupees(status.amount)}
+            <ChevronDown
+              size={18}
+              className={cn("text-cocoa transition-transform", !showSummary && "-rotate-90")}
+            />
+          </button>
+        </Card>
+      </FadeIn>
 
       {stage === "select" && (
         <>
-          <h2 className="mt-6 text-[15px] font-bold text-ink">Pay using</h2>
-          <div className="mt-3 flex flex-col gap-2">
+          {/* Payment pending */}
+          <p className="mt-5 text-[14px] font-bold text-accent">Payment Pending</p>
+          <p className="mt-0.5 text-[12px] text-cocoa">
+            Please complete the payment to finish{isFood ? " your order." : " the ride."}
+          </p>
+
+          {/* Order summary breakdown */}
+          {showSummary && (
+            <Card className="mt-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-bold text-ink">Order Summary</p>
+                <Link
+                  href={`/orders/${orderId}?invoice=1`}
+                  className="text-[12px] font-semibold text-accent hover:underline"
+                >
+                  View Details
+                </Link>
+              </div>
+              <p className="mt-0.5 truncate text-[11px] text-cocoa">{status.title}</p>
+              <div className="mt-3 flex flex-col gap-1.5 text-[13px]">
+                {isFood ? (
+                  <>
+                    {d.basePaise !== undefined && (
+                      <Row label="Item Total" value={rupees(d.basePaise)} />
+                    )}
+                    {d.deliveryFeePaise !== undefined && (
+                      <Row label="Delivery Fee" value={rupees(d.deliveryFeePaise)} />
+                    )}
+                    {d.convenienceFeePaise ? (
+                      <Row label="Packaging Fee" value={rupees(d.convenienceFeePaise)} />
+                    ) : null}
+                  </>
+                ) : (
+                  <Row label="Base Fare" value={rupees(d.farePaise ?? status.amount)} />
+                )}
+                {discount > 0 && (
+                  <Row label="Discount" value={`− ${rupees(discount)}`} accent />
+                )}
+                <div className="my-1 h-px bg-line" />
+                <Row label={isFood ? "Total Amount" : "Total Fare"} value={rupees(status.amount)} bold />
+              </div>
+            </Card>
+          )}
+
+          {/* Choose payment method */}
+          <h2 className="mt-6 text-[14px] font-bold text-ink">Choose Payment Method</h2>
+          <div className="mt-3 flex flex-col gap-2.5">
             <MethodRow
               active={method === "upi"}
               onClick={() => setMethod("upi")}
               icon={<Smartphone size={18} className="text-accent" />}
               title="UPI"
-              subtitle="GPay, PhonePe, Paytm & more"
+              subtitle="Pay with any UPI app"
+            />
+            <MethodRow
+              active={method === "cash"}
+              onClick={() => setMethod("cash")}
+              icon={<Wallet size={18} className="text-success" />}
+              title="Cash"
+              subtitle={isFood ? "Pay on delivery" : "Pay in cash to driver"}
             />
             <MethodRow
               active={method === "card"}
               onClick={() => setMethod("card")}
-              icon={<CreditCard size={18} className="text-cocoa" />}
+              icon={<CreditCard size={18} className="text-[#8b5cf6]" />}
               title="Card"
-              subtitle="Credit or debit card"
+              subtitle="Debit / Credit Card"
             />
           </div>
+
           {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
           <Button onClick={pay} className="mt-6 w-full">
             Pay {rupees(status.amount)}
@@ -130,40 +210,79 @@ export default function PayPage({
       )}
 
       {stage === "processing" && (
-        <div className="mt-14 flex flex-col items-center text-center">
-          <span className="size-12 animate-spin rounded-full border-[3px] border-beige border-t-accent" />
-          <p className="mt-5 text-[15px] font-semibold text-ink">
-            Processing payment…
+        <FadeIn className="mt-12 flex flex-col items-center text-center">
+          <span className="flex items-center gap-2 text-[13px] font-semibold text-accent">
+            <span className="size-4 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
+            Processing Payment
+          </span>
+          {/* UPI card animation */}
+          <div className="relative mt-7 flex size-24 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-3xl bg-accent/10" />
+            <div className="relative flex size-20 items-center justify-center rounded-3xl bg-accent-soft">
+              <Smartphone size={34} className="text-accent" />
+            </div>
+          </div>
+          <p className="mt-7 text-[14px] text-cocoa">
+            Please wait while we process your payment.
           </p>
-          <p className="mt-1 text-[13px] text-cocoa">
-            Don&apos;t close this screen
+          <p className="mt-4 flex items-center gap-1.5 text-[12px] text-cocoa/70">
+            <CheckCircle2 size={13} className="text-success" /> Do not close this screen
           </p>
-        </div>
+        </FadeIn>
       )}
 
       {stage === "done" && (
-        <div className="mt-12 flex flex-col items-center text-center">
-          <CheckCircle2 size={56} className="text-success" />
-          <p className="mt-4 text-[18px] font-bold text-ink">Payment completed</p>
+        <FadeIn className="mt-10 flex flex-col items-center text-center">
+          <span className="flex size-16 items-center justify-center rounded-full bg-success/10">
+            <CheckCircle2 size={40} className="text-success" />
+          </span>
+          <p className="mt-4 text-[18px] font-bold text-ink">Payment successful</p>
           <p className="mt-1 text-[13px] text-cocoa">
-            {status.domain === "food"
-              ? "Your order is confirmed and being prepared."
+            {isFood
+              ? "Your order has been placed successfully."
               : "Your ride is confirmed — driver on the way."}
           </p>
           <div className="mt-8 flex w-full flex-col gap-3">
-            <Link href={`/orders/${orderId}`} className="w-full">
-              <Button className="w-full">
-                {status.domain === "food" ? "Track order" : "Track ride"}
-              </Button>
-            </Link>
-            <Link href={`/orders/${orderId}?invoice=1`} className="w-full">
-              <Button variant="secondary" className="w-full">
-                View invoice
-              </Button>
-            </Link>
+            <Button onClick={() => router.push(`/orders/${orderId}`)} className="w-full">
+              {isFood ? "Track order" : "Track ride"}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => router.push(`/orders/${orderId}?invoice=1`)}
+              className="w-full"
+            >
+              View invoice
+            </Button>
           </div>
-        </div>
+        </FadeIn>
       )}
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  bold,
+  accent,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={cn("text-cocoa", bold && "font-bold text-ink")}>{label}</span>
+      <span
+        className={cn(
+          "text-ink",
+          bold && "text-[15px] font-bold",
+          accent && "font-medium text-success",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -185,24 +304,25 @@ function MethodRow({
     <button onClick={onClick} className="text-left">
       <Card
         className={cn(
-          "py-3 transition-colors",
-          active && "border-accent/70 ring-1 ring-accent/30",
+          "py-3 transition-all",
+          active ? "border-accent/70 ring-1 ring-accent/30" : "hover:shadow-card",
         )}
       >
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-full bg-beige/70">
             {icon}
           </span>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[14px] font-bold text-ink">{title}</p>
             <p className="text-[12px] text-cocoa">{subtitle}</p>
           </div>
-          <span
-            className={cn(
-              "ml-auto size-4 rounded-full border-2",
-              active ? "border-accent bg-accent" : "border-line",
-            )}
-          />
+          {active ? (
+            <span className="flex size-5 items-center justify-center rounded-full bg-accent text-white">
+              <CheckCircle2 size={14} />
+            </span>
+          ) : (
+            <ChevronRight size={16} className="text-cocoa/40" />
+          )}
         </div>
       </Card>
     </button>

@@ -226,6 +226,10 @@ paymentsRouter.get("/status/:orderId", async (req, res, next) => {
       amount: order.amount,
       title: order.title,
       domain: order.domain,
+      provider: order.provider,
+      savedPaise: order.savedPaise,
+      // Bill breakdown for the payment "Order Summary" block.
+      details: JSON.parse(order.details),
     });
   } catch (err) {
     next(err);
