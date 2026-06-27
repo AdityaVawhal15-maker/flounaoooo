@@ -177,6 +177,7 @@ async function buildAssistantPayload(
       query: intent.shop.item,
       budgetPaise: intent.shop.budgetPaise,
       category: intent.shop.category === "any" ? null : intent.shop.category,
+      priority: intent.shop.priority,
     });
     if (rec) {
       return {

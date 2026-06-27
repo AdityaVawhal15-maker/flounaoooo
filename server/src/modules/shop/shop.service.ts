@@ -1,4 +1,5 @@
 import { products, type Product, type ProductListing } from "../../data/products.js";
+import { scoreOptions, type Priority } from "../advisor/scoring.js";
 
 export type ProductQuote = {
   productId: string;
@@ -76,29 +77,55 @@ export function searchProducts(opts: {
   return quotes.sort((a, b) => a.effectivePaise - b.effectivePaise);
 }
 
-// Decision step: cheapest effective price wins; the fastest-delivery option is
-// surfaced when it beats the winner on speed.
+// Decision step: score every option on price, rating and delivery speed,
+// weighted by the user's priority — same ratings-aware engine as food and
+// rides. "top-rated" genuinely changes the winner here too.
 export function recommendProduct(
-  opts: Parameters<typeof searchProducts>[0],
+  opts: Parameters<typeof searchProducts>[0] & { priority?: Priority },
 ): ProductRecommendation | null {
   const quotes = searchProducts(opts);
-  const best = quotes[0];
-  if (!best) return null;
+  if (quotes.length === 0) return null;
 
-  const alternatives = quotes
-    .filter((q) => !(q.platform === best.platform && q.productId === best.productId))
-    .slice(0, 3);
+  const priority = opts.priority ?? "balanced";
+  const ranked = scoreOptions(
+    quotes.map((q) => ({
+      pricePaise: q.effectivePaise,
+      rating: q.rating,
+      etaMinutes: q.deliveryDays, // delivery days as the "speed" signal
+      quote: q,
+    })),
+    priority,
+  );
 
-  const saving =
-    alternatives.length > 0
-      ? Math.max(0, (alternatives[0]?.effectivePaise ?? best.effectivePaise) - best.effectivePaise)
-      : 0;
+  const best = ranked[0]!.item.quote;
+  const cheapest = [...quotes].sort((a, b) => a.effectivePaise - b.effectivePaise)[0]!;
+  const topRated = [...quotes].sort((a, b) => b.rating - a.rating)[0]!;
+  const fastest = [...quotes].sort((a, b) => a.deliveryDays - b.deliveryDays)[0]!;
 
-  const fastest = quotes.reduce((a, b) => (b.deliveryDays < a.deliveryDays ? b : a), best);
+  const alternatives = ranked
+    .slice(1)
+    .filter((r) => !(r.item.quote.platform === best.platform && r.item.quote.productId === best.productId))
+    .slice(0, 3)
+    .map((r) => r.item.quote);
 
-  let why = `Lowest effective price after offers on ${best.platform}`;
-  if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
-  if (fastest !== best && fastest.deliveryDays < best.deliveryDays) {
+  const saving = Math.max(0, cheapest.effectivePaise - best.effectivePaise);
+
+  let why: string;
+  if (priority === "rating") {
+    why = `Top-rated pick — ${best.rating}★ (${best.reviews.toLocaleString("en-IN")} reviews) on ${best.platform}`;
+  } else if (priority === "speed") {
+    why = `Fastest delivery — ${best.deliveryDays} day${best.deliveryDays > 1 ? "s" : ""} on ${best.platform}, rated ${best.rating}★`;
+  } else if (priority === "price") {
+    why = `Lowest effective price after offers on ${best.platform}`;
+    if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
+  } else {
+    why = `Best overall — ${best.rating}★, ${best.deliveryDays}-day delivery`;
+    if (saving > 0) why += `, and ₹${Math.round(saving / 100)} cheaper than the next`;
+    else why += ` on ${best.platform}`;
+  }
+  if (topRated.rating > best.rating && priority !== "rating") {
+    why += `. Highest rated: ${topRated.brand} at ${topRated.rating}★`;
+  } else if (fastest.deliveryDays < best.deliveryDays && priority !== "speed") {
     why += `. Need it sooner? ${fastest.platform} delivers in ${fastest.deliveryDays} day${fastest.deliveryDays > 1 ? "s" : ""}`;
   }
 

@@ -37,6 +37,7 @@ function extractShop(message: string) {
     item: itemMatch?.[0]?.toLowerCase() ?? "products",
     budgetPaise: parseBudget(message),
     category,
+    priority: extractPriority(message),
   };
 }
 

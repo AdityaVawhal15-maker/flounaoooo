@@ -40,6 +40,9 @@ export const intentSchema = z.object({
       category: z
         .enum(["electronics", "fashion", "home", "appliances", "any"])
         .default("any"),
+      priority: z
+        .enum(["price", "rating", "speed", "balanced"])
+        .default("balanced"),
     })
     .optional(),
 });

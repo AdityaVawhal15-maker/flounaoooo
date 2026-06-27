@@ -9,7 +9,7 @@ const JSON_INSTRUCTION =
   `{"domain": "food"|"ride"|"shop"|"combo"|"greeting"|"out_of_scope", "reply": string, ` +
   `"food"?: {"item": string, "budgetPaise": number|null, "dietary": "veg"|"nonveg"|"any", "priority": "price"|"rating"|"speed"|"balanced"}, ` +
   `"ride"?: {"pickup": string|null, "drop": string, "vehicle": "bike"|"auto"|"cab"|"any", "priority": "price"|"rating"|"speed"|"balanced"}, ` +
-  `"shop"?: {"item": string, "budgetPaise": number|null, "category": "electronics"|"fashion"|"home"|"appliances"|"any"}}. ` +
+  `"shop"?: {"item": string, "budgetPaise": number|null, "category": "electronics"|"fashion"|"home"|"appliances"|"any", "priority": "price"|"rating"|"speed"|"balanced"}}. ` +
   `Set priority from the user's words: "rating" for top-rated/best, "price" for cheap/budget, "speed" for fast/quick, else "balanced".`;
 
 // Google AI Studio (Gemini) via the Generative Language REST API. Free-tier

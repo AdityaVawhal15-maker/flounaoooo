@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { scoreOptions, weightsFor } from "../src/modules/advisor/scoring.js";
 import { recommendFood } from "../src/modules/food/food.service.js";
+import { recommendProduct } from "../src/modules/shop/shop.service.js";
 
 describe("scoring engine", () => {
   it("weights sum to 1 for every priority", () => {
@@ -66,6 +67,31 @@ describe("ratings-aware food recommendations", () => {
     const cheap = recommendFood({ query: "", priority: "price" })!;
     const rated = recommendFood({ query: "", priority: "rating" })!;
     // With a varied catalogue the cheapest and the top-rated are different dishes.
+    expect(rated.best.rating).toBeGreaterThanOrEqual(cheap.best.rating);
+  });
+});
+
+describe("ratings-aware shop recommendations", () => {
+  it("'cheapest' picks the lowest effective price", () => {
+    const rec = recommendProduct({ query: "", priority: "price" })!;
+    expect(rec).toBeTruthy();
+    for (const alt of rec.alternatives) {
+      expect(rec.best.effectivePaise).toBeLessThanOrEqual(alt.effectivePaise);
+    }
+  });
+
+  it("'top-rated' picks the highest rating", () => {
+    const rec = recommendProduct({ query: "", priority: "rating" })!;
+    expect(rec).toBeTruthy();
+    for (const alt of rec.alternatives) {
+      expect(rec.best.rating).toBeGreaterThanOrEqual(alt.rating);
+    }
+    expect(rec.why.toLowerCase()).toContain("top-rated");
+  });
+
+  it("priority changes the winner", () => {
+    const cheap = recommendProduct({ query: "", priority: "price" })!;
+    const rated = recommendProduct({ query: "", priority: "rating" })!;
     expect(rated.best.rating).toBeGreaterThanOrEqual(cheap.best.rating);
   });
 });
