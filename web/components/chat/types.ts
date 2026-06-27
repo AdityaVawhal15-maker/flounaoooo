@@ -7,7 +7,7 @@ export type FoodQuote = {
   dietary: "veg" | "nonveg";
   reviewSummary: string;
   platform: string;
-  fulfillment: "in_app" | "redirect";
+  fulfillment: "in_app";
   basePaise: number;
   deliveryFeePaise: number;
   offers: { label: string; discountPaise: number }[];
@@ -25,7 +25,7 @@ export type RideQuote = {
   pickupEtaMinutes: number;
   rideMinutes: number;
   driverRating: number;
-  fulfillment: "in_app" | "redirect";
+  fulfillment: "in_app";
   badge?: string;
 };
 

@@ -316,7 +316,7 @@ groupsRouter.post(
           domain: "food",
           status: "pending_payment",
           provider: cart.platform,
-          fulfillment: cart.platform === "ondc" ? "in_app" : "redirect",
+          fulfillment: "in_app",
           title: `Group order · ${cart.items.length} items · ${owed.size} people`,
           details: JSON.stringify({
             group: true,

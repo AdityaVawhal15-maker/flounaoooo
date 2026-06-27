@@ -143,11 +143,6 @@ export default function FoodOrderPage({
                 <div>
                   <p className="text-[14px] font-bold uppercase text-ink">
                     {q.platform}
-                    {q.fulfillment === "in_app" && (
-                      <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
-                        IN-APP CHECKOUT
-                      </span>
-                    )}
                   </p>
                   <p className="text-[12px] text-cocoa">
                     Delivery {rupees(q.deliveryFeePaise)} · {q.etaMinutes} min
@@ -217,14 +212,10 @@ export default function FoodOrderPage({
       {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
 
       <Button onClick={placeOrder} disabled={busy} className="mt-5 w-full">
-        {busy
-          ? "Placing order…"
-          : selected.fulfillment === "in_app"
-            ? `Pay ${rupees(selected.effectivePaise)}`
-            : `Continue on ${selected.platform}`}
+        {busy ? "Placing order…" : `Pay ${rupees(selected.effectivePaise)}`}
       </Button>
       <p className="mt-3 flex items-center justify-center gap-1 text-[11px] text-cocoa/70">
-        <ShieldCheck size={12} /> Offers are pre-applied at checkout
+        <ShieldCheck size={12} /> Order &amp; pay in-app · offers pre-applied
       </p>
 
       {/* Price trend chart (shows only when we have ≥2 days of data) */}

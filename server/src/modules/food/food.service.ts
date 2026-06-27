@@ -15,7 +15,7 @@ export type FoodQuote = {
   dietary: "veg" | "nonveg";
   reviewSummary: string;
   platform: string;
-  fulfillment: "in_app" | "redirect";
+  fulfillment: "in_app"; // always in-app; ONDC routes to the seller
   basePaise: number;
   deliveryFeePaise: number;
   offers: { label: string; discountPaise: number }[];
@@ -45,8 +45,9 @@ function toQuotes(dish: Dish): FoodQuote[] {
     dietary: dish.dietary,
     reviewSummary: dish.reviewSummary,
     platform: l.platform,
-    // ONDC checks out in-app (primary revenue); closed platforms deep-link.
-    fulfillment: l.platform === "ondc" ? "in_app" : "redirect",
+    // Everything is bought in-app — the user pays Radiues and the order is
+    // routed to the seller through ONDC. No redirect to any external app.
+    fulfillment: "in_app",
     basePaise: l.basePaise,
     deliveryFeePaise: l.deliveryFeePaise,
     offers: l.offers,

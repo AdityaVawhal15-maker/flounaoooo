@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { Star, Truck, BadgePercent, ChevronLeft, ExternalLink } from "lucide-react";
+import { Star, Truck, BadgePercent, ChevronLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -150,12 +150,12 @@ export default function ProductPage({
         <Row label="Effective price" value={rupees(selected.effectivePaise)} bold />
       </Card>
 
-      {/* E-commerce is redirect-fulfilled — we hand off to the platform. */}
+      {/* Bought in-app — the order is routed to the seller via ONDC. */}
       <Button className="mt-5 w-full" onClick={() => {}}>
-        <ExternalLink size={16} /> Buy on {selected.platform}
+        Buy now · {rupees(selected.effectivePaise)}
       </Button>
-      <p className="mt-3 text-center text-[11px] text-cocoa/70">
-        Radiues redirects you to {selected.platform} with the best offer pre-applied.
+      <p className="mt-3 flex items-center justify-center gap-1 text-center text-[11px] text-cocoa/70">
+        <ShieldCheck size={12} /> Order &amp; pay in-app · best offer pre-applied
       </p>
     </div>
   );

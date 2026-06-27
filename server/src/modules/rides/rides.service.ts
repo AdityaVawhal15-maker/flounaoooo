@@ -111,7 +111,7 @@ export type RideQuote = {
   pickupEtaMinutes: number;
   rideMinutes: number;
   driverRating: number;
-  fulfillment: "in_app" | "redirect";
+  fulfillment: "in_app"; // always in-app; ONDC routes to the provider
   badge?: string;
 };
 
@@ -186,7 +186,8 @@ export function quoteRides(opts: {
           pickupEtaMinutes: prod.pickupEta,
           rideMinutes: opts.rideMinutes,
           driverRating: prod.rating,
-          fulfillment: p.provider === "ondc" ? "in_app" : "redirect",
+          // In-app order routed to the provider via ONDC — never a redirect.
+          fulfillment: "in_app",
         };
       }),
   );

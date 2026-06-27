@@ -82,7 +82,7 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
             href={`/food/order/${q.dishId}?platform=${q.platform}`}
             className="mt-2 inline-block rounded-pill bg-accent px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f] transition-colors"
           >
-            {q.fulfillment === "in_app" ? "Order now" : `Order on ${q.platform}`}
+            Order now
           </Link>
         </div>
       </div>
