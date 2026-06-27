@@ -6,6 +6,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
+import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -86,6 +87,16 @@ usersRouter.put(
     }
   },
 );
+
+// Decision profile — the user's learned taste, spend behaviour and routines.
+// Powers personalized recommendations and proactive nudges.
+usersRouter.get("/profile", async (req, res, next) => {
+  try {
+    res.json(await buildDecisionProfile(req.userId!));
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Savings insights — lifetime total plus a 6-week trend and a food/ride split.
 // All derived from paid orders' savedPaise (frozen at decision time).
