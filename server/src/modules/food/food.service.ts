@@ -1,4 +1,5 @@
 import { dishes, type Dish, type Listing } from "../../data/restaurants.js";
+import { scoreOptions, type Priority } from "../advisor/scoring.js";
 
 export type FoodQuote = {
   dishId: string;
@@ -76,29 +77,58 @@ export function searchFood(opts: {
   return quotes.sort((a, b) => a.effectivePaise - b.effectivePaise);
 }
 
-// The "decision" step: cheapest effective price wins; the fastest option is
-// surfaced as the alternative when it beats the winner on time.
+// The "decision" step: score every option on price, rating and speed weighted
+// by what the user asked for (priority), then pick the highest-scoring one.
+// This is the ratings-aware engine — "top-rated" genuinely changes the winner.
 export function recommendFood(
-  opts: Parameters<typeof searchFood>[0],
+  opts: Parameters<typeof searchFood>[0] & { priority?: Priority },
 ): FoodRecommendation | null {
   const quotes = searchFood(opts);
-  const best = quotes[0];
-  if (!best) return null;
+  if (quotes.length === 0) return null;
 
-  const fastest = quotes.reduce((a, b) => (b.etaMinutes < a.etaMinutes ? b : a), best);
-  const alternatives = quotes
-    .filter((q) => !(q.platform === best.platform && q.dishId === best.dishId))
-    .slice(0, 3);
+  const priority = opts.priority ?? "balanced";
+  const ranked = scoreOptions(
+    quotes.map((q) => ({
+      pricePaise: q.effectivePaise,
+      rating: q.rating,
+      etaMinutes: q.etaMinutes,
+      quote: q,
+    })),
+    priority,
+  );
 
-  const saving =
-    alternatives.length > 0
-      ? Math.max(0, (alternatives[0]?.effectivePaise ?? best.effectivePaise) - best.effectivePaise)
-      : 0;
+  const best = ranked[0]!.item.quote;
+  const cheapest = [...quotes].sort((a, b) => a.effectivePaise - b.effectivePaise)[0]!;
+  const topRated = [...quotes].sort((a, b) => b.rating - a.rating)[0]!;
 
-  let why = `Best effective price after offers on ${best.platform.toUpperCase()}`;
-  if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
-  if (fastest !== best && fastest.etaMinutes < best.etaMinutes) {
-    why += `. Need it faster? ${fastest.platform.toUpperCase()} delivers in ${fastest.etaMinutes} min`;
+  const alternatives = ranked
+    .slice(1)
+    .filter((r) => !(r.item.quote.platform === best.platform && r.item.quote.dishId === best.dishId))
+    .slice(0, 3)
+    .map((r) => r.item.quote);
+
+  // Savings vs the cheapest alternative platform for the same dish (honest:
+  // only positive when the pick really is the cheapest, or near it).
+  const saving = Math.max(0, cheapest.effectivePaise - best.effectivePaise);
+
+  let why: string;
+  if (priority === "rating") {
+    why = `Top-rated pick — ${best.rating}★ at ${best.restaurant} on ${best.platform.toUpperCase()}`;
+    if (best.dishId === cheapest.dishId && best.platform === cheapest.platform)
+      why += ", and it's the best price too";
+  } else if (priority === "speed") {
+    why = `Fastest good option — arrives in ${best.etaMinutes} min, rated ${best.rating}★`;
+  } else if (priority === "price") {
+    why = `Best effective price after offers on ${best.platform.toUpperCase()}`;
+    if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
+  } else {
+    // balanced: explain the trade-off it optimised
+    why = `Best overall — ${best.rating}★, ${best.etaMinutes} min`;
+    if (saving > 0) why += `, and ₹${Math.round(saving / 100)} cheaper than the next`;
+    else why += ` on ${best.platform.toUpperCase()}`;
+  }
+  if (topRated.rating > best.rating && priority !== "rating") {
+    why += `. Want the highest rated? ${topRated.restaurant} is ${topRated.rating}★`;
   }
 
   return { best, alternatives, why };

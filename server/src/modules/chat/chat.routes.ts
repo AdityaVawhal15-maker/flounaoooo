@@ -74,11 +74,13 @@ async function buildAssistantPayload(
       query: intent.food.item,
       budgetPaise: comboCap,
       dietary: intent.food.dietary,
+      priority: intent.food.priority,
     });
     const rideQuotes = quoteRides({
       distanceKm: 8,
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
+      priority: intent.ride.priority,
     });
     if (foodRec) recordObservation("food", foodRec.best.dishId, foodRec.best.effectivePaise);
     if (rideQuotes[0]) recordObservation("ride", rideQuotes[0].vehicle, rideQuotes[0].effectivePaise);
@@ -115,6 +117,7 @@ async function buildAssistantPayload(
       query: intent.food.item,
       budgetPaise: effectiveBudget,
       dietary: intent.food.dietary,
+      priority: intent.food.priority,
     });
     if (rec) {
       recordObservation("food", rec.best.dishId, rec.best.effectivePaise);
@@ -142,7 +145,12 @@ async function buildAssistantPayload(
   if (intent.domain === "ride" && intent.ride) {
     // Without live geocoding in chat we quote a typical city trip;
     // exact fares come from the rides screen once locations are picked.
-    const quotes = quoteRides({ distanceKm: 8, rideMinutes: 24, vehicle: intent.ride.vehicle });
+    const quotes = quoteRides({
+      distanceKm: 8,
+      rideMinutes: 24,
+      vehicle: intent.ride.vehicle,
+      priority: intent.ride.priority,
+    });
     if (quotes[0]) recordObservation("ride", quotes[0].vehicle, quotes[0].effectivePaise);
     // Send the full spread so the chat's Bike/Cab/Auto switcher always has
     // every available vehicle type (we only cap when a specific type was asked).

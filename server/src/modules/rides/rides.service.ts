@@ -1,5 +1,6 @@
 // Simulated ride-provider quotes (Uber/Ola/Rapido/ONDC). Same adapter shape
 // real provider/ONDC-mobility integrations will implement later.
+import { scoreOptions, type Priority } from "../advisor/scoring.js";
 
 // Great-circle distance between two coordinates.
 export function haversineKm(
@@ -164,6 +165,7 @@ export function quoteRides(opts: {
   distanceKm: number;
   rideMinutes: number;
   vehicle?: VehicleType | "any";
+  priority?: Priority;
 }): RideQuote[] {
   const wanted = opts.vehicle && opts.vehicle !== "any" ? opts.vehicle : null;
 
@@ -189,12 +191,22 @@ export function quoteRides(opts: {
       }),
   );
 
-  quotes.sort((a, b) => a.effectivePaise - b.effectivePaise);
-  if (quotes[0]) quotes[0].badge = "BEST PRICE";
-  const fastest = quotes.reduce(
-    (a, b) => (b.pickupEtaMinutes < a.pickupEtaMinutes ? b : a),
-    quotes[0]!,
+  // Badge the genuine best price and fastest before reordering.
+  const cheapest = [...quotes].sort((a, b) => a.effectivePaise - b.effectivePaise)[0];
+  const fastestQ = [...quotes].sort((a, b) => a.pickupEtaMinutes - b.pickupEtaMinutes)[0];
+  if (cheapest) cheapest.badge = "BEST PRICE";
+  if (fastestQ && !fastestQ.badge) fastestQ.badge = "FASTEST";
+
+  // Order by the user's priority (driver rating, fare, or pickup ETA weighted);
+  // defaults to balanced. The best-scoring quote is presented first.
+  const ranked = scoreOptions(
+    quotes.map((q) => ({
+      pricePaise: q.effectivePaise,
+      rating: q.driverRating,
+      etaMinutes: q.pickupEtaMinutes,
+      quote: q,
+    })),
+    opts.priority ?? "balanced",
   );
-  if (fastest && !fastest.badge) fastest.badge = "FASTEST";
-  return quotes;
+  return ranked.map((r) => r.item.quote);
 }

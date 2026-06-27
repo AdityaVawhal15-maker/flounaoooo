@@ -16,6 +16,11 @@ export const intentSchema = z.object({
       item: z.string().max(80).describe("The dish or cuisine requested"),
       budgetPaise: z.number().int().positive().nullable(),
       dietary: z.enum(["veg", "nonveg", "any"]).default("any"),
+      // What the user cares about most: "rating" for top-rated/best, "price"
+      // for cheap/budget, "speed" for fast/quick, else "balanced".
+      priority: z
+        .enum(["price", "rating", "speed", "balanced"])
+        .default("balanced"),
     })
     .optional(),
   ride: z
@@ -23,6 +28,9 @@ export const intentSchema = z.object({
       pickup: z.string().max(120).nullable(),
       drop: z.string().max(120).describe("Destination"),
       vehicle: z.enum(["bike", "auto", "cab", "any"]).default("any"),
+      priority: z
+        .enum(["price", "rating", "speed", "balanced"])
+        .default("balanced"),
     })
     .optional(),
   shop: z

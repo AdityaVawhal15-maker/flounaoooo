@@ -40,6 +40,19 @@ function extractShop(message: string) {
   };
 }
 
+// What the user cares about most, inferred from their words.
+function extractPriority(
+  message: string,
+): "price" | "rating" | "speed" | "balanced" {
+  if (/\b(top[- ]?rated|best|highest[- ]?rated|good reviews?|quality)\b/i.test(message))
+    return "rating";
+  if (/\b(fast(est)?|quick(est)?|asap|hurry|soon|in a rush)\b/i.test(message))
+    return "speed";
+  if (/\b(cheap(est)?|budget|low(est)?[- ]?price|affordable|save money)\b/i.test(message))
+    return "price";
+  return "balanced";
+}
+
 function extractFood(message: string) {
   const itemMatch = message.match(
     /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|samosa|idli|paratha|roll|shawarma|momos|cake|ice ?cream)\b/i,
@@ -53,6 +66,7 @@ function extractFood(message: string) {
     item: itemMatch?.[0]?.toLowerCase() ?? "popular dishes",
     budgetPaise: parseBudget(message),
     dietary,
+    priority: extractPriority(message),
   };
 }
 
@@ -69,6 +83,7 @@ function extractRide(message: string) {
     pickup: null,
     drop: dropMatch?.[1]?.trim() ?? "your destination",
     vehicle,
+    priority: extractPriority(message),
   };
 }
 
