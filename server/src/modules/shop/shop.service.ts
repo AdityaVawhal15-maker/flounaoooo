@@ -1,5 +1,10 @@
 import { products, type Product, type ProductListing } from "../../data/products.js";
-import { scoreOptions, type Priority } from "../advisor/scoring.js";
+import {
+  scoreOptions,
+  reasonForPriority,
+  type Priority,
+  type PickReason,
+} from "../advisor/scoring.js";
 
 export type ProductQuote = {
   productId: string;
@@ -22,6 +27,7 @@ export type ProductRecommendation = {
   best: ProductQuote;
   alternatives: ProductQuote[];
   why: string;
+  pickReason: PickReason;
 };
 
 function effectivePrice(listing: ProductListing): number {
@@ -129,5 +135,5 @@ export function recommendProduct(
     why += `. Need it sooner? ${fastest.platform} delivers in ${fastest.deliveryDays} day${fastest.deliveryDays > 1 ? "s" : ""}`;
   }
 
-  return { best, alternatives, why };
+  return { best, alternatives, why, pickReason: reasonForPriority(priority) };
 }

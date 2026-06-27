@@ -2,14 +2,47 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet } from "lucide-react";
+import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet, Zap, Award, Tag } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
 import { FadeIn } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
-import type { FoodQuote, ProductQuote, Recommendation, RideQuote } from "./types";
+import type {
+  FoodQuote,
+  ProductQuote,
+  Recommendation,
+  RideQuote,
+  PickReason,
+} from "./types";
+
+// Why this option won — a small badge so the user sees the reasoning at a glance.
+const PICK_BADGES: Record<
+  PickReason,
+  { label: string; icon: typeof Star; className: string }
+> = {
+  top_rated: { label: "TOP RATED", icon: Award, className: "bg-[#efe7fb] text-[#8b5cf6]" },
+  best_price: { label: "BEST PRICE", icon: Tag, className: "bg-accent-soft text-accent" },
+  fastest: { label: "FASTEST", icon: Zap, className: "bg-[#e3f6ec] text-success" },
+  best_overall: { label: "BEST OVERALL", icon: Sparkles, className: "bg-accent-soft text-accent" },
+};
+
+function PickBadge({ reason }: { reason?: PickReason }) {
+  if (!reason) return null;
+  const b = PICK_BADGES[reason];
+  const Icon = b.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+        b.className,
+      )}
+    >
+      <Icon size={11} /> {b.label}
+    </span>
+  );
+}
 
 function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
   return (
@@ -67,6 +100,7 @@ export function FoodRecommendation({
   const [showMore, setShowMore] = useState(false);
   return (
     <FadeIn y={8} className="flex w-full flex-col gap-2.5">
+      <PickBadge reason={rec.pickReason} />
       <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
@@ -279,12 +313,10 @@ export function ShopRecommendation({
 }) {
   return (
     <FadeIn y={8} className="flex w-full flex-col gap-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-accent">
-        <Sparkles size={13} /> Radiues pick
-      </p>
+      <PickBadge reason={rec.pickReason} />
+      <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
       <ProductRow q={rec.best} highlight />
-      <p className="text-[12px] leading-relaxed text-cocoa">{rec.why}</p>
-      <p className="text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
+      <p className="-mt-1 text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
       {rec.alternatives.length > 0 && (
         <>
           <p className="mt-1 text-[12px] font-semibold text-cocoa">

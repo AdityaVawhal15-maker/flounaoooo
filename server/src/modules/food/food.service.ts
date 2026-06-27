@@ -1,5 +1,10 @@
 import { dishes, type Dish, type Listing } from "../../data/restaurants.js";
-import { scoreOptions, type Priority } from "../advisor/scoring.js";
+import {
+  scoreOptions,
+  reasonForPriority,
+  type Priority,
+  type PickReason,
+} from "../advisor/scoring.js";
 
 export type FoodQuote = {
   dishId: string;
@@ -22,6 +27,7 @@ export type FoodRecommendation = {
   best: FoodQuote;
   alternatives: FoodQuote[];
   why: string;
+  pickReason: PickReason;
 };
 
 function effectivePrice(listing: Listing): number {
@@ -131,5 +137,5 @@ export function recommendFood(
     why += `. Want the highest rated? ${topRated.restaurant} is ${topRated.rating}★`;
   }
 
-  return { best, alternatives, why };
+  return { best, alternatives, why, pickReason: reasonForPriority(priority) };
 }

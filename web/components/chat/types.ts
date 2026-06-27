@@ -53,6 +53,8 @@ export type Advice = {
   waitMinutes?: number;
 };
 
+export type PickReason = "top_rated" | "best_price" | "fastest" | "best_overall";
+
 type FoodRec = {
   type: "food";
   best: FoodQuote;
@@ -60,6 +62,7 @@ type FoodRec = {
   why: string;
   advice?: Advice;
   budgetNote?: string;
+  pickReason?: PickReason;
 };
 
 type RideRec = {
@@ -76,6 +79,7 @@ type ShopRec = {
   best: ProductQuote;
   alternatives: ProductQuote[];
   why: string;
+  pickReason?: PickReason;
 };
 
 export type Recommendation =

@@ -7,6 +7,22 @@
 
 export type Priority = "price" | "rating" | "speed" | "balanced";
 
+// The basis on which the winning option was chosen — drives the UI badge.
+export type PickReason = "top_rated" | "best_price" | "fastest" | "best_overall";
+
+export function reasonForPriority(priority: Priority): PickReason {
+  switch (priority) {
+    case "rating":
+      return "top_rated";
+    case "price":
+      return "best_price";
+    case "speed":
+      return "fastest";
+    default:
+      return "best_overall";
+  }
+}
+
 export type Weights = { price: number; rating: number; speed: number };
 
 // Weight presets per priority. They always sum to 1 so scores stay comparable.
