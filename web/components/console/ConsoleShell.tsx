@@ -13,6 +13,8 @@ import {
   LayoutDashboard,
   Receipt,
   LifeBuoy,
+  TrendingUp,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -33,7 +35,10 @@ const NAV: NavItem[] = [
   { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
   { href: "/console/admin/orders", label: "Orders", icon: Receipt, need: "admin" },
   { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
-  { href: "/console/super", label: "Super-admin", icon: ShieldCheck, need: "super_admin" },
+  { href: "/console/super", label: "Revenue", icon: TrendingUp, need: "super_admin" },
+  { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
+  { href: "/console/super/audit", label: "Audit trail", icon: ScrollText, need: "super_admin" },
+  { href: "/console/super/config", label: "Config", icon: Settings, need: "super_admin" },
 ];
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -75,6 +80,7 @@ export function ConsoleShell({
               // children (e.g. /console/admin/users/:id keeps "Users" active).
               (n.href !== "/console/dev" &&
                 n.href !== "/console/admin" &&
+                n.href !== "/console/super" &&
                 pathname.startsWith(`${n.href}/`));
             const Icon = n.icon;
             return (
