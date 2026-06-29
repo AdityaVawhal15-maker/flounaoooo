@@ -1,4 +1,4 @@
-import { Clock3, TrendingDown } from "lucide-react";
+import { Clock3, TrendingDown, CloudRain } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type Advice = {
@@ -6,6 +6,7 @@ export type Advice = {
   message: string;
   expectedSavingPaise?: number;
   waitMinutes?: number;
+  contextNote?: string;
 };
 
 // Timing-engine banner: orange "worth waiting" vs green "good time".
@@ -44,6 +45,12 @@ export function AdviceBanner({
         <p className="mt-0.5 text-[13px] leading-relaxed text-ink">
           {advice.message}
         </p>
+        {advice.contextNote && (
+          <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-relaxed text-cocoa">
+            <CloudRain size={13} className="mt-0.5 shrink-0 text-accent" />
+            {advice.contextNote}
+          </p>
+        )}
       </div>
     </div>
   );

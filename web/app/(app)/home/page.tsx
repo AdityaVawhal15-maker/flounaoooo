@@ -26,6 +26,7 @@ import {
 } from "@/components/chat/RecommendationCards";
 import { VoiceButton } from "@/components/chat/VoiceButton";
 import { ThinkingSteps } from "@/components/chat/ThinkingSteps";
+import { PredictionBanner } from "@/components/chat/PredictionBanner";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { type TILE_THEMES } from "@/components/ui/CategoryTile";
@@ -162,6 +163,14 @@ function ChatHome() {
     <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6">
       {empty ? (
         <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+          {/* Proactive heads-up — the engine getting ahead of the user (rain
+              near their usual ride, etc.). Renders nothing when quiet. */}
+          <div className="mb-6 w-full max-w-md">
+            <PredictionBanner
+              onBook={(drop) => setInput(`Book a ride to ${drop}`)}
+            />
+          </div>
+
           {/* Hero heading — exact Figma: navy line 1, terracotta line 2 */}
           <FadeIn y={10}>
             <h1 className="flex flex-col gap-0.5 text-[26px] font-bold leading-[1.2] tracking-tight">

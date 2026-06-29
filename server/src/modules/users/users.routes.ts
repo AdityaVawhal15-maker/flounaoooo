@@ -7,6 +7,7 @@ import { ApiError } from "../../middleware/error.js";
 import { searchFood } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
+import { predictForUser } from "../advisor/prediction.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -93,6 +94,24 @@ usersRouter.put(
 usersRouter.get("/profile", async (req, res, next) => {
   try {
     res.json(await buildDecisionProfile(req.userId!));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Proactive predictions — heads-ups derived from the user's routines + live
+// context (e.g. rain near their usual morning ride). Optional lat/lng sharpen
+// the weather; without them we use the demo city centre. Always 200 with a
+// (possibly empty) list — a quiet day simply has nothing to surface.
+usersRouter.get("/predictions", async (req, res, next) => {
+  try {
+    const lat = req.query.lat != null ? Number(req.query.lat) : null;
+    const lng = req.query.lng != null ? Number(req.query.lng) : null;
+    const predictions = await predictForUser(req.userId!, {
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
+    });
+    res.json({ predictions });
   } catch (err) {
     next(err);
   }

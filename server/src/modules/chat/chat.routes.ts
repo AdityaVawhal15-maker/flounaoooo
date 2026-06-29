@@ -19,6 +19,7 @@ import {
   personalizationFrom,
 } from "../advisor/decisionProfile.service.js";
 import type { Priority } from "../advisor/scoring.js";
+import { buildContext } from "../advisor/context.service.js";
 
 // Paise → "₹123" for chat copy.
 const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
@@ -96,6 +97,10 @@ async function buildAssistantPayload(
     intent = await demoFallback.extractIntent(message);
   }
 
+  // Faculty 3: the situation this decision is made in (time + weather). Built
+  // once and layered onto food/ride advice. Never blocks — degrades offline.
+  const ctx = await buildContext();
+
   if (intent.domain === "combo" && intent.food && intent.ride) {
     const comboBudget = await weeklyFoodBudget(userId);
     const comboCap =
@@ -123,14 +128,14 @@ async function buildAssistantPayload(
       recommendation: {
         type: "combo",
         food: foodRec
-          ? { ...foodRec, advice: await adviseFood(foodRec.best.dishId) }
+          ? { ...foodRec, advice: await adviseFood(foodRec.best.dishId, ctx.now, ctx) }
           : null,
         ride: {
           drop: intent.ride.drop,
           pickup: intent.ride.pickup,
           quotes: rideQuotes.slice(0, 3),
           why: `Cheapest fare is ${rideQuotes[0]?.productName} — open Rides to set exact pickup.`,
-          advice: await adviseRide(rideQuotes[0]?.vehicle ?? null),
+          advice: await adviseRide(rideQuotes[0]?.vehicle ?? null, ctx.now, ctx),
         },
       },
     };
@@ -167,7 +172,7 @@ async function buildAssistantPayload(
         recommendation: {
           type: "food",
           ...rec,
-          advice: await adviseFood(rec.best.dishId),
+          advice: await adviseFood(rec.best.dishId, ctx.now, ctx),
           ...(budgetNote ? { budgetNote } : {}),
           ...(personalNote ? { personalNote } : {}),
         },
@@ -204,7 +209,7 @@ async function buildAssistantPayload(
         pickup: intent.ride.pickup,
         quotes: sent,
         why: `Cheapest effective fare is ${quotes[0]?.productName} after offers — open Rides to set exact pickup and book.`,
-        advice: await adviseRide(quotes[0]?.vehicle ?? null),
+        advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };
   }

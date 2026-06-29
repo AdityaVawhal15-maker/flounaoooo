@@ -51,6 +51,7 @@ export type Advice = {
   message: string;
   expectedSavingPaise?: number;
   waitMinutes?: number;
+  contextNote?: string;
 };
 
 export type PickReason = "top_rated" | "best_price" | "fastest" | "best_overall";

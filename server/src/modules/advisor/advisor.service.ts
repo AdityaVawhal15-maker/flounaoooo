@@ -3,6 +3,7 @@
 // Fallback (cold start): rule-based meal-window / commute-surge heuristics.
 
 import { predictFromHistory } from "./priceHistory.service.js";
+import type { DecisionContext } from "./context.service.js";
 
 export type Advice = {
   action: "order_now" | "wait";
@@ -12,6 +13,9 @@ export type Advice = {
   // present only for "wait"
   expectedSavingPaise?: number;
   waitMinutes?: number;
+  // A short context note layered on top (e.g. weather) — additive, never
+  // overrides the timing call.
+  contextNote?: string;
 };
 
 type FoodWindow = {
@@ -113,27 +117,55 @@ function formatWait(minutes: number): string {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
+// Weather context layered onto food advice: when it's wet, in-app delivery is
+// the comfortable call and delivery times run a little longer.
+function foodContextNote(ctx?: DecisionContext): string | undefined {
+  if (!ctx) return undefined;
+  const w = ctx.weather;
+  if (w.condition === "heavy_rain")
+    return "It's pouring out — delivery may run a bit slow, but you stay dry by ordering in.";
+  if (w.condition === "rain" || (w.rainChance ?? 0) >= 0.5)
+    return "Rain about — a good time to order in rather than head out.";
+  return undefined;
+}
+
+// Weather context layered onto ride advice: rain drives demand and surge.
+function rideContextNote(ctx?: DecisionContext): string | undefined {
+  if (!ctx) return undefined;
+  const w = ctx.weather;
+  if (w.condition === "heavy_rain")
+    return "Heavy rain — rides are in high demand and fares are surging. Book early if you must travel.";
+  if (w.condition === "rain" || (w.rainChance ?? 0) >= 0.5)
+    return "Rain expected — fares tend to rise and cabs get scarce. Booking sooner is safer.";
+  return undefined;
+}
+
 // ---- History-first entry points (used by routes) ----
 // Try learned patterns; fall back to rules until enough data accumulates.
+// An optional DecisionContext layers a weather note on top of the timing call.
 
 export async function adviseFood(
   dishKey: string | null,
   now: Date = new Date(),
+  ctx?: DecisionContext,
 ): Promise<Advice> {
+  const note = foodContextNote(ctx);
   if (dishKey) {
     const learned = await predictFromHistory("food", dishKey, now);
-    if (learned) return learned;
+    if (learned) return note ? { ...learned, contextNote: note } : learned;
   }
-  return { ...adviseFoodByRules(now), source: "rules" };
+  return { ...adviseFoodByRules(now), source: "rules", ...(note ? { contextNote: note } : {}) };
 }
 
 export async function adviseRide(
   vehicleKey: string | null,
   now: Date = new Date(),
+  ctx?: DecisionContext,
 ): Promise<Advice> {
+  const note = rideContextNote(ctx);
   if (vehicleKey) {
     const learned = await predictFromHistory("ride", vehicleKey, now);
-    if (learned) return learned;
+    if (learned) return note ? { ...learned, contextNote: note } : learned;
   }
-  return { ...adviseRideByRules(now), source: "rules" };
+  return { ...adviseRideByRules(now), source: "rules", ...(note ? { contextNote: note } : {}) };
 }

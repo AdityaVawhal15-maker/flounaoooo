@@ -39,6 +39,9 @@ const envSchema = z.object({
   MAPTILER_KEY: z.string().optional(),
   GEOAPIFY_KEY: z.string().optional(),
   ORS_KEY: z.string().optional(),
+  // Weather (context engine). Open-Meteo is keyless, so weather-aware advice
+  // works without this; the key only switches to a paid provider if set later.
+  WEATHER_API_KEY: z.string().optional(),
 
   // Web push (VAPID). Generate with: npx web-push generate-vapid-keys
   // Public key is also exposed to the browser as NEXT_PUBLIC_VAPID_PUBLIC_KEY.
