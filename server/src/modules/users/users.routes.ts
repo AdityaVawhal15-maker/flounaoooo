@@ -8,9 +8,51 @@ import { searchFood } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
 import { predictForUser } from "../advisor/prediction.service.js";
+import {
+  createTicket,
+  listUserTickets,
+  TICKET_CATEGORIES,
+} from "../backoffice/tickets.service.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
+
+// --- Support tickets (user side) ---
+// Raise a support / grievance ticket, optionally about one of their own orders.
+usersRouter.post(
+  "/tickets",
+  validateBody(
+    z.object({
+      orderId: z.string().cuid().optional(),
+      category: z.enum(TICKET_CATEGORIES),
+      subject: z.string().trim().min(3).max(140),
+      body: z.string().trim().min(5).max(2000),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const data = req.body as {
+        orderId?: string;
+        category: (typeof TICKET_CATEGORIES)[number];
+        subject: string;
+        body: string;
+      };
+      const result = await createTicket({ userId: req.userId!, ...data });
+      if (!result.ok) throw new ApiError(404, "Order not found");
+      res.status(201).json({ ticket: result.ticket });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+usersRouter.get("/tickets", async (req, res, next) => {
+  try {
+    res.json({ tickets: await listUserTickets(req.userId!) });
+  } catch (err) {
+    next(err);
+  }
+});
 
 usersRouter.patch(
   "/me",
