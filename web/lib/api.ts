@@ -7,6 +7,8 @@ export class ApiClientError extends Error {
     public status: number,
     message: string,
     public details?: unknown,
+    // Server-provided error code (e.g. "step_up_required"), when present.
+    public code?: string,
   ) {
     super(message);
   }
@@ -61,6 +63,7 @@ export async function api<T>(
       res.status,
       (data as { error?: string } | null)?.error ?? `Request failed (${res.status})`,
       (data as { details?: unknown } | null)?.details,
+      (data as { code?: string } | null)?.code,
     );
   }
   return data as T;

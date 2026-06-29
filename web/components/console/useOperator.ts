@@ -27,31 +27,36 @@ type State =
   | { status: "ok"; operator: Operator }
   | { status: "denied" };
 
-// Guards a console page: loads the current account, and if it isn't an operator
-// (or not one of `accept`), sends them to the console login. Returns the
-// operator once authorized so the page can render.
+// Guards a console page. Uses the step-up-aware /api/console/whoami probe: it
+// succeeds only for an operator whose session has cleared 2FA. Anything else —
+// not an operator (404), step-up needed (403 step_up_required), or no session —
+// sends them to the console login (which runs the password + OTP flow). We need
+// the account's name/email too, so we pair it with /api/auth/me.
 export function useOperator(accept: Role[] = ["developer", "admin", "super_admin"]) {
   const router = useRouter();
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
-    api<{ user: Operator }>("/api/auth/me")
-      .then(({ user }) => {
+    const deny = () => {
+      if (cancelled) return;
+      setState({ status: "denied" });
+      router.replace("/console/login");
+    };
+
+    Promise.all([
+      api<{ id: string; role: Role }>("/api/console/whoami"),
+      api<{ user: Operator }>("/api/auth/me"),
+    ])
+      .then(([who, me]) => {
         if (cancelled) return;
         const allowed =
-          user.role !== "user" && accept.some((r) => roleSatisfies(user.role, r));
-        if (allowed) setState({ status: "ok", operator: user });
-        else {
-          setState({ status: "denied" });
-          router.replace("/console/login");
-        }
+          who.role !== "user" && accept.some((r) => roleSatisfies(who.role, r));
+        if (allowed) setState({ status: "ok", operator: { ...me.user, role: who.role } });
+        else deny();
       })
-      .catch(() => {
-        if (cancelled) return;
-        setState({ status: "denied" });
-        router.replace("/console/login");
-      });
+      .catch(deny);
+
     return () => {
       cancelled = true;
     };
