@@ -6,11 +6,18 @@ import { env, isProd } from "../config/env.js";
 import { prisma } from "./prisma.js";
 import type { Role } from "./rbac.js";
 
-export type AccessPayload = { sub: string; role: Role };
+// `step` marks a session that has cleared operator step-up (2FA). Ordinary user
+// sessions never set it; console routes require it so a leaked operator password
+// alone — without the email OTP — cannot reach the back-office.
+export type AccessPayload = { sub: string; role: Role; step?: boolean };
 
-export function signAccessToken(userId: string, role: Role = "user") {
+export function signAccessToken(
+  userId: string,
+  role: Role = "user",
+  stepUp = false,
+) {
   return jwt.sign(
-    { sub: userId, role } satisfies AccessPayload,
+    { sub: userId, role, ...(stepUp ? { step: true } : {}) } satisfies AccessPayload,
     env.JWT_ACCESS_SECRET,
     {
       expiresIn: env.ACCESS_TOKEN_TTL as jwt.SignOptions["expiresIn"],
@@ -28,13 +35,14 @@ export function verifyAccessToken(token: string): AccessPayload | null {
 
 // Refresh tokens are opaque random strings stored hashed — a DB leak
 // exposes nothing usable, and individual sessions can be revoked.
-export async function issueRefreshToken(userId: string) {
+export async function issueRefreshToken(userId: string, stepUp = false) {
   const raw = crypto.randomBytes(48).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
   await prisma.refreshToken.create({
     data: {
       userId,
       tokenHash,
+      stepUp,
       expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000),
     },
   });
@@ -51,8 +59,10 @@ export async function rotateRefreshToken(raw: string) {
     where: { id: existing.id },
     data: { revokedAt: new Date() },
   });
-  const next = await issueRefreshToken(existing.userId);
-  return { userId: existing.userId, token: next };
+  // Carry the step-up status onto the rotated token so a verified operator
+  // session keeps its 2FA standing across refreshes.
+  const next = await issueRefreshToken(existing.userId, existing.stepUp);
+  return { userId: existing.userId, token: next, stepUp: existing.stepUp };
 }
 
 export async function revokeRefreshToken(raw: string) {

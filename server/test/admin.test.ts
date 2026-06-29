@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authedAgent } from "./helpers.js";
+import { authedAgent, stepUp } from "./helpers.js";
 import { prisma } from "../src/lib/prisma.js";
 
 async function promote(
@@ -8,7 +8,7 @@ async function promote(
   role: string,
 ) {
   await prisma.user.update({ where: { email }, data: { role } });
-  await agent.post("/api/auth/refresh").expect(200);
+  await stepUp(agent, email);
 }
 
 // Place + pay a food order; returns the order id.

@@ -20,7 +20,7 @@ import { ApiError } from "../../middleware/error.js";
 import { sessionLimiter } from "../../middleware/rateLimit.js";
 import { consumeOtp, createOtp } from "./otp.js";
 import { env } from "../../config/env.js";
-import { normalizeRole } from "../../lib/rbac.js";
+import { normalizeRole, isOperator } from "../../lib/rbac.js";
 
 export const authRouter = Router();
 
@@ -69,16 +69,18 @@ function publicUser(user: {
 async function startSession(
   res: Parameters<typeof setAuthCookies>[0],
   userId: string,
+  stepUp = false,
 ) {
   // Bake the current role into the access token so ordinary requests carry it.
   // requireRole still re-checks the DB for privileged routes, so a stale token
-  // can never grant access that was revoked.
+  // can never grant access that was revoked. `stepUp` marks a session that has
+  // cleared operator 2FA — set only by the console verify flow.
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true },
   });
-  const access = signAccessToken(userId, normalizeRole(user?.role));
-  const refresh = await issueRefreshToken(userId);
+  const access = signAccessToken(userId, normalizeRole(user?.role), stepUp);
+  const refresh = await issueRefreshToken(userId, stepUp);
   setAuthCookies(res, access, refresh);
 }
 
@@ -244,6 +246,102 @@ authRouter.post(
   },
 );
 
+// ---------- operator console login (password + email OTP step-up) ----------
+//
+// Two-factor gate for the back-office. Step 1 verifies the password; if the
+// account is an operator we DON'T issue a session — we email a one-time code and
+// ask for it. Step 2 verifies that code and only then starts a step-up-marked
+// session that the console routes require. Ordinary users get the same flat 404
+// the rest of the console surface returns, so this doesn't reveal who's an
+// operator. A leaked operator password alone never reaches the back-office.
+
+authRouter.post(
+  "/console/login",
+  sensitiveLimit,
+  validateBody(z.object({ email: emailSchema, password: z.string().min(1).max(128) })),
+  async (req, res, next) => {
+    try {
+      const { email, password } = req.body as { email: string; password: string };
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (user?.lockedUntil && user.lockedUntil > new Date()) {
+        throw new ApiError(429, "Too many attempts. Try again later.");
+      }
+
+      // Password check first (generic error — no enumeration).
+      const passwordOk =
+        user?.passwordHash && (await verifyPassword(password, user.passwordHash));
+      if (!user || !passwordOk) {
+        if (user) {
+          const failed = user.failedLogins + 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLogins: failed,
+              lockedUntil:
+                failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCKOUT_MS) : null,
+            },
+          });
+        }
+        throw new ApiError(401, "Incorrect email or password");
+      }
+
+      // Valid credentials, but NOT an operator → hide that the console exists.
+      if (!isOperator(normalizeRole(user.role))) {
+        throw new ApiError(404, "Not found");
+      }
+
+      // Clear any failure counter on a good password.
+      if (user.failedLogins > 0 || user.lockedUntil) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLogins: 0, lockedUntil: null },
+        });
+      }
+
+      // Send the second factor. We do NOT start a session yet.
+      const code = await createOtp({
+        userId: user.id,
+        channel: "email",
+        target: email,
+        purpose: "step_up",
+      });
+      await sendOtpEmail(email, code);
+      res.json({ next: "otp" });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  "/console/verify",
+  sensitiveLimit,
+  validateBody(
+    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { email, code } = req.body as { email: string; code: string };
+      const user = await prisma.user.findUnique({ where: { email } });
+      // Re-confirm operator status at verify time (role could have changed).
+      if (!user || !isOperator(normalizeRole(user.role))) {
+        throw new ApiError(404, "Not found");
+      }
+      if (user.suspendedAt) throw new ApiError(403, "Account suspended");
+
+      const ok = await consumeOtp({ target: email, purpose: "step_up", code });
+      if (!ok) throw new ApiError(401, "Invalid or expired code");
+
+      // OTP cleared → start a step-up-verified session.
+      await startSession(res, user.id, true);
+      res.json({ user: publicUser(user) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // ---------- Google sign-in ----------
 
 authRouter.post(
@@ -391,7 +489,7 @@ authRouter.post("/refresh", sessionLimiter, async (req, res, next) => {
     }
     setAuthCookies(
       res,
-      signAccessToken(rotated.userId, normalizeRole(user?.role)),
+      signAccessToken(rotated.userId, normalizeRole(user?.role), rotated.stepUp),
       rotated.token,
     );
     res.json({ ok: true });

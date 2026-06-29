@@ -64,6 +64,13 @@ export function requireRole(...accepted: Role[]) {
         return next(new ApiError(404, "Not found"));
       }
 
+      // Operator with the right role, but the session hasn't cleared 2FA
+      // step-up — require it. A distinct code lets the console UI route to the
+      // OTP screen rather than treating this as a hard failure.
+      if (!payload.step) {
+        return next(new ApiError(403, "Step-up required", "step_up_required"));
+      }
+
       req.userId = user.id;
       req.userRole = role;
       next();

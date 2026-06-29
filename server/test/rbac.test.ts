@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { app, authedAgent } from "./helpers.js";
+import { app, authedAgent, stepUp } from "./helpers.js";
 import { prisma } from "../src/lib/prisma.js";
 import {
   roleSatisfies,
@@ -9,15 +9,15 @@ import {
   normalizeRole,
 } from "../src/lib/rbac.js";
 
-// Promote the agent's user to a role, then refresh so the new access token (and
-// the DB row requireRole re-checks) reflect it.
+// Promote the agent's user to a role, then complete the console step-up (2FA)
+// flow so the session is verified for the back-office.
 async function promote(
   agent: Awaited<ReturnType<typeof authedAgent>>["agent"],
   email: string,
   role: string,
 ) {
   await prisma.user.update({ where: { email }, data: { role } });
-  await agent.post("/api/auth/refresh").expect(200);
+  await stepUp(agent, email);
 }
 
 describe("rbac core", () => {

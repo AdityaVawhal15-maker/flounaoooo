@@ -179,6 +179,10 @@ model RefreshToken {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
+  // Whether this session cleared operator step-up (2FA). Carried across refresh
+  // rotation so a stepped-up console session keeps the `step` claim on its new
+  // access token; ordinary user sessions stay false.
+  stepUp    Boolean   @default(false)
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())

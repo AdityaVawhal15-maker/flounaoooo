@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { errorHandler, notFound } from "./middleware/error.js";
+import { requireRole } from "./middleware/auth.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { foodRouter } from "./modules/food/food.routes.js";
@@ -122,6 +123,17 @@ export function createApp() {
     message: { error: "Too many requests." },
   });
   app.use("/api/console", consoleLimiter);
+  // Step-up-aware identity probe for the console UI: succeeds only for an
+  // operator whose session has cleared 2FA. The guard returns 403
+  // step_up_required (→ OTP screen) or 404 (→ not an operator) otherwise, so the
+  // frontend can route correctly before rendering any console page.
+  app.get(
+    "/api/console/whoami",
+    requireRole("developer", "admin", "super_admin"),
+    async (req, res) => {
+      res.json({ id: req.userId, role: req.userRole });
+    },
+  );
   app.use("/api/console/dev", devRouter);
   app.use("/api/console/admin", adminRouter);
   app.use("/api/console/super", superRouter);
