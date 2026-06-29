@@ -20,6 +20,7 @@ import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
+import { superRouter } from "./modules/backoffice/super.routes.js";
 
 export function createApp() {
   const app = express();
@@ -123,6 +124,7 @@ export function createApp() {
   app.use("/api/console", consoleLimiter);
   app.use("/api/console/dev", devRouter);
   app.use("/api/console/admin", adminRouter);
+  app.use("/api/console/super", superRouter);
 
   app.use(notFound);
   app.use(errorHandler);
