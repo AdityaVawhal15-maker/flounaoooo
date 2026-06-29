@@ -14,6 +14,7 @@ import { llm } from "../chat/llm/index.js";
 import { listFlags, setFlag } from "./flags.service.js";
 import { auditFromReq } from "./audit.service.js";
 import { ondcNetwork, systemAlerts } from "./systemStatus.service.js";
+import { listTransactions, getTransaction } from "./ondc.service.js";
 
 export const devRouter = Router();
 
@@ -150,6 +151,27 @@ devRouter.get("/network", (_req, res) => {
 devRouter.get("/alerts", async (_req, res, next) => {
   try {
     res.json(await systemAlerts());
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- ONDC transaction log (Beckn envelopes; simulated until registration) ---
+devRouter.get("/transactions", async (req, res, next) => {
+  try {
+    const action = typeof req.query.action === "string" ? req.query.action : undefined;
+    const page = Number(req.query.page) || 1;
+    res.json(await listTransactions({ action, page }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+devRouter.get("/transactions/:id", async (req, res, next) => {
+  try {
+    const txn = await getTransaction(req.params.id!);
+    if (!txn) return res.status(404).json({ error: "Not found" });
+    res.json({ transaction: txn });
   } catch (err) {
     next(err);
   }

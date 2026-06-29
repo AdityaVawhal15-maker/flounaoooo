@@ -11,6 +11,7 @@ import {
   verifyCashfreeWebhook,
 } from "./cashfree.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { emitOrderConfirmation } from "../backoffice/ondc.service.js";
 
 export const paymentsRouter = Router();
 
@@ -78,6 +79,9 @@ async function markPaid(
         : `${order.title} — your driver is on the way.`,
     url: `/orders/${order.id}`,
   });
+
+  // Record the simulated ONDC confirm/status flow for the developer viewer.
+  void emitOrderConfirmation(order);
 
   return updated;
 }

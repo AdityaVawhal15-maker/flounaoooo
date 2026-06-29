@@ -379,6 +379,33 @@ model ApiKey {
   @@index([revokedAt])
 }
 
+// ONDC transaction log (developer console). Radiues is a BAP: every order is a
+// Beckn flow of signed request/callback pairs (search→on_search, select→
+// on_select, confirm→on_confirm, status→on_status). Until participant
+// registration these are SIMULATED from real orders but recorded in the exact
+// envelope shape, so the viewer — and any downstream tooling — works unchanged
+// the moment the network goes live. `simulated` flags pre-registration rows.
+model OndcTransaction {
+  id          String   @id @default(cuid())
+  txnId       String // Beckn transaction_id (one per order/journey)
+  messageId   String // Beckn message_id (one per request/callback pair)
+  action      String // "search" | "on_search" | "select" | "confirm" | "on_confirm" | "status" | "on_status"
+  domain      String // ONDC domain code, e.g. "ONDC:RET11" (food) / "ONDC:TRV11"
+  orderId     String? // our order this relates to, when applicable
+  bppId       String? // the seller app (BPP) the message went to/from
+  request     String? // JSON: the Beckn request envelope (context + message)
+  response    String? // JSON: the matching callback envelope, when present
+  status      String // "ack" | "nack" | "error"
+  signed      Boolean  @default(true) // request carried an Ed25519 signature
+  latencyMs   Int? // round-trip for request→callback, when known
+  simulated   Boolean  @default(true) // pre-registration synthetic record
+  createdAt   DateTime @default(now())
+
+  @@index([txnId])
+  @@index([action, createdAt])
+  @@index([orderId])
+}
+
 // Singleton-ish platform configuration set from the super-admin Settings page:
 // commission thresholds (kept within DPIIT/ONDC norms) and alert thresholds. A
 // single row with key "default"; values are integers/basis-points to avoid

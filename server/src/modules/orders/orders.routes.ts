@@ -13,6 +13,7 @@ import {
   CONVENIENCE_FEE_PAISE,
 } from "../subscription/subscription.service.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { emitOrderDiscovery } from "../backoffice/ondc.service.js";
 
 export const ordersRouter = Router();
 ordersRouter.use(requireAuth);
@@ -135,6 +136,9 @@ ordersRouter.post(
             addressId: defaultAddress?.id ?? null,
           },
         });
+        // Record the simulated ONDC discovery flow (search/select) for the
+        // developer transaction viewer. Fire-and-forget — never blocks the order.
+        void emitOrderDiscovery(order);
         return res.status(201).json({ order });
       }
 
@@ -193,6 +197,7 @@ ordersRouter.post(
           savedPaise,
         },
       });
+      void emitOrderDiscovery(order);
       res.status(201).json({ order });
     } catch (err) {
       next(err);
