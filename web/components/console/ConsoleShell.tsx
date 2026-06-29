@@ -13,8 +13,17 @@ import {
   LayoutDashboard,
   Receipt,
   LifeBuoy,
-  TrendingUp,
   Settings,
+  MapPin,
+  Store,
+  Brain,
+  Tags,
+  TrendingDown,
+  Network,
+  Bell,
+  KeyRound,
+  Coins,
+  ChartBar,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -22,24 +31,56 @@ import { roleSatisfies, type Operator, type Role } from "./useOperator";
 import { cn } from "@/lib/cn";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; need: Role };
+type NavSection = { section: string; items: NavItem[] };
 
-// One nav list for the whole console; each item declares the minimum role it
-// needs and we render only what the current operator can use. (The server still
-// enforces access on every call — this is just UX.)
-const NAV: NavItem[] = [
-  { href: "/console/dev", label: "Diagnostics", icon: Activity, need: "developer" },
-  { href: "/console/dev/errors", label: "Errors", icon: AlertTriangle, need: "developer" },
-  { href: "/console/dev/flags", label: "Feature flags", icon: Flag, need: "developer" },
-  { href: "/console/dev/audit", label: "Audit log", icon: ScrollText, need: "developer" },
-  { href: "/console/admin", label: "Operations", icon: LayoutDashboard, need: "admin" },
-  { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
-  { href: "/console/admin/orders", label: "Orders", icon: Receipt, need: "admin" },
-  { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
-  { href: "/console/super", label: "Revenue", icon: TrendingUp, need: "super_admin" },
-  { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
-  { href: "/console/super/audit", label: "Audit trail", icon: ScrollText, need: "super_admin" },
-  { href: "/console/super/config", label: "Config", icon: Settings, need: "super_admin" },
+// Grouped nav (mirrors the founder's layout: Overview / Commerce / Intelligence
+// / System). Each item declares the minimum role it needs; we render only what
+// the current operator can use. The server still enforces access on every call.
+const NAV: NavSection[] = [
+  {
+    section: "Overview",
+    items: [
+      { href: "/console/admin", label: "Dashboard", icon: LayoutDashboard, need: "admin" },
+      { href: "/console/admin/analytics", label: "Analytics", icon: ChartBar, need: "admin" },
+      { href: "/console/admin/cities", label: "City report", icon: MapPin, need: "admin" },
+      { href: "/console/dev", label: "Diagnostics", icon: Activity, need: "developer" },
+    ],
+  },
+  {
+    section: "Commerce",
+    items: [
+      { href: "/console/admin/orders", label: "Orders", icon: Receipt, need: "admin" },
+      { href: "/console/admin/vendors", label: "Vendors / MSMEs", icon: Store, need: "admin" },
+      { href: "/console/super", label: "Revenue & commissions", icon: Coins, need: "super_admin" },
+      { href: "/console/dev/network", label: "ONDC network", icon: Network, need: "developer" },
+    ],
+  },
+  {
+    section: "Intelligence",
+    items: [
+      { href: "/console/admin/decisions", label: "Decision logs", icon: Brain, need: "admin" },
+      { href: "/console/admin/coupons", label: "Coupon engine", icon: Tags, need: "admin" },
+      { href: "/console/admin/price-alerts", label: "Price alerts", icon: TrendingDown, need: "admin" },
+    ],
+  },
+  {
+    section: "System",
+    items: [
+      { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
+      { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
+      { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
+      { href: "/console/super/api-keys", label: "API keys", icon: KeyRound, need: "super_admin" },
+      { href: "/console/dev/errors", label: "Errors", icon: AlertTriangle, need: "developer" },
+      { href: "/console/dev/alerts", label: "Alerts", icon: Bell, need: "developer" },
+      { href: "/console/dev/flags", label: "Feature flags", icon: Flag, need: "developer" },
+      { href: "/console/super/audit", label: "Audit trail", icon: ScrollText, need: "super_admin" },
+      { href: "/console/super/config", label: "Settings", icon: Settings, need: "super_admin" },
+    ],
+  },
 ];
+
+// Index routes that must match exactly (deeper routes light up on children).
+const EXACT = new Set(["/console/dev", "/console/admin", "/console/super"]);
 
 const ROLE_LABEL: Record<Role, string> = {
   user: "User",
@@ -63,7 +104,14 @@ export function ConsoleShell({
     router.replace("/console/login");
   }
 
-  const items = NAV.filter((n) => roleSatisfies(operator.role, n.need));
+  // Keep only sections that have at least one item this operator may use.
+  const sections = NAV.map((s) => ({
+    section: s.section,
+    items: s.items.filter((n) => roleSatisfies(operator.role, n.need)),
+  })).filter((s) => s.items.length > 0);
+
+  const isActive = (href: string) =>
+    pathname === href || (!EXACT.has(href) && pathname.startsWith(`${href}/`));
 
   return (
     <div className="flex min-h-dvh">
@@ -72,33 +120,33 @@ export function ConsoleShell({
           <ShieldCheck size={18} className="text-emerald-400" />
           <span className="text-[14px] font-semibold text-slate-100">Console</span>
         </div>
-        <nav className="flex-1 space-y-1 px-3">
-          {items.map((n) => {
-            const active =
-              pathname === n.href ||
-              // Index routes match exactly; deeper routes also light up on their
-              // children (e.g. /console/admin/users/:id keeps "Users" active).
-              (n.href !== "/console/dev" &&
-                n.href !== "/console/admin" &&
-                n.href !== "/console/super" &&
-                pathname.startsWith(`${n.href}/`));
-            const Icon = n.icon;
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
-                  active
-                    ? "bg-emerald-600/15 text-emerald-300"
-                    : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200",
-                )}
-              >
-                <Icon size={16} />
-                {n.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-3 overflow-y-auto px-3 pb-4">
+          {sections.map((s) => (
+            <div key={s.section}>
+              <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                {s.section}
+              </p>
+              {s.items.map((n) => {
+                const active = isActive(n.href);
+                const Icon = n.icon;
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
+                      active
+                        ? "bg-emerald-600/15 text-emerald-300"
+                        : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200",
+                    )}
+                  >
+                    <Icon size={16} />
+                    {n.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="border-t border-slate-800 px-4 py-4">
           <p className="truncate text-[13px] font-medium text-slate-200">
