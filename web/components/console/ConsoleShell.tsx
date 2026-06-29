@@ -10,6 +10,9 @@ import {
   Users,
   ShieldCheck,
   LogOut,
+  LayoutDashboard,
+  Receipt,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -26,7 +29,10 @@ const NAV: NavItem[] = [
   { href: "/console/dev/errors", label: "Errors", icon: AlertTriangle, need: "developer" },
   { href: "/console/dev/flags", label: "Feature flags", icon: Flag, need: "developer" },
   { href: "/console/dev/audit", label: "Audit log", icon: ScrollText, need: "developer" },
-  { href: "/console/admin", label: "Operations", icon: Users, need: "admin" },
+  { href: "/console/admin", label: "Operations", icon: LayoutDashboard, need: "admin" },
+  { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
+  { href: "/console/admin/orders", label: "Orders", icon: Receipt, need: "admin" },
+  { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
   { href: "/console/super", label: "Super-admin", icon: ShieldCheck, need: "super_admin" },
 ];
 
@@ -65,7 +71,11 @@ export function ConsoleShell({
           {items.map((n) => {
             const active =
               pathname === n.href ||
-              (n.href !== "/console/dev" && pathname.startsWith(n.href));
+              // Index routes match exactly; deeper routes also light up on their
+              // children (e.g. /console/admin/users/:id keeps "Users" active).
+              (n.href !== "/console/dev" &&
+                n.href !== "/console/admin" &&
+                pathname.startsWith(`${n.href}/`));
             const Icon = n.icon;
             return (
               <Link
