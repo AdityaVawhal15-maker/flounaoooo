@@ -4,13 +4,18 @@ import bcrypt from "bcryptjs";
 import type { Response } from "express";
 import { env, isProd } from "../config/env.js";
 import { prisma } from "./prisma.js";
+import type { Role } from "./rbac.js";
 
-export type AccessPayload = { sub: string };
+export type AccessPayload = { sub: string; role: Role };
 
-export function signAccessToken(userId: string) {
-  return jwt.sign({ sub: userId } satisfies AccessPayload, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.ACCESS_TOKEN_TTL as jwt.SignOptions["expiresIn"],
-  });
+export function signAccessToken(userId: string, role: Role = "user") {
+  return jwt.sign(
+    { sub: userId, role } satisfies AccessPayload,
+    env.JWT_ACCESS_SECRET,
+    {
+      expiresIn: env.ACCESS_TOKEN_TTL as jwt.SignOptions["expiresIn"],
+    },
+  );
 }
 
 export function verifyAccessToken(token: string): AccessPayload | null {

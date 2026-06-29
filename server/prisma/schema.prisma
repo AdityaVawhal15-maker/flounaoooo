@@ -37,6 +37,13 @@ model User {
   plusUntil     DateTime? // current period end; expired = treated as inactive
   failedLogins  Int       @default(0) // consecutive failed login attempts
   lockedUntil   DateTime? // set after too many failures (backoff window)
+  // RBAC: "user" | "developer" | "admin" | "super_admin". Stored as a string
+  // (SQLite/Postgres parity) and validated in code. Only a super_admin can
+  // change this; never settable via signup or profile update. Default keeps
+  // every account a plain user until explicitly promoted.
+  role          String    @default("user")
+  // Operator accounts (non-user roles) suspended by a super_admin can't sign in.
+  suspendedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -51,6 +58,7 @@ model User {
   groupCartItems GroupCartItem[]
   groupCartMemberships GroupCartMember[]
   priceAlerts   PriceAlert[]
+  supportTickets SupportTicket[]
 }
 
 // Group ordering: a shared cart one person hosts and others join via a code.
@@ -267,4 +275,81 @@ model TrackingEvent {
   createdAt DateTime @default(now())
 
   @@index([orderId])
+}
+
+// --- Back-office (admin / super-admin / developer consoles) ---
+
+// Append-only record of every privileged action. Written by the audit service
+// on each mutating admin/super operation. There is no update or delete path —
+// the super-admin reviews it as a tamper-evident trail (who did what, to whom,
+// from where). actorId is null only for system-originated entries.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String? // the operator who acted (null = system)
+  actorRole  String // role at the time of the action
+  action     String // e.g. "user.suspend", "role.grant", "order.refund_flag"
+  targetType String // "user" | "order" | "ticket" | "flag" | ...
+  targetId   String? // id of the affected entity
+  summary    String // human-readable one-liner for the audit feed
+  metadata   String? // JSON: before/after or extra context
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+// Captured server errors, surfaced on the developer console. Every unhandled
+// error flows here via the error handler so engineers see failures without SSH.
+// fingerprint groups identical errors; count rises instead of spamming rows.
+model ErrorLog {
+  id          String   @id @default(cuid())
+  fingerprint String   @unique // hash of name+message+top frame
+  name        String // error class, e.g. "TypeError"
+  message     String
+  stack       String?
+  route       String? // method + path that triggered it
+  statusCode  Int? // HTTP status returned, if any
+  userId      String? // affected user, when known (no PII beyond id)
+  count       Int      @default(1) // occurrences of this fingerprint
+  resolved    Boolean  @default(false) // engineer marks handled
+  firstSeen   DateTime @default(now())
+  lastSeen    DateTime @default(now())
+
+  @@index([resolved, lastSeen])
+}
+
+// Support / Issue-&-Grievance (ONDC IGM-shaped) ticket raised by a user and
+// worked by admins. Keeps order disputes auditable end to end.
+model SupportTicket {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String? // optional link to the order in question
+  category   String // "order" | "payment" | "refund" | "account" | "other"
+  subject    String
+  body       String
+  status     String   @default("open") // "open" | "in_progress" | "resolved" | "closed"
+  priority   String   @default("normal") // "low" | "normal" | "high" | "urgent"
+  assigneeId String? // admin handling it
+  resolution String? // closing note
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, priority])
+  @@index([userId])
+}
+
+// Server-side feature flags, toggled from the developer console. Lets us gate
+// risky features (e.g. switch LLM_PROVIDER behaviour, enable ONDC live) without
+// a redeploy. Read at request time; default off when absent.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "ondc_live", "hybrid_ai_rerank"
+  enabled     Boolean  @default(false)
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }

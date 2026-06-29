@@ -20,6 +20,7 @@ import { ApiError } from "../../middleware/error.js";
 import { sessionLimiter } from "../../middleware/rateLimit.js";
 import { consumeOtp, createOtp } from "./otp.js";
 import { env } from "../../config/env.js";
+import { normalizeRole } from "../../lib/rbac.js";
 
 export const authRouter = Router();
 
@@ -50,6 +51,7 @@ function publicUser(user: {
   emailVerified: boolean;
   phoneVerified: boolean;
   avatarUrl: string | null;
+  role?: string;
 }) {
   return {
     id: user.id,
@@ -59,6 +61,8 @@ function publicUser(user: {
     emailVerified: user.emailVerified,
     phoneVerified: user.phoneVerified,
     avatarUrl: user.avatarUrl,
+    // Operator role for console routing; "user" for ordinary customers.
+    role: normalizeRole(user.role),
   };
 }
 
@@ -66,7 +70,14 @@ async function startSession(
   res: Parameters<typeof setAuthCookies>[0],
   userId: string,
 ) {
-  const access = signAccessToken(userId);
+  // Bake the current role into the access token so ordinary requests carry it.
+  // requireRole still re-checks the DB for privileged routes, so a stale token
+  // can never grant access that was revoked.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const access = signAccessToken(userId, normalizeRole(user?.role));
   const refresh = await issueRefreshToken(userId);
   setAuthCookies(res, access, refresh);
 }
@@ -368,7 +379,21 @@ authRouter.post("/refresh", sessionLimiter, async (req, res, next) => {
       clearAuthCookies(res);
       throw new ApiError(401, "Session expired");
     }
-    setAuthCookies(res, signAccessToken(rotated.userId), rotated.token);
+    // Re-read the role on refresh so a promotion/demotion propagates into the
+    // new access token (and a suspended operator can be cut off here too).
+    const user = await prisma.user.findUnique({
+      where: { id: rotated.userId },
+      select: { role: true, suspendedAt: true },
+    });
+    if (user?.suspendedAt) {
+      clearAuthCookies(res);
+      throw new ApiError(403, "Account suspended");
+    }
+    setAuthCookies(
+      res,
+      signAccessToken(rotated.userId, normalizeRole(user?.role)),
+      rotated.token,
+    );
     res.json({ ok: true });
   } catch (err) {
     next(err);

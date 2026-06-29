@@ -18,6 +18,7 @@ import { groupsRouter } from "./modules/groups/groups.routes.js";
 import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
+import { devRouter } from "./modules/backoffice/dev.routes.js";
 
 export function createApp() {
   const app = express();
@@ -107,6 +108,19 @@ export function createApp() {
   app.use("/api/alerts", alertsRouter);
   app.use("/api/shop", shopRouter);
   app.use("/api/subscription", subscriptionRouter);
+
+  // Back-office consoles (developer / admin / super-admin) under one namespace,
+  // behind a tighter rate limit than the consumer API. The routers themselves
+  // enforce RBAC; this is defense-in-depth against brute-forcing the surface.
+  const consoleLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: env.NODE_ENV === "test" ? 1000 : 60,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many requests." },
+  });
+  app.use("/api/console", consoleLimiter);
+  app.use("/api/console/dev", devRouter);
 
   app.use(notFound);
   app.use(errorHandler);
