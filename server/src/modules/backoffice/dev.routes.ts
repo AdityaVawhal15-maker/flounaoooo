@@ -13,6 +13,7 @@ import { env } from "../../config/env.js";
 import { llm } from "../chat/llm/index.js";
 import { listFlags, setFlag } from "./flags.service.js";
 import { auditFromReq } from "./audit.service.js";
+import { ondcNetwork, systemAlerts } from "./systemStatus.service.js";
 
 export const devRouter = Router();
 
@@ -139,6 +140,20 @@ devRouter.patch(
     }
   },
 );
+
+// --- ONDC network status (simulated until registration) ---
+devRouter.get("/network", (_req, res) => {
+  res.json(ondcNetwork());
+});
+
+// --- System alerts feed (real: derived from errors, refunds, tickets) ---
+devRouter.get("/alerts", async (_req, res, next) => {
+  try {
+    res.json(await systemAlerts());
+  } catch (err) {
+    next(err);
+  }
+});
 
 // --- Audit trail (read-only slice; super-admin gets the full viewer too) ---
 devRouter.get("/audit", async (req, res, next) => {

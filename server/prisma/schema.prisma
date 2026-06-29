@@ -353,3 +353,45 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 }
+
+// API keys for MSME / developer-partner integrations (managed from the
+// super-admin console). We store only a SHA-256 hash of the secret — the raw
+// key is shown exactly once at creation and never persisted, so a DB leak
+// exposes nothing usable. `prefix` is a non-secret label for display/lookup.
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String // e.g. "Production — MK Electronics"
+  client      String // owning partner / integration
+  prefix      String    @unique // e.g. "alg_live_4f2a" (non-secret, shown in UI)
+  keyHash     String    @unique // sha256 of the full key
+  scope       String    @default("read") // "read" | "read_write"
+  createdById String?
+  lastUsedAt  DateTime?
+  callCount   Int       @default(0)
+  expiresAt   DateTime? // null = no expiry
+  revokedAt   DateTime? // set instead of deleting, for audit continuity
+  createdAt   DateTime  @default(now())
+
+  @@index([revokedAt])
+}
+
+// Singleton-ish platform configuration set from the super-admin Settings page:
+// commission thresholds (kept within DPIIT/ONDC norms) and alert thresholds. A
+// single row with key "default"; values are integers/basis-points to avoid
+// floats. Read by services that enforce or display these limits.
+model PlatformConfig {
+  id                       String   @id @default(cuid())
+  key                      String   @unique @default("default")
+  // Commission thresholds in basis points (1% = 100 bps) — integer money rule.
+  ondcMinMarginBps         Int      @default(300) // 3.0%
+  ondcMaxMarginBps         Int      @default(600) // 6.0%
+  partnerAffiliateMinBps   Int      @default(120) // 1.2%
+  cashbackUserSharePct     Int      @default(30) // % of cashback passed to user
+  // Alert thresholds.
+  apiFailureRatePct        Int      @default(1) // alert when failure% exceeds
+  decisionLatencyAlertSec  Int      @default(5)
+  ondcPingAlertMs          Int      @default(500)
+  updatedById              String?
+  updatedAt                DateTime @updatedAt
+  createdAt                DateTime @default(now())
+}

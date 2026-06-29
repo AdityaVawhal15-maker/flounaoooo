@@ -17,6 +17,12 @@ import {
   configStatus,
   auditPage,
 } from "./super.service.js";
+import {
+  listApiKeys,
+  createApiKey,
+  revokeApiKey,
+} from "./apikey.service.js";
+import { getConfig, updateConfig } from "./config.service.js";
 
 export const superRouter = Router();
 superRouter.use(requireRole("super_admin"));
@@ -124,3 +130,110 @@ superRouter.get("/audit", async (req, res, next) => {
     next(err);
   }
 });
+
+// --- API keys ------------------------------------------------------------
+superRouter.get("/api-keys", async (_req, res, next) => {
+  try {
+    res.json({ keys: await listApiKeys() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+superRouter.post(
+  "/api-keys",
+  validateBody(
+    z.object({
+      name: z.string().trim().min(2).max(80),
+      client: z.string().trim().min(2).max(80),
+      scope: z.enum(["read", "read_write"]).default("read"),
+      // ISO date string or null; optional expiry.
+      expiresAt: z.string().datetime().nullable().optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const body = req.body as {
+        name: string;
+        client: string;
+        scope: "read" | "read_write";
+        expiresAt?: string | null;
+      };
+      const created = await createApiKey({
+        name: body.name,
+        client: body.client,
+        scope: body.scope,
+        expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+        createdById: req.userId!,
+      });
+      await auditFromReq(req, {
+        action: "apikey.create",
+        targetType: "apikey",
+        targetId: created.id,
+        summary: `Created API key "${body.name}" (${body.client})`,
+        metadata: { scope: body.scope, prefix: created.prefix },
+      });
+      // The raw key is returned ONCE — the client must show it now; it's never
+      // retrievable again.
+      res.status(201).json({ id: created.id, key: created.rawKey, prefix: created.prefix });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+superRouter.delete("/api-keys/:id", async (req, res, next) => {
+  try {
+    const ok = await revokeApiKey(req.params.id!);
+    if (!ok) return res.status(404).json({ error: "Not found" });
+    await auditFromReq(req, {
+      action: "apikey.revoke",
+      targetType: "apikey",
+      targetId: req.params.id!,
+      summary: `Revoked API key ${req.params.id}`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Platform settings (commission + alert thresholds) ------------------
+superRouter.get("/settings", async (_req, res, next) => {
+  try {
+    res.json(await getConfig());
+  } catch (err) {
+    next(err);
+  }
+});
+
+superRouter.patch(
+  "/settings",
+  validateBody(
+    z.object({
+      ondcMinMarginBps: z.number().int().min(0).max(10000).optional(),
+      ondcMaxMarginBps: z.number().int().min(0).max(10000).optional(),
+      partnerAffiliateMinBps: z.number().int().min(0).max(10000).optional(),
+      cashbackUserSharePct: z.number().int().min(0).max(100).optional(),
+      apiFailureRatePct: z.number().int().min(0).max(100).optional(),
+      decisionLatencyAlertSec: z.number().int().min(1).max(120).optional(),
+      ondcPingAlertMs: z.number().int().min(10).max(10000).optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const patch = req.body as Record<string, number>;
+      const updated = await updateConfig(patch, req.userId!);
+      await auditFromReq(req, {
+        action: "settings.update",
+        targetType: "config",
+        targetId: "default",
+        summary: "Updated platform settings",
+        metadata: patch,
+      });
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);

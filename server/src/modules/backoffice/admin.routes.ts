@@ -23,9 +23,75 @@ import {
   TICKET_STATUSES,
   TICKET_PRIORITIES,
 } from "./tickets.service.js";
+import {
+  dashboardSummary,
+  cityReport,
+  vendorReport,
+  decisionLogs,
+  couponStats,
+  priceAlertsOverview,
+  gmvByDomain,
+} from "./reporting.service.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireRole("admin")); // super_admin satisfies admin
+
+// --- Reporting dashboards (founder's admin view) ------------------------
+adminRouter.get("/dashboard", async (_req, res, next) => {
+  try {
+    res.json(await dashboardSummary());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/reports/gmv-by-domain", async (_req, res, next) => {
+  try {
+    res.json({ domains: await gmvByDomain() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/cities", async (_req, res, next) => {
+  try {
+    res.json(await cityReport());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/vendors", async (_req, res, next) => {
+  try {
+    res.json(await vendorReport());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/decisions", async (_req, res, next) => {
+  try {
+    res.json(await decisionLogs(50));
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/coupons", async (_req, res, next) => {
+  try {
+    res.json(await couponStats());
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/price-alerts", async (_req, res, next) => {
+  try {
+    res.json(await priceAlertsOverview());
+  } catch (err) {
+    next(err);
+  }
+});
 
 // --- Analytics -----------------------------------------------------------
 adminRouter.get("/analytics", async (_req, res, next) => {
