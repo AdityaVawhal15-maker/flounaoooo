@@ -53,6 +53,7 @@ const NAV: NavSection[] = [
       { href: "/console/admin/vendors", label: "Vendors / MSMEs", icon: Store, need: "admin" },
       { href: "/console/super", label: "Revenue & commissions", icon: Coins, need: "super_admin" },
       { href: "/console/dev/network", label: "ONDC network", icon: Network, need: "developer" },
+      { href: "/console/dev/transactions", label: "ONDC transactions", icon: ScrollText, need: "developer" },
     ],
   },
   {
