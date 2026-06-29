@@ -62,6 +62,7 @@ type FoodRec = {
   why: string;
   advice?: Advice;
   budgetNote?: string;
+  personalNote?: string;
   pickReason?: PickReason;
 };
 
@@ -79,6 +80,7 @@ type ShopRec = {
   best: ProductQuote;
   alternatives: ProductQuote[];
   why: string;
+  personalNote?: string;
   pickReason?: PickReason;
 };
 

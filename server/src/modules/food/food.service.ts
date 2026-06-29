@@ -4,6 +4,7 @@ import {
   reasonForPriority,
   type Priority,
   type PickReason,
+  type Personalization,
 } from "../advisor/scoring.js";
 
 export type FoodQuote = {
@@ -88,7 +89,10 @@ export function searchFood(opts: {
 // by what the user asked for (priority), then pick the highest-scoring one.
 // This is the ratings-aware engine — "top-rated" genuinely changes the winner.
 export function recommendFood(
-  opts: Parameters<typeof searchFood>[0] & { priority?: Priority },
+  opts: Parameters<typeof searchFood>[0] & {
+    priority?: Priority;
+    personal?: Personalization;
+  },
 ): FoodRecommendation | null {
   const quotes = searchFood(opts);
   if (quotes.length === 0) return null;
@@ -99,9 +103,11 @@ export function recommendFood(
       pricePaise: q.effectivePaise,
       rating: q.rating,
       etaMinutes: q.etaMinutes,
+      name: q.name,
       quote: q,
     })),
     priority,
+    opts.personal,
   );
 
   const best = ranked[0]!.item.quote;

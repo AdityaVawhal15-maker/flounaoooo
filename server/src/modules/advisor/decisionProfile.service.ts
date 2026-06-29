@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import type { Personalization, Scorable } from "./scoring.js";
 
 // Decision Intelligence — Faculty 1: Memory.
 //
@@ -138,4 +139,24 @@ function modeHour(hours: number[]): number {
   const counts = new Map<number, number>();
   for (const h of hours) counts.set(h, (counts.get(h) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+}
+
+// Turns a profile into Personalization signals the scorer can use. Only applied
+// when the user gave no explicit preference. `nameOf` maps a scored item back to
+// its dish/product name so taste/habit matches can be detected. Returns null for
+// non-confident users (too little data to personalize fairly).
+export function personalizationFrom(
+  profile: DecisionProfile,
+  nameOf: (item: Scorable) => string,
+): Personalization | undefined {
+  if (!profile.confident) return undefined;
+  const habits = new Set(
+    profile.routines.reorderHabits.map((h) => h.name.toLowerCase()),
+  );
+  return {
+    spendBand: profile.spend.band,
+    tasteBonus: habits.size
+      ? (item) => (habits.has(nameOf(item).toLowerCase()) ? 0.1 : 0)
+      : undefined,
+  };
 }

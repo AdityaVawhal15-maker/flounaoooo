@@ -42,6 +42,43 @@ describe("scoring engine", () => {
   });
 });
 
+describe("personalized scoring (decision profile)", () => {
+  // A clear trade-off: a cheaper-but-lower-rated option vs a pricier top-rated
+  // one. The user's spend band should tip the balanced pick between them.
+  const items = [
+    { pricePaise: 10000, rating: 3.9, etaMinutes: 30, name: "Value Plate" },
+    { pricePaise: 28000, rating: 4.8, etaMinutes: 30, name: "Premium Plate" },
+  ];
+
+  it("budget band leans the balanced pick cheaper", () => {
+    const ranked = scoreOptions(items, "balanced", { spendBand: "budget" });
+    expect(ranked[0]!.item.pricePaise).toBe(10000);
+  });
+
+  it("premium band leans the balanced pick higher-rated", () => {
+    const ranked = scoreOptions(items, "balanced", { spendBand: "premium" });
+    expect(ranked[0]!.item.rating).toBe(4.8);
+  });
+
+  it("personalization does not override an explicit priority", () => {
+    // Even a premium spender who asked for the cheapest gets the cheapest.
+    const ranked = scoreOptions(items, "price", { spendBand: "premium" });
+    expect(ranked[0]!.item.pricePaise).toBe(10000);
+  });
+
+  it("a taste-match bonus tips a near-tie toward the favourite", () => {
+    const tie = [
+      { pricePaise: 20000, rating: 4.4, etaMinutes: 30, name: "Other Dish" },
+      { pricePaise: 20000, rating: 4.4, etaMinutes: 30, name: "Usual Dish" },
+    ];
+    const ranked = scoreOptions(tie, "balanced", {
+      spendBand: "mid",
+      tasteBonus: (i) => (i.name === "Usual Dish" ? 0.1 : 0),
+    });
+    expect(ranked[0]!.item.name).toBe("Usual Dish");
+  });
+});
+
 describe("ratings-aware food recommendations", () => {
   it("'cheapest' picks the lowest effective price", () => {
     const rec = recommendFood({ query: "", priority: "price" });

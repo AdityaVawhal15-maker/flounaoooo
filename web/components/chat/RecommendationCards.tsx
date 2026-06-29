@@ -44,6 +44,18 @@ function PickBadge({ reason }: { reason?: PickReason }) {
   );
 }
 
+// "Tuned to your habits" — shown when the engine adapted the pick to the user's
+// learned profile (spend band / favourites). Quietly omitted for new users.
+function PersonalNote({ note }: { note?: string }) {
+  if (!note) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-[12px] font-medium text-accent">
+      <Sparkles size={13} className="shrink-0" />
+      {note}
+    </p>
+  );
+}
+
 function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
   return (
     <Card
@@ -116,6 +128,8 @@ export function FoodRecommendation({
           {rec.budgetNote}
         </p>
       )}
+
+      <PersonalNote note={rec.personalNote} />
 
       <FoodQuoteRow q={rec.best} highlight />
 
@@ -315,6 +329,7 @@ export function ShopRecommendation({
     <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <PickBadge reason={rec.pickReason} />
       <p className="text-[14px] leading-relaxed text-ink">{rec.why}</p>
+      <PersonalNote note={rec.personalNote} />
       <ProductRow q={rec.best} highlight />
       <p className="-mt-1 text-[12px] italic text-cocoa/80">“{rec.best.reviewSummary}”</p>
       {rec.alternatives.length > 0 && (

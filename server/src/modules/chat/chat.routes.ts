@@ -14,6 +14,11 @@ import { recommendProduct } from "../shop/shop.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
 import { weeklyFoodBudget } from "../users/budget.service.js";
+import {
+  buildDecisionProfile,
+  personalizationFrom,
+} from "../advisor/decisionProfile.service.js";
+import type { Priority } from "../advisor/scoring.js";
 
 // Paise → "₹123" for chat copy.
 const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
@@ -48,6 +53,34 @@ function budgetNoteFor(
     return `Heads up — this is ${rupees(-afterPaise)} over your weekly food budget.`;
   }
   return `${rupees(afterPaise)} left in your weekly food budget after this.`;
+}
+
+// Personalization only kicks in when the user didn't state a preference
+// ("balanced") — an explicit "cheapest"/"top-rated" always wins as asked. Builds
+// the spend-band + taste signals from the user's own profile; returns undefined
+// for new users so thin data never skews their picks.
+async function personalForBalanced(
+  userId: string,
+  priority: Priority | undefined,
+) {
+  if (priority && priority !== "balanced") return undefined;
+  const profile = await buildDecisionProfile(userId);
+  return personalizationFrom(profile, (item) => item.name ?? "");
+}
+
+// A one-line note telling the user the pick was adapted to them (only shown when
+// personalization actually had data to apply).
+function personalizedNote(
+  personal: Awaited<ReturnType<typeof personalForBalanced>>,
+): string | null {
+  if (!personal) return null;
+  if (personal.spendBand === "budget")
+    return "Tuned to your habits — you tend to keep it value-friendly, so I leaned cheaper.";
+  if (personal.spendBand === "premium")
+    return "Tuned to your habits — you usually go for quality, so I leaned higher-rated.";
+  if (personal.tasteBonus)
+    return "Picked with your usual favourites in mind.";
+  return null;
 }
 
 async function buildAssistantPayload(
@@ -113,11 +146,13 @@ async function buildAssistantPayload(
         : null;
     const effectiveBudget = intent.food.budgetPaise ?? weeklyCap;
 
+    const personal = await personalForBalanced(userId, intent.food.priority);
     const rec = recommendFood({
       query: intent.food.item,
       budgetPaise: effectiveBudget,
       dietary: intent.food.dietary,
       priority: intent.food.priority,
+      personal,
     });
     if (rec) {
       recordObservation("food", rec.best.dishId, rec.best.effectivePaise);
@@ -125,6 +160,7 @@ async function buildAssistantPayload(
       // the cheapest option anyway — we surface that honestly via the note
       // rather than hiding it or refusing.
       const budgetNote = budgetNoteFor(budget, rec.best.effectivePaise);
+      const personalNote = personalizedNote(personal);
       return {
         reply: intent.reply,
         intent,
@@ -133,6 +169,7 @@ async function buildAssistantPayload(
           ...rec,
           advice: await adviseFood(rec.best.dishId),
           ...(budgetNote ? { budgetNote } : {}),
+          ...(personalNote ? { personalNote } : {}),
         },
       };
     }
@@ -173,17 +210,24 @@ async function buildAssistantPayload(
   }
 
   if (intent.domain === "shop" && intent.shop) {
+    const personal = await personalForBalanced(userId, intent.shop.priority);
     const rec = recommendProduct({
       query: intent.shop.item,
       budgetPaise: intent.shop.budgetPaise,
       category: intent.shop.category === "any" ? null : intent.shop.category,
       priority: intent.shop.priority,
+      personal,
     });
     if (rec) {
+      const personalNote = personalizedNote(personal);
       return {
         reply: intent.reply,
         intent,
-        recommendation: { type: "shop", ...rec },
+        recommendation: {
+          type: "shop",
+          ...rec,
+          ...(personalNote ? { personalNote } : {}),
+        },
       };
     }
     return {

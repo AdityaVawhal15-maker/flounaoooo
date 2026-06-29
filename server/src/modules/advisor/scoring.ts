@@ -52,16 +52,50 @@ export type Scorable = {
   pricePaise: number;
   rating: number; // 0..5
   etaMinutes: number;
+  name?: string; // optional, for taste/habit matching
 };
+
+// Personalization signals derived from the user's DecisionProfile. These only
+// adjust WEIGHTS and add a small taste BONUS — they never touch prices, so the
+// engine stays deterministic and tamper-proof.
+export type Personalization = {
+  spendBand?: "budget" | "mid" | "premium" | "unknown";
+  // Returns a small bonus (0..1, capped on apply) for an option matching the
+  // user's taste/habits (e.g. a dish they reorder). Additive to the score only.
+  tasteBonus?: (item: Scorable) => number;
+};
+
+// When the user didn't state a preference (balanced), their spend band nudges
+// the weights: budget spenders lean to price, premium spenders to rating.
+function personalizeWeights(base: Weights, p?: Personalization): Weights {
+  if (!p || !p.spendBand || p.spendBand === "unknown" || p.spendBand === "mid")
+    return base;
+  if (p.spendBand === "budget")
+    return normalizeWeights({ price: base.price + 0.15, rating: base.rating, speed: base.speed });
+  // premium
+  return normalizeWeights({ price: base.price, rating: base.rating + 0.15, speed: base.speed });
+}
+
+function normalizeWeights(w: Weights): Weights {
+  const sum = w.price + w.rating + w.speed || 1;
+  return { price: w.price / sum, rating: w.rating / sum, speed: w.speed / sum };
+}
 
 // Scores a list of options (0..100) and returns them sorted best-first, with
 // the score attached. Pure ranking — callers map their own quote shape in.
+// Optional `personal` applies the user's profile (only meaningful for the
+// balanced priority; an explicit "cheapest" still dominates).
 export function scoreOptions<T extends Scorable>(
   items: T[],
   priority: Priority,
+  personal?: Personalization,
 ): { item: T; score: number }[] {
   if (items.length === 0) return [];
-  const w = weightsFor(priority);
+  // Profile only adjusts the *unstated* preference; explicit priority wins.
+  const w =
+    priority === "balanced"
+      ? personalizeWeights(weightsFor(priority), personal)
+      : weightsFor(priority);
 
   const prices = items.map((i) => i.pricePaise);
   const ratings = items.map((i) => i.rating);
@@ -78,10 +112,14 @@ export function scoreOptions<T extends Scorable>(
       const priceScore = normLowerBetter(item.pricePaise, pMin, pMax);
       const ratingScore = normHigherBetter(item.rating, rMin, rMax);
       const speedScore = normLowerBetter(item.etaMinutes, eMin, eMax);
-      const score = Math.round(
-        (priceScore * w.price + ratingScore * w.rating + speedScore * w.speed) * 100,
-      );
-      return { item, score };
+      let score =
+        priceScore * w.price + ratingScore * w.rating + speedScore * w.speed;
+      // Taste/habit match: a small additive nudge, capped so it tips ties but
+      // never overrides a clearly better option.
+      if (personal?.tasteBonus) {
+        score += Math.min(0.12, Math.max(0, personal.tasteBonus(item)));
+      }
+      return { item, score: Math.round(score * 100) };
     })
     .sort((a, b) => b.score - a.score);
 }

@@ -4,6 +4,7 @@ import {
   reasonForPriority,
   type Priority,
   type PickReason,
+  type Personalization,
 } from "../advisor/scoring.js";
 
 export type ProductQuote = {
@@ -87,7 +88,10 @@ export function searchProducts(opts: {
 // weighted by the user's priority — same ratings-aware engine as food and
 // rides. "top-rated" genuinely changes the winner here too.
 export function recommendProduct(
-  opts: Parameters<typeof searchProducts>[0] & { priority?: Priority },
+  opts: Parameters<typeof searchProducts>[0] & {
+    priority?: Priority;
+    personal?: Personalization;
+  },
 ): ProductRecommendation | null {
   const quotes = searchProducts(opts);
   if (quotes.length === 0) return null;
@@ -98,9 +102,11 @@ export function recommendProduct(
       pricePaise: q.effectivePaise,
       rating: q.rating,
       etaMinutes: q.deliveryDays, // delivery days as the "speed" signal
+      name: q.name,
       quote: q,
     })),
     priority,
+    opts.personal,
   );
 
   const best = ranked[0]!.item.quote;
