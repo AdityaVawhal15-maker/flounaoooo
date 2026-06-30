@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
-import { env } from "../../config/env.js";
+import { env, isProd } from "../../config/env.js";
+import { ApiError } from "../../middleware/error.js";
 import {
   activatePlus,
   cancelPlus,
@@ -19,20 +20,27 @@ subscriptionRouter.get("/", async (req, res, next) => {
   }
 });
 
-// Start a subscription. With Cashfree configured this would create a recurring
-// mandate; until KYC/recurring is live we activate immediately in dev so the
-// whole Plus experience is testable end to end. (The charge integration slots
-// in here without touching anything downstream.)
+// Start a subscription. Plus is NEVER granted without a verified charge: when
+// Cashfree is configured (or whenever we're in production), the paid path must
+// go through the gateway and activate only from the verified success webhook —
+// so we return "not available yet" until that mandate flow is implemented.
+// Direct activation below is a dev-only convenience for when Cashfree is unset
+// in a non-prod environment, so the whole Plus experience stays testable.
 subscriptionRouter.post("/subscribe", async (req, res, next) => {
   try {
     const cashfreeConfigured = Boolean(
       env.CASHFREE_APP_ID && env.CASHFREE_SECRET_KEY,
     );
-    // TODO(cashfree): create a recurring subscription/mandate for
-    // SUBSCRIPTION_PRICE_PAISE and activate on the success webhook.
-    void cashfreeConfigured;
+    if (cashfreeConfigured || isProd) {
+      // TODO(cashfree): create the recurring subscription/mandate for
+      // SUBSCRIPTION_PRICE_PAISE, return the payment session, and call
+      // activatePlus(userId) from the PAYMENT_SUCCESS webhook — never here.
+      throw new ApiError(503, "Subscription checkout is not available yet");
+    }
+
+    // Dev-only simulated activation (Cashfree unconfigured, non-prod).
     const status = await activatePlus(req.userId!);
-    res.json({ mode: cashfreeConfigured ? "cashfree" : "simulated", status });
+    res.json({ mode: "simulated", status });
   } catch (err) {
     next(err);
   }

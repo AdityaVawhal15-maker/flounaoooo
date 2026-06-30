@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
 
@@ -45,5 +45,28 @@ describe("Radiues Plus subscription", () => {
 
   it("requires auth", async () => {
     await request(app).get("/api/subscription").expect(401);
+  });
+
+  it("never activates Plus without a verified charge when Cashfree is configured", async () => {
+    // Re-import the app in an isolated module graph with Cashfree fully
+    // configured, so the paid path is in effect. Plus must NOT be granted —
+    // checkout returns 503 until the verified mandate flow exists.
+    await vi.resetModules();
+    vi.stubEnv("CASHFREE_APP_ID", "test-app-id");
+    vi.stubEnv("CASHFREE_SECRET_KEY", "test-secret");
+    try {
+      const freshHelpers = await import("./helpers.js");
+      const { agent } = await freshHelpers.authedAgent();
+
+      const res = await agent.post("/api/subscription/subscribe").expect(503);
+      expect(res.body.error).toMatch(/not available/i);
+
+      // And the user is still NOT Plus.
+      const status = await agent.get("/api/subscription").expect(200);
+      expect(status.body.active).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+      await vi.resetModules();
+    }
   });
 });
