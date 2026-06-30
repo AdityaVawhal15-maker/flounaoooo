@@ -23,7 +23,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: server/package-lock.json
-      - run: npm ci
+      # `npm install` (not `npm ci`) tolerates the cross-OS optional-native-dep
+      # mismatch in the lockfile (e.g. @emnapi binaries present only for some
+      # platforms). The committed lockfile still pins versions.
+      - run: npm install --no-audit --no-fund
       - run: npx prisma generate
       - name: Typecheck
         run: npm run build
@@ -48,7 +51,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
+      # `npm install` (not `npm ci`) tolerates the cross-OS optional-native-dep
+      # mismatch in the lockfile (e.g. @emnapi binaries present only for some
+      # platforms). The committed lockfile still pins versions.
+      - run: npm install --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
         env:
