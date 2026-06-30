@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
+import { prisma } from "../src/lib/prisma.js";
 
 describe("orders", () => {
   it("computes the amount server-side from the catalog", async () => {
@@ -266,4 +267,36 @@ describe("payments", () => {
       .send({ orderId: order.body.order.id })
       .expect(404);
   });
+
+  it("confirms exactly once under concurrent payment callbacks", async () => {
+    const { agent } = await authedAgent();
+    const { orderId } = await freshPaidOrder(agent);
+
+    // Fire two payment confirmations at the same time. The atomic status claim
+    // means only the first wins; the second must no-op rather than double-fire
+    // the tracking events.
+    await Promise.all([
+      agent.post("/api/payments/simulate").send({ orderId, method: "upi" }),
+      agent.post("/api/payments/simulate").send({ orderId, method: "upi" }),
+    ]);
+
+    const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe("confirmed");
+
+    // Tracking events were created once, not duplicated.
+    const events = await prisma.trackingEvent.count({ where: { orderId } });
+    const expected = order.domain === "food" ? FOOD_EVENT_COUNT : RIDE_EVENT_COUNT;
+    expect(events).toBe(expected);
+
+    // And a single successful payment row.
+    const payments = await prisma.payment.count({
+      where: { orderId, status: "success" },
+    });
+    expect(payments).toBe(1);
+  });
 });
+
+// Tracking-event counts the payment flow seeds per domain (kept in sync with
+// FOOD_EVENTS / RIDE_EVENTS in payments.routes.ts).
+const FOOD_EVENT_COUNT = 4;
+const RIDE_EVENT_COUNT = 3;

@@ -20,13 +20,18 @@ export class GoogleProvider implements LlmProvider {
   private readonly model = env.GOOGLE_AI_MODEL;
 
   async extractIntent(userMessage: string): Promise<Intent> {
+    // The key goes in a header, not the query string, so it never lands in
+    // proxy/access logs, error traces, or crash reports — matching how the
+    // Anthropic and DeepSeek adapters pass their credentials.
     const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent` +
-      `?key=${env.GOOGLE_AI_API_KEY}`;
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": env.GOOGLE_AI_API_KEY ?? "",
+      },
       body: JSON.stringify({
         // System prompt as a leading user turn (v1beta supports systemInstruction
         // too, but folding it in keeps parity with the other adapters).
