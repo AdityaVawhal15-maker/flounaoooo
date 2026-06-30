@@ -121,3 +121,28 @@ body {
 .animate-fade-up {
   animation: fade-up 0.45s ease-out both;
 }
+
+/* Print: show only the element marked .print-document (the invoice), dropping
+   all app chrome (sidebar/header/nav) and screen-only controls. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-document,
+  .print-document * {
+    visibility: visible;
+  }
+  .print-document {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    width: 100%;
+    border: none;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  @page {
+    margin: 16mm;
+  }
+}
