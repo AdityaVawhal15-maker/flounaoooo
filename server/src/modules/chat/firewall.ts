@@ -3,8 +3,11 @@
 
 const MAX_MESSAGE_LENGTH = 500;
 
-// Common prompt-injection phrasings. Matching one doesn't block the request —
-// the message is flagged so it's routed straight to out_of_scope.
+// Cheap heuristic pre-filter, NOT a security boundary. These patterns catch a
+// few obvious injection phrasings to save an API call by routing them straight
+// to out_of_scope. They are trivially bypassed (rephrasing, unicode, spacing)
+// and may false-positive on legitimate input, so the real protection is the
+// constrained JSON intent schema the model must return — never this list.
 const INJECTION_PATTERNS = [
   /ignore (all |your |previous |prior )*(instructions|rules|prompt)/i,
   /you are now\b/i,

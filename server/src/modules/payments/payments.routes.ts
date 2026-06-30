@@ -50,11 +50,19 @@ async function markPaid(
     return order;
   }
 
-  const [updated] = await prisma.$transaction([
-    prisma.order.update({
-      where: { id: orderId },
-      data: { status: "confirmed" },
-    }),
+  // Atomically claim the order: only the first concurrent PAYMENT_SUCCESS
+  // delivery flips it out of pending_payment. A later/duplicate delivery sees
+  // count === 0 and no-ops, so the payment update, tracking events and push
+  // fire exactly once even under racing webhooks.
+  const claim = await prisma.order.updateMany({
+    where: { id: orderId, status: "pending_payment" },
+    data: { status: "confirmed" },
+  });
+  if (claim.count === 0) {
+    return prisma.order.findUnique({ where: { id: orderId } });
+  }
+
+  await prisma.$transaction([
     prisma.payment.update({
       where: { orderId },
       data: { status: "success", method, gatewayResponse: opts.gatewayResponse },
@@ -69,6 +77,8 @@ async function markPaid(
       })),
     }),
   ]);
+
+  const updated = await prisma.order.findUnique({ where: { id: orderId } });
 
   // Fire-and-forget confirmation push (no-op if push isn't configured).
   void sendPushToUser(order.userId, {
