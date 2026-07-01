@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { roleSatisfies, type Operator, type Role } from "./useOperator";
-import { cn } from "@/lib/cn";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; need: Role };
 type NavSection = { section: string; items: NavItem[] };
@@ -116,15 +115,28 @@ export function ConsoleShell({
 
   return (
     <div className="flex min-h-dvh">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-900/40">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <ShieldCheck size={18} className="text-emerald-400" />
-          <span className="text-[14px] font-semibold text-slate-100">Console</span>
+      <aside
+        className="flex w-56 shrink-0 flex-col text-white"
+        style={{ background: "var(--c-crimson)" }}
+      >
+        <div
+          className="flex flex-col px-5 py-5"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}
+        >
+          <span className="c-serif text-[17px] font-extrabold tracking-tight text-white">
+            Algorithec
+          </span>
+          <span
+            className="c-label mt-0.5 text-[10px]"
+            style={{ color: "var(--c-amber)" }}
+          >
+            Console · v1.0
+          </span>
         </div>
-        <nav className="flex-1 space-y-3 overflow-y-auto px-3 pb-4">
+        <nav className="flex-1 space-y-3 overflow-y-auto px-3 pb-4 pt-3">
           {sections.map((s) => (
             <div key={s.section}>
-              <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+              <p className="c-label px-3 pb-1 pt-1 text-[10px] text-white/45">
                 {s.section}
               </p>
               {s.items.map((n) => {
@@ -134,14 +146,17 @@ export function ConsoleShell({
                   <Link
                     key={n.href}
                     href={n.href}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors"
+                    style={
                       active
-                        ? "bg-emerald-600/15 text-emerald-300"
-                        : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200",
-                    )}
+                        ? { background: "var(--c-maroon)", color: "#fff" }
+                        : { color: "rgba(255,255,255,0.72)" }
+                    }
                   >
-                    <Icon size={16} />
+                    <Icon
+                      size={16}
+                      style={{ color: active ? "var(--c-amber)" : "rgba(255,255,255,0.55)" }}
+                    />
                     {n.label}
                   </Link>
                 );
@@ -149,16 +164,29 @@ export function ConsoleShell({
             </div>
           ))}
         </nav>
-        <div className="border-t border-slate-800 px-4 py-4">
-          <p className="truncate text-[13px] font-medium text-slate-200">
-            {operator.name}
-          </p>
-          <p className="truncate text-[11px] text-emerald-400">
-            {ROLE_LABEL[operator.role]}
-          </p>
+        <div
+          className="px-4 py-4"
+          style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold"
+              style={{ background: "var(--c-amber)", color: "var(--c-crimson)" }}
+            >
+              {operator.name.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[12.5px] font-medium text-white">
+                {operator.name}
+              </p>
+              <p className="truncate text-[10.5px]" style={{ color: "var(--c-amber)" }}>
+                {ROLE_LABEL[operator.role]}
+              </p>
+            </div>
+          </div>
           <button
             onClick={signOut}
-            className="mt-3 flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-300"
+            className="mt-3 flex items-center gap-1.5 text-[12px] text-white/55 hover:text-white"
           >
             <LogOut size={13} /> Sign out
           </button>
@@ -173,8 +201,14 @@ export function ConsoleShell({
 export function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-6">
-      <h1 className="text-xl font-semibold text-slate-100">{title}</h1>
-      {subtitle && <p className="mt-1 text-[13px] text-slate-400">{subtitle}</p>}
+      <h1 className="c-serif text-2xl font-extrabold" style={{ color: "var(--c-maroon)" }}>
+        {title}
+      </h1>
+      {subtitle && (
+        <p className="mt-1 text-[13px]" style={{ color: "var(--c-muted)" }}>
+          {subtitle}
+        </p>
+      )}
     </div>
   );
 }
@@ -190,17 +224,35 @@ export function StatCard({
   hint?: string;
   tone?: "default" | "good" | "warn" | "bad";
 }) {
-  const toneClass = {
-    default: "text-slate-100",
-    good: "text-emerald-400",
-    warn: "text-amber-400",
-    bad: "text-rose-400",
+  const accent = {
+    default: "var(--c-maroon)",
+    good: "#1a7a4a",
+    warn: "var(--c-amber)",
+    bad: "var(--c-red)",
   }[tone];
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-      <p className="text-[12px] text-slate-400">{label}</p>
-      <p className={cn("mt-1 text-2xl font-semibold", toneClass)}>{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
+    <div
+      className="relative overflow-hidden rounded-xl bg-white p-4"
+      style={{ border: "1px solid var(--c-border)" }}
+    >
+      <span
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{ background: accent }}
+      />
+      <p className="c-label text-[10.5px]" style={{ color: "var(--c-muted)" }}>
+        {label}
+      </p>
+      <p
+        className="c-serif mt-1.5 text-[26px] font-extrabold leading-none"
+        style={{ color: tone === "default" ? "var(--c-ink)" : accent }}
+      >
+        {value}
+      </p>
+      {hint && (
+        <p className="mt-1.5 text-[11px]" style={{ color: "var(--c-muted)" }}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

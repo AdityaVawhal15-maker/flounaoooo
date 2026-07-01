@@ -121,3 +121,96 @@ body {
 .animate-fade-up {
   animation: fade-up 0.45s ease-out both;
 }
+
+/* ── Back-office console theme (founder's maroon/gold brand) ────────────────
+   Scoped to .console-theme so it never touches the consumer app. Light ivory
+   surfaces, crimson sidebar, maroon headers, amber-gold + bright-red accents. */
+.console-theme {
+  --c-maroon: #7b0c1b;
+  --c-crimson: #5c0710;
+  --c-red: #c0392b;
+  --c-amber: #e8a020;
+  --c-gold: #b8860b;
+  --c-ivory: #f5f0e8;
+  --c-surface: #ffffff;
+  --c-ink: #2c2c2c;
+  --c-muted: #8a8178;
+  --c-border: #e6dccb;
+  --c-line: #efe7d9;
+
+  background: var(--c-ivory);
+  color: var(--c-ink);
+  font-family: var(--font-sans-c), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Typography helpers used across console pages. */
+.console-theme .c-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+.console-theme .c-mono {
+  font-family: var(--font-mono-c), "Courier New", monospace;
+}
+/* Section/label caps in mono with wide tracking (STIPEND, DURATION, …). */
+.console-theme .c-label {
+  font-family: var(--font-mono-c), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+/* Form fields on the light console surface. */
+.console-theme .c-input {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  color: var(--c-ink);
+}
+.console-theme .c-input::placeholder {
+  color: var(--c-muted);
+}
+.console-theme .c-input:focus {
+  border-color: var(--c-maroon);
+}
+
+/* ── Compatibility remaps ──────────────────────────────────────────────────
+   The console pages were authored against a dark slate/emerald palette. Rather
+   than edit every page, remap those utility classes to the brand palette when
+   they appear under .console-theme. New pages should use the c-* helpers and
+   the themed <Card>/<Table>/<StatCard> primitives directly. */
+.console-theme .text-slate-100,
+.console-theme .text-slate-200,
+.console-theme .text-slate-300 { color: var(--c-ink) !important; }
+.console-theme .text-slate-400,
+.console-theme .text-slate-500,
+.console-theme .text-slate-600 { color: var(--c-muted) !important; }
+
+.console-theme .text-emerald-300,
+.console-theme .text-emerald-400,
+.console-theme .text-emerald-500 { color: #1a7a4a !important; }
+.console-theme .text-rose-300,
+.console-theme .text-rose-400 { color: var(--c-red) !important; }
+.console-theme .text-amber-300,
+.console-theme .text-amber-400 { color: var(--c-gold) !important; }
+.console-theme .text-sky-300 { color: #2e6db4 !important; }
+.console-theme .text-violet-300 { color: #6d28d9 !important; }
+
+/* Surfaces: dark cards/rows → white on the ivory page. */
+.console-theme .bg-slate-950,
+.console-theme .bg-slate-950\/60,
+.console-theme .bg-slate-900,
+.console-theme .bg-slate-900\/40,
+.console-theme .bg-slate-900\/60,
+.console-theme .bg-slate-900\/80 { background-color: #fff !important; }
+.console-theme .bg-slate-800,
+.console-theme .bg-slate-800\/40,
+.console-theme .bg-slate-800\/60,
+.console-theme .bg-slate-700,
+.console-theme .bg-slate-700\/40 { background-color: var(--c-ivory) !important; }
+.console-theme .bg-emerald-600,
+.console-theme .bg-emerald-600\/15 { background-color: var(--c-maroon) !important; }
+
+/* Borders + dividers. */
+.console-theme .border-slate-700,
+.console-theme .border-slate-800 { border-color: var(--c-border) !important; }
+.console-theme .divide-slate-800\/70 > :not([hidden]) ~ :not([hidden]),
+.console-theme .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) { border-color: var(--c-line) !important; }
+
+/* Focus rings on inputs that used emerald. */
+.console-theme .focus\:border-emerald-500:focus { border-color: var(--c-maroon) !important; }

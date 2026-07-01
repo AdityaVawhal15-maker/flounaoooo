@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { useOperator, type Role } from "./useOperator";
 import { ConsoleShell } from "./ConsoleShell";
-import { cn } from "@/lib/cn";
 
 // Paise → "₹1,23,400" (Indian grouping).
 export function rupees(paise: number): string {
@@ -32,7 +31,10 @@ export function ConsolePage({
   const state = useOperator(accept);
   if (state.status !== "ok") {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-500">
+      <div
+        className="flex min-h-dvh items-center justify-center"
+        style={{ color: "var(--c-maroon)" }}
+      >
         <Loader2 className="animate-spin" />
       </div>
     );
@@ -50,10 +52,20 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+    <div
+      className="overflow-hidden rounded-xl bg-white"
+      style={{ border: "1px solid var(--c-border)" }}
+    >
       {(title || right) && (
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-          {title && <h2 className="text-[13px] font-semibold text-slate-200">{title}</h2>}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid var(--c-border)" }}
+        >
+          {title && (
+            <h2 className="text-[13px] font-bold" style={{ color: "var(--c-ink)" }}>
+              {title}
+            </h2>
+          )}
           {right}
         </div>
       )}
@@ -72,16 +84,20 @@ export function Table({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-[12px]">
-        <thead className="bg-slate-900/60 text-[11px] uppercase tracking-wide text-slate-500">
+        <thead style={{ background: "#FBF8F2" }}>
           <tr>
             {head.map((h) => (
-              <th key={h} className="whitespace-nowrap px-4 py-2.5 font-medium">
+              <th
+                key={h}
+                className="c-label whitespace-nowrap px-4 py-2.5 text-[10.5px]"
+                style={{ color: "var(--c-muted)" }}
+              >
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/70">{children}</tbody>
+        <tbody className="[&>tr]:border-t [&>tr]:border-[var(--c-line)]">{children}</tbody>
       </table>
     </div>
   );
@@ -89,22 +105,26 @@ export function Table({
 
 type Tone = "green" | "blue" | "amber" | "red" | "purple" | "slate";
 export function Badge({ tone = "slate", children }: { tone?: Tone; children: React.ReactNode }) {
-  const map: Record<Tone, string> = {
-    green: "bg-emerald-500/15 text-emerald-300",
-    blue: "bg-sky-500/15 text-sky-300",
-    amber: "bg-amber-500/15 text-amber-300",
-    red: "bg-rose-500/15 text-rose-300",
-    purple: "bg-violet-500/15 text-violet-300",
-    slate: "bg-slate-700/40 text-slate-300",
+  const map: Record<Tone, { bg: string; fg: string }> = {
+    green: { bg: "#E5F3EA", fg: "#1A7A4A" },
+    blue: { bg: "#EAF1FB", fg: "#2E6DB4" },
+    amber: { bg: "#FEF3DC", fg: "#B8690A" },
+    red: { bg: "#F6E7E5", fg: "#C0392B" },
+    purple: { bg: "#EFE9F6", fg: "#6D28D9" },
+    slate: { bg: "#F0EADF", fg: "#8A8178" },
   };
+  const s = map[tone];
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold", map[tone])}>
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+      style={{ background: s.bg, color: s.fg }}
+    >
       {children}
     </span>
   );
 }
 
-// Horizontal bar chart row (domain breakdowns etc.).
+// Horizontal bar row (small inline breakdowns; recharts handles the big charts).
 export function BarRow({
   label,
   value,
@@ -118,15 +138,32 @@ export function BarRow({
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
-      <span className="w-20 shrink-0 text-right text-[11px] capitalize text-slate-400">{label}</span>
-      <div className="h-4 flex-1 overflow-hidden rounded bg-slate-800">
+      <span
+        className="w-20 shrink-0 text-right text-[11px] capitalize"
+        style={{ color: "var(--c-muted)" }}
+      >
+        {label}
+      </span>
+      <div
+        className="h-4 flex-1 overflow-hidden rounded"
+        style={{ background: "var(--c-ivory)", border: "1px solid var(--c-border)" }}
+      >
         <div className="h-full rounded" style={{ width: `${max}%`, background: color }} />
       </div>
-      <span className="w-16 shrink-0 text-right text-[11px] font-medium text-slate-300">{value}</span>
+      <span
+        className="w-16 shrink-0 text-right text-[11px] font-medium"
+        style={{ color: "var(--c-ink)" }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-12 text-center text-[13px] text-slate-500">{children}</p>;
+  return (
+    <p className="py-12 text-center text-[13px]" style={{ color: "var(--c-muted)" }}>
+      {children}
+    </p>
+  );
 }
