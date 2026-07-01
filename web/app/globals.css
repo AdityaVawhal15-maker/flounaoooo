@@ -134,9 +134,12 @@ body {
   }
   .print-document {
     position: absolute;
-    inset: 0;
-    margin: 0;
+    top: 0;
+    left: 0;
     width: 100%;
+    /* No bottom/inset pin — height stays auto so long, multi-page receipts
+       paginate instead of being clipped to a single page box. */
+    margin: 0;
     border: none;
   }
   .print\:hidden {

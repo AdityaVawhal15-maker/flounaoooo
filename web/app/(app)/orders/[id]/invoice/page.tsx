@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Printer, CheckCircle2 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, ApiClientError } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { LoadingView, ErrorView } from "@/components/ui/StatusView";
 
@@ -31,15 +31,19 @@ type OrderDetail = {
   payment: { status: string; method: string | null } | null;
 };
 
-// A stable, human invoice number derived from the order id + date — no schema
-// change needed, and it's deterministic so the same order always shows the same
-// number. Format: INV-YYYYMM-XXXXXX.
-function invoiceNumber(order: OrderDetail): string {
+// A stable display reference derived from the order id + date. NOT a legal
+// sequential tax-invoice serial — it's a human-readable receipt reference only.
+// Format: RCP-YYYYMM-XXXXXX.
+function receiptRef(order: OrderDetail): string {
   const d = new Date(order.createdAt);
   const ym = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
   const tail = order.id.replace(/[^a-z0-9]/gi, "").slice(-6).toUpperCase();
-  return `INV-${ym}-${tail}`;
+  return `RCP-${ym}-${tail}`;
 }
+
+// Orders whose money has actually settled — drives the "Paid" stamp. An explicit
+// set, so cancelled / failed / pending never read as paid.
+const PAID_STATUSES = new Set(["confirmed", "in_progress", "completed"]);
 
 export default function InvoicePage({
   params,
@@ -48,20 +52,37 @@ export default function InvoicePage({
 }) {
   const { id } = use(params);
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ notFound: boolean; message: string } | null>(null);
 
   useEffect(() => {
+    let ignore = false;
     api<{ order: OrderDetail }>(`/api/orders/${id}`)
-      .then((d) => setOrder(d.order))
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+      .then((d) => {
+        if (!ignore) setOrder(d.order);
+      })
+      .catch((e) => {
+        if (ignore) return;
+        // Distinguish a genuine 404 from a transient/server error so the view
+        // doesn't always say "not found".
+        const notFound = e instanceof ApiClientError && e.status === 404;
+        setError({
+          notFound,
+          message: notFound
+            ? "We couldn't find this order's receipt."
+            : "Something went wrong loading this receipt. Please try again.",
+        });
+      });
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   if (!order) {
     return error ? (
       <ErrorView
-        notFound
-        title="Invoice not found"
-        message="We couldn't find this order's invoice."
+        notFound={error.notFound}
+        title={error.notFound ? "Receipt not found" : "Couldn't load receipt"}
+        message={error.message}
         backHref="/history"
         backLabel="Back to History"
       />
@@ -71,19 +92,43 @@ export default function InvoicePage({
   }
 
   const dt = new Date(order.createdAt);
-  const discount = order.details.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
-  const paid = order.payment?.status === "success" || order.status !== "pending_payment";
+  const paid = PAID_STATUSES.has(order.status) || order.payment?.status === "success";
   const seller =
     order.details.restaurant ?? order.details.productName ?? order.provider.toUpperCase();
 
-  // Line items for the itemized table.
+  // Line items. The total shown is always order.amount (the authoritative,
+  // server-computed charge). We derive the line subtotal and only render fee
+  // lines when they're actually present — never a fallback that could sum past
+  // the total. If the lines + discount don't reconcile to order.amount, we add
+  // an explicit adjustment line so the document always balances.
+  const discount = order.details.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
   const lines: { label: string; value: number }[] = [];
   if (order.domain === "food") {
-    lines.push({ label: order.details.name ?? order.title, value: order.details.basePaise ?? order.amount });
-    if (order.details.deliveryFeePaise) lines.push({ label: "Delivery fee", value: order.details.deliveryFeePaise });
-    if (order.details.convenienceFeePaise) lines.push({ label: "Convenience fee", value: order.details.convenienceFeePaise });
+    const base = order.details.basePaise;
+    if (base != null) lines.push({ label: order.details.name ?? order.title, value: base });
+    if (order.details.deliveryFeePaise)
+      lines.push({ label: "Delivery fee", value: order.details.deliveryFeePaise });
+    if (order.details.convenienceFeePaise)
+      lines.push({ label: "Convenience fee", value: order.details.convenienceFeePaise });
   } else {
-    lines.push({ label: `${order.details.productName ?? "Ride"} · ${order.details.pickup ?? "pickup"} → ${order.details.drop ?? "drop"}`, value: order.details.farePaise ?? order.amount });
+    const fare = order.details.farePaise;
+    if (fare != null)
+      lines.push({
+        label: `${order.details.productName ?? "Ride"} · ${order.details.pickup ?? "pickup"} → ${order.details.drop ?? "drop"}`,
+        value: fare,
+      });
+  }
+  // Reconcile: lines − discount should equal the amount charged. Any gap (e.g.
+  // details missing a breakdown field) becomes a visible line so the printed
+  // total is never contradicted by the itemised rows.
+  const lineSum = lines.reduce((s, l) => s + l.value, 0);
+  const reconciled = lineSum - discount;
+  const adjustment = order.amount - reconciled;
+  // If we have no breakdown at all, show the order as a single line.
+  if (lines.length === 0) {
+    lines.push({ label: order.title, value: order.amount + discount });
+  } else if (adjustment !== 0) {
+    lines.push({ label: "Adjustment", value: adjustment });
   }
 
   return (
@@ -104,7 +149,7 @@ export default function InvoicePage({
         </button>
       </div>
 
-      {/* The invoice document */}
+      {/* The receipt document */}
       <div className="print-document rounded-card border border-line bg-white p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
@@ -113,16 +158,14 @@ export default function InvoicePage({
             <p className="mt-0.5 text-[11px] leading-relaxed text-cocoa">
               Algorithec Pvt Ltd
               <br />
-              GSTIN: {/* placeholder until live */}—
-              <br />
               support@radiues.app
             </p>
           </div>
           <div className="text-right">
             <p className="text-[15px] font-bold uppercase tracking-wide text-accent">
-              Tax Invoice
+              Payment Receipt
             </p>
-            <p className="mt-1 font-mono text-[12px] text-ink">{invoiceNumber(order)}</p>
+            <p className="mt-1 font-mono text-[12px] text-ink">{receiptRef(order)}</p>
             <p className="text-[11px] text-cocoa">
               {dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             </p>
@@ -185,23 +228,22 @@ export default function InvoicePage({
           </tfoot>
         </table>
 
-        {order.savedPaise > 0 && (
-          <div className="mt-3 rounded-card bg-accent-soft/60 px-4 py-2.5 text-[12px] font-medium text-accent">
-            You saved {rupees(order.savedPaise)} vs the next-best option — Radiues
-            picked the smartest choice for you.
-          </div>
-        )}
-
-        {/* Footer / tax note */}
+        {/* Footer note */}
         <p className="mt-6 border-t border-line pt-4 text-[10px] leading-relaxed text-muted">
           Amounts are inclusive of applicable taxes. This is a computer-generated
-          invoice and does not require a signature. Radiues is an aggregator; the
-          goods/services are supplied by the seller named above. For help, contact
-          support@radiues.app.
+          payment receipt and does not require a signature. Radiues (Algorithec Pvt
+          Ltd) is an aggregator; the goods/services are supplied by the seller named
+          above. For help, contact support@radiues.app.
         </p>
       </div>
+
+      {/* Marketing line — screen only, kept OUT of the printed receipt. */}
+      {order.savedPaise > 0 && (
+        <div className="mt-3 rounded-card bg-accent-soft/60 px-4 py-2.5 text-[12px] font-medium text-accent print:hidden">
+          You saved {rupees(order.savedPaise)} vs the next-best option — Radiues
+          picked the smartest choice for you.
+        </div>
+      )}
     </div>
   );
 }
-
-// Print: show only the document, edge-to-edge, no app chrome.
