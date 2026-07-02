@@ -46,8 +46,7 @@ export default function LoginPage() {
 
   return (
     <div className="mt-6">
-      <p className="text-center text-[20px] font-bold text-ink">Radiues</p>
-      <h1 className="mt-3 text-center text-[30px] font-bold text-ink">Welcome</h1>
+      <h1 className="text-center text-[30px] font-bold text-ink">Welcome</h1>
       <p className="mt-2 text-center text-[13px] leading-relaxed text-cocoa">
         You&apos;ll get smarter responses and can upload files, images, and more.
       </p>

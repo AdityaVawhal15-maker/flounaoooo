@@ -203,9 +203,17 @@ export default function OrderDetailPage({
 
       {/* Invoice */}
       <Card className={cn("mt-4", showInvoice && "border-accent/60 ring-1 ring-accent/30")}>
-        <h2 className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
-          <Receipt size={15} className="text-cocoa" /> Invoice
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
+            <Receipt size={15} className="text-cocoa" /> Invoice
+          </h2>
+          <Link
+            href={`/orders/${order.id}/invoice`}
+            className="text-[12px] font-semibold text-accent hover:underline"
+          >
+            View / download →
+          </Link>
+        </div>
         <div className="mt-3 flex flex-col gap-1.5 text-[13px]">
           {order.domain === "food" ? (
             <>
