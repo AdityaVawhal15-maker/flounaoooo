@@ -246,3 +246,31 @@ body {
 .console-theme .bg-rose-950\/50,
 .console-theme .bg-rose-950\/60 { background-color: #f6e7e5 !important; }
 .console-theme .border-rose-900\/60 { border-color: #e4b7b0 !important; }
+
+/* Print: show only the element marked .print-document (the invoice), dropping
+   all app chrome (sidebar/header/nav) and screen-only controls. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-document,
+  .print-document * {
+    visibility: visible;
+  }
+  .print-document {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* No bottom/inset pin — height stays auto so long, multi-page receipts
+       paginate instead of being clipped to a single page box. */
+    margin: 0;
+    border: none;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  @page {
+    margin: 16mm;
+  }
+}

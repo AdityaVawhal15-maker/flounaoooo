@@ -1,0 +1,67 @@
+name: CI
+
+# Runs on every PR into main and on direct pushes to main. This is the status
+# check to require in branch protection, so nothing merges without the server
+# tests and the web lint/build passing.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  server:
+    name: Server (typecheck + tests)
+    runs-on: ubuntu-latest
+    # Test on the active LTS lines we support in dev and prod.
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      # `npm install` (not `npm ci`) tolerates the cross-OS optional-native-dep
+      # mismatch in the lockfile (e.g. @emnapi binaries present only for some
+      # platforms). The committed lockfile still pins versions.
+      - run: npm install --no-audit --no-fund
+      - run: npx prisma generate
+      - name: Typecheck
+        run: npm run build
+      # The vitest global-setup creates a fresh SQLite test.db via `prisma db
+      # push` before the suite runs, so no separate migrate step is needed here.
+      - name: Tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: file:./test.db
+
+  web:
+    name: Web (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # `npm install` (not `npm ci`) tolerates the cross-OS optional-native-dep
+      # mismatch in the lockfile (e.g. @emnapi binaries present only for some
+      # platforms). The committed lockfile still pins versions.
+      - run: npm install --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+        env:
+          # The build only needs a public API URL placeholder; no secrets in CI.
+          NEXT_PUBLIC_API_URL: http://localhost:4000
