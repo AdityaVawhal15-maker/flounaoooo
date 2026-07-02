@@ -150,9 +150,12 @@ export default function ConsoleLoginPage() {
             className="space-y-3 rounded-2xl bg-white p-6"
             style={{ border: "1px solid var(--c-border)" }}
           >
-            <div className="mb-2 flex items-center gap-2 text-[13px]" style={{ color: "var(--c-ink)" }}>
-              <KeyRound size={15} style={{ color: "var(--c-amber)" }} />
-              We emailed a 6-digit code to <span className="font-medium">{email}</span>.
+            <div className="mb-2 flex items-start gap-2 text-[13px]" style={{ color: "var(--c-ink)" }}>
+              <KeyRound size={15} className="mt-0.5 shrink-0" style={{ color: "var(--c-amber)" }} />
+              <p className="leading-relaxed">
+                We emailed a 6-digit code to{" "}
+                <span className="font-semibold break-all">{email}</span>.
+              </p>
             </div>
             <input
               inputMode="numeric"
