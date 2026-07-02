@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Circle, Receipt, ChevronLeft } from "lucide-react";
+import { CheckCircle2, Circle, Receipt, ChevronLeft, LifeBuoy } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
@@ -261,6 +261,14 @@ export default function OrderDetailPage({
           <Row label="Order ID" value={order.id} mono />
         </div>
       </Card>
+
+      {/* Something wrong? Straight into the support flow with this order linked. */}
+      <Link
+        href={`/profile/help?order=${order.id}`}
+        className="mt-4 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-cocoa transition-colors hover:bg-beige/40"
+      >
+        <LifeBuoy size={15} className="text-accent" /> Report an issue with this order
+      </Link>
     </div>
   );
 }
