@@ -16,7 +16,14 @@ import {
   revenueDashboard,
   configStatus,
   auditPage,
+  growthSeries,
+  listRefundQueue,
+  approveRefund,
+  rejectRefund,
+  ordersCsv,
+  usersCsv,
 } from "./super.service.js";
+import { sendPushToAll } from "../notifications/push.service.js";
 import {
   listApiKeys,
   createApiKey,
@@ -118,6 +125,131 @@ superRouter.get("/revenue", async (_req, res, next) => {
 
 superRouter.get("/config", (_req, res) => {
   res.json(configStatus());
+});
+
+// --- Growth analytics (read-only) ----------------------------------------
+superRouter.get("/growth", async (req, res, next) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
+    res.json(await growthSeries(days));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Refund approval queue -------------------------------------------------
+superRouter.get("/refunds", async (_req, res, next) => {
+  try {
+    res.json({ refunds: await listRefundQueue() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+superRouter.post("/refunds/:paymentId/approve", async (req, res, next) => {
+  try {
+    const result = await approveRefund(req.params.paymentId!);
+    if (!result.ok) {
+      return res
+        .status(result.reason === "not_found" ? 404 : 409)
+        .json({ error: result.reason === "not_found" ? "Not found" : "No longer awaiting review" });
+    }
+    await auditFromReq(req, {
+      action: "refund.approve",
+      targetType: "payment",
+      targetId: req.params.paymentId!,
+      summary: `Approved refund for payment ${req.params.paymentId}`,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+superRouter.post(
+  "/refunds/:paymentId/reject",
+  validateBody(z.object({ reason: z.string().trim().min(3).max(300) })),
+  async (req, res, next) => {
+    try {
+      const { reason } = req.body as { reason: string };
+      const result = await rejectRefund(req.params.paymentId!);
+      if (!result.ok) {
+        return res
+          .status(result.reason === "not_found" ? 404 : 409)
+          .json({ error: result.reason === "not_found" ? "Not found" : "No longer awaiting review" });
+      }
+      await auditFromReq(req, {
+        action: "refund.reject",
+        targetType: "payment",
+        targetId: req.params.paymentId!,
+        summary: `Rejected refund for payment ${req.params.paymentId}`,
+        metadata: { reason },
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// --- Broadcast announcement (web push to every subscribed device) -----------
+superRouter.post(
+  "/broadcast",
+  validateBody(
+    z.object({
+      title: z.string().trim().min(3).max(80),
+      body: z.string().trim().min(3).max(300),
+      url: z.string().trim().max(200).optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { title, body, url } = req.body as { title: string; body: string; url?: string };
+      const result = await sendPushToAll({ title, body, url });
+      await auditFromReq(req, {
+        action: "broadcast.send",
+        targetType: "system",
+        summary: `Broadcast "${title}" → ${result.sent}/${result.devices} devices${result.configured ? "" : " (push not configured)"}`,
+        metadata: { title, body, url, ...result },
+      });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// --- CSV exports (audited — this is a data pull) ----------------------------
+superRouter.get("/export/orders.csv", async (req, res, next) => {
+  try {
+    const csv = await ordersCsv();
+    await auditFromReq(req, {
+      action: "export.orders",
+      targetType: "system",
+      summary: "Exported orders CSV",
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=orders.csv");
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+});
+
+superRouter.get("/export/users.csv", async (req, res, next) => {
+  try {
+    const csv = await usersCsv();
+    await auditFromReq(req, {
+      action: "export.users",
+      targetType: "system",
+      summary: "Exported users CSV",
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=users.csv");
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // --- Full audit viewer ---------------------------------------------------

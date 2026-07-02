@@ -24,6 +24,9 @@ import {
   KeyRound,
   Coins,
   ChartBar,
+  TrendingUp,
+  RotateCcw,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -41,6 +44,7 @@ const NAV: NavSection[] = [
     items: [
       { href: "/console/admin", label: "Dashboard", icon: LayoutDashboard, need: "admin" },
       { href: "/console/admin/analytics", label: "Analytics", icon: ChartBar, need: "admin" },
+      { href: "/console/super/growth", label: "Growth", icon: TrendingUp, need: "super_admin" },
       { href: "/console/admin/cities", label: "City report", icon: MapPin, need: "admin" },
       { href: "/console/dev", label: "Diagnostics", icon: Activity, need: "developer" },
     ],
@@ -51,6 +55,7 @@ const NAV: NavSection[] = [
       { href: "/console/admin/orders", label: "Orders", icon: Receipt, need: "admin" },
       { href: "/console/admin/vendors", label: "Vendors / MSMEs", icon: Store, need: "admin" },
       { href: "/console/super", label: "Revenue & commissions", icon: Coins, need: "super_admin" },
+      { href: "/console/super/refunds", label: "Refunds", icon: RotateCcw, need: "super_admin" },
       { href: "/console/dev/network", label: "ONDC network", icon: Network, need: "developer" },
       { href: "/console/dev/transactions", label: "ONDC transactions", icon: ScrollText, need: "developer" },
     ],
@@ -69,6 +74,7 @@ const NAV: NavSection[] = [
       { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
       { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
       { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
+      { href: "/console/super/broadcast", label: "Broadcast", icon: Megaphone, need: "super_admin" },
       { href: "/console/super/api-keys", label: "API keys", icon: KeyRound, need: "super_admin" },
       { href: "/console/dev/errors", label: "Errors", icon: AlertTriangle, need: "developer" },
       { href: "/console/dev/alerts", label: "Alerts", icon: Bell, need: "developer" },
