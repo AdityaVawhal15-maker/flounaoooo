@@ -8,6 +8,7 @@ import { env, isProd } from "../../config/env.js";
 import {
   cashfreeConfigured,
   createCashfreeOrder,
+  getCashfreeOrder,
   verifyCashfreeWebhook,
 } from "./cashfree.js";
 import { sendPushToUser } from "../notifications/push.service.js";
@@ -178,14 +179,25 @@ paymentsRouter.post(
       });
 
       if (cashfreeConfigured) {
-        const cf = await createCashfreeOrder({
-          orderId,
-          amountPaise: order.amount,
-          customerId: order.userId,
-          customerEmail: order.user.email,
-          customerPhone: order.user.phone ?? "",
-          returnUrl: `${env.WEB_ORIGIN}/pay/${orderId}?from=cashfree`,
-        });
+        let cf;
+        try {
+          cf = await createCashfreeOrder({
+            orderId,
+            amountPaise: order.amount,
+            customerId: order.userId,
+            customerEmail: order.user.email,
+            customerPhone: order.user.phone ?? "",
+            returnUrl: `${env.WEB_ORIGIN}/pay/${orderId}?from=cashfree`,
+          });
+        } catch (err) {
+          // Retried checkout: the order already exists at Cashfree — reuse its
+          // still-valid payment session instead of failing the retry.
+          if ((err as { cfStatus?: number }).cfStatus === 409) {
+            cf = await getCashfreeOrder(orderId);
+          } else {
+            throw err;
+          }
+        }
         await prisma.payment.update({
           where: { orderId },
           data: { gatewayOrderId: cf.cf_order_id, status: "processing" },
@@ -221,6 +233,42 @@ paymentsRouter.post(
       if (!order) throw new ApiError(404, "Order not found");
       const updated = await markPaid(orderId, method);
       res.json({ order: updated });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Verify-on-return: when the buyer lands back from the Cashfree checkout, the
+// client calls this and WE ask Cashfree for the authoritative order state —
+// payment confirmation never depends on the client's word, and works even if a
+// webhook is delayed or misconfigured. Idempotent via markPaid's status claim.
+paymentsRouter.post(
+  "/verify",
+  validateBody(z.object({ orderId: z.string().cuid() })),
+  async (req, res, next) => {
+    try {
+      const { orderId } = req.body as { orderId: string };
+      const order = await prisma.order.findFirst({
+        where: { id: orderId, userId: req.userId! },
+        include: { payment: true },
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+
+      // Nothing to verify in simulated mode, or when already settled.
+      if (!cashfreeConfigured || order.status !== "pending_payment") {
+        return res.json({ orderStatus: order.status });
+      }
+
+      const cf = await getCashfreeOrder(orderId);
+      if (cf.order_status === "PAID") {
+        const updated = await markPaid(orderId, "cashfree", {
+          paidPaise: Math.round(cf.order_amount * 100),
+          gatewayResponse: JSON.stringify({ verifiedViaReturn: true, ...cf }),
+        });
+        return res.json({ orderStatus: updated?.status ?? "pending_payment" });
+      }
+      res.json({ orderStatus: order.status, gatewayStatus: cf.order_status });
     } catch (err) {
       next(err);
     }

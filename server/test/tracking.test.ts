@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authedAgent } from "./helpers.js";
+import { prisma } from "../src/lib/prisma.js";
 import { SimulationProvider } from "../src/modules/providers/simulation.provider.js";
 
 const PICKUP = { lat: 17.4435, lng: 78.3772 };
@@ -179,16 +180,40 @@ describe("ride tracking endpoint", () => {
     await agent.post(`/api/orders/${orderId}/cancel`).send({}).expect(409);
   });
 
-  it("won't cancel a food order via the ride endpoint", async () => {
+  it("cancels a food order before pickup (Swiggy-style window)", async () => {
     const { agent } = await authedAgent();
     const food = await agent
       .post("/api/orders")
       .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
       .expect(201);
-    await agent
-      .post(`/api/orders/${food.body.order.id}/cancel`)
-      .send({})
-      .expect(400);
+    const orderId = food.body.order.id as string;
+    await agent.post("/api/payments/checkout").send({ orderId }).expect(200);
+    await agent.post("/api/payments/simulate").send({ orderId, method: "upi" }).expect(200);
+
+    // The out_for_delivery event is seeded in the future — the order hasn't
+    // been picked up yet, so cancellation is allowed.
+    const res = await agent.post(`/api/orders/${orderId}/cancel`).send({}).expect(200);
+    expect(res.body.order.status).toBe("cancelled");
+  });
+
+  it("refuses to cancel food once it's out for delivery", async () => {
+    const { agent } = await authedAgent();
+    const food = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(201);
+    const orderId = food.body.order.id as string;
+    await agent.post("/api/payments/checkout").send({ orderId }).expect(200);
+    await agent.post("/api/payments/simulate").send({ orderId, method: "upi" }).expect(200);
+
+    // Simulate time passing: the delivery partner has picked the order up.
+    await prisma.trackingEvent.updateMany({
+      where: { orderId, status: "out_for_delivery" },
+      data: { createdAt: new Date(Date.now() - 60_000) },
+    });
+
+    const res = await agent.post(`/api/orders/${orderId}/cancel`).send({}).expect(409);
+    expect(res.body.error).toContain("out for delivery");
   });
 
   it("won't let someone cancel another user's ride", async () => {

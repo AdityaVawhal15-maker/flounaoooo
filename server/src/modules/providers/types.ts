@@ -72,6 +72,9 @@ export interface RideProvider {
     routeGeometry: [number, number][];
     bookedAt: Date;
     now?: Date;
+    // Food deliveries reuse the same fulfilment engine but must speak
+    // "delivery partner / picking up your order", never "captain / trip".
+    domain?: "ride" | "food";
   }): Promise<RideAssignment>;
   // Cancel a booking before/along the way.
   cancel(input: { orderId: string; providerRef: string }): Promise<void>;

@@ -294,7 +294,10 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
           driverLocation: null,
           pickupEtaMinutes: 0,
           dropEtaMinutes: 0,
-          statusMessage: "This ride was cancelled",
+          statusMessage:
+            order.domain === "food"
+              ? "This order was cancelled"
+              : "This ride was cancelled",
         },
       });
     }
@@ -336,6 +339,7 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
       drop,
       routeGeometry: geometry,
       bookedAt,
+      domain: order.domain === "food" ? "food" : "ride",
     });
 
     res.json({ tracking: assignment });
@@ -344,10 +348,10 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
   }
 });
 
-// Cancel a ride. Allowed while the order is confirmed/in progress; never once
-// completed or already cancelled. Tells the provider, marks the order, and
-// confirms with a push. (No cancellation fee in simulation; the real ONDC
-// adapter would apply network policy.)
+// Cancel an order. Rides: allowed while live (searching → in progress), like
+// Uber/Ola. Food: allowed only until the delivery partner picks the order up
+// (before the out_for_delivery stage) — the Swiggy/Zomato policy; once food is
+// on the road it can't be cancelled. Never once completed/cancelled.
 ordersRouter.post(
   "/:id/cancel",
   validateBody(
@@ -359,12 +363,32 @@ ordersRouter.post(
         where: { id: req.params.id, userId: req.userId! },
       });
       if (!order) throw new ApiError(404, "Order not found");
-      if (order.domain !== "ride")
-        throw new ApiError(400, "Only rides can be cancelled here");
+      const isFood = order.domain === "food";
       if (order.status === "completed")
-        throw new ApiError(409, "This trip is already completed");
+        throw new ApiError(
+          409,
+          isFood ? "This order is already delivered" : "This trip is already completed",
+        );
       if (order.status === "cancelled")
-        throw new ApiError(409, "This ride is already cancelled");
+        throw new ApiError(409, "Already cancelled");
+
+      // Food cut-off: once the out_for_delivery stage has been reached, the
+      // order is with the delivery partner and can no longer be cancelled.
+      if (isFood) {
+        const pickedUp = await prisma.trackingEvent.findFirst({
+          where: {
+            orderId: order.id,
+            status: "out_for_delivery",
+            createdAt: { lte: new Date() },
+          },
+        });
+        if (pickedUp) {
+          throw new ApiError(
+            409,
+            "Your order is already out for delivery and can't be cancelled",
+          );
+        }
+      }
 
       await rideProvider.cancel({
         orderId: order.id,
@@ -377,7 +401,7 @@ ordersRouter.post(
       });
 
       void sendPushToUser(order.userId, {
-        title: "Ride cancelled",
+        title: isFood ? "Order cancelled" : "Ride cancelled",
         body: `${order.title} was cancelled.`,
         url: `/orders/${order.id}`,
       });

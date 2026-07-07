@@ -37,17 +37,49 @@ export async function createCashfreeOrder(opts: {
         customer_email: opts.customerEmail,
         customer_phone: opts.customerPhone || "9999999999",
       },
+      // NOTE: no notify_url here — per-order notify_url deliveries use Cashfree's
+      // LEGACY webhook format (no x-webhook-* signature headers), which our
+      // verifier rightly rejects. Webhooks come from the dashboard-registered
+      // endpoint (new signed format); payment confirmation ALSO happens via the
+      // authenticated verify-on-return path below, so no manual step blocks dev.
       order_meta: { return_url: opts.returnUrl },
     }),
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Cashfree order create failed (${res.status}): ${body.slice(0, 300)}`);
+    const err = new Error(
+      `Cashfree order create failed (${res.status}): ${body.slice(0, 300)}`,
+    ) as Error & { cfStatus?: number };
+    err.cfStatus = res.status;
+    throw err;
   }
   return (await res.json()) as {
     cf_order_id: string;
     payment_session_id: string;
     order_status: string;
+  };
+}
+
+// Authoritative order state straight from Cashfree — used to reuse an existing
+// payment session on checkout retries, and to confirm payment server-side when
+// the buyer returns from the gateway (independent of webhook delivery).
+export async function getCashfreeOrder(orderId: string) {
+  const res = await fetch(`${BASE_URL}/orders/${orderId}`, {
+    headers: {
+      "x-api-version": API_VERSION,
+      "x-client-id": env.CASHFREE_APP_ID!,
+      "x-client-secret": env.CASHFREE_SECRET_KEY!,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Cashfree order fetch failed (${res.status}): ${body.slice(0, 300)}`);
+  }
+  return (await res.json()) as {
+    cf_order_id: string;
+    order_status: string; // "ACTIVE" | "PAID" | "EXPIRED" | "TERMINATED" ...
+    order_amount: number; // rupees
+    payment_session_id: string;
   };
 }
 

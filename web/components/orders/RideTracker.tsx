@@ -2,7 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Phone, Star, ShieldCheck, Navigation, Copy, Check, Share2, X } from "lucide-react";
+import Link from "next/link";
+import {
+  Phone,
+  Star,
+  ShieldCheck,
+  Navigation,
+  Copy,
+  Check,
+  Share2,
+  X,
+  LifeBuoy,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { FadeIn } from "@/components/ui/motion";
@@ -40,7 +51,11 @@ type Tracking = {
 
 const POLL_MS = 4000;
 
-// Live ride tracking — driver card, OTP, and a moving map. Free for everyone.
+// Live fulfilment tracking — the same engine renders two very different
+// experiences: a RIDE (captain, trip, start-OTP, cancellable while live) and a
+// FOOD DELIVERY (Swiggy/Zomato model: preparing → out for delivery → delivered,
+// delivery partner, handover OTP, cancellable only until pickup, help instead
+// of trip-sharing). Never let ride language leak into a food order.
 export function RideTracker({
   orderId,
   pickup,
@@ -60,6 +75,7 @@ export function RideTracker({
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -76,7 +92,7 @@ export function RideTracker({
     };
   }, [orderId]);
 
-  // Stop polling once the trip reaches a terminal state.
+  // Stop polling once the fulfilment reaches a terminal state.
   useEffect(() => {
     if ((t?.state === "completed" || t?.state === "cancelled") && timer.current)
       clearInterval(timer.current);
@@ -85,18 +101,65 @@ export function RideTracker({
   const done = t?.state === "completed";
   const cancelled = t?.state === "cancelled";
   const searching = !t || t.state === "searching";
-  // Cancellable while the ride is live (not searching's first beat, not done).
-  const canCancel = Boolean(t) && !done && !cancelled;
+  const pickedUp = t?.state === "in_progress";
+  // Rides: cancellable while live. Food: only until the partner picks it up
+  // (mirrors the server's cut-off — the button disappears when it would 409).
+  const canCancel = Boolean(t) && !done && !cancelled && (!isFood || !pickedUp);
 
-  async function cancelRide() {
+  // All user-facing copy in one place, per domain. Ride strings stay on the
+  // localized keys; the food set is Swiggy-shaped (localization follow-up).
+  const L = isFood
+    ? {
+        searchingTitle: "Preparing your order",
+        searchingSub: "Restaurant confirmed · assigning a delivery partner…",
+        headingTitle: "Preparing your order",
+        arrivedTitle: "Picking up your order",
+        onTheWayTitle: "Out for delivery",
+        minToDrop: "min to your door",
+        doneTitle: "Delivered",
+        doneSub: "Enjoy your meal!",
+        cancelledTitle: "Order cancelled",
+        cancelledSub: "This order was cancelled.",
+        partnerLabel: "Delivery partner",
+        tripsNoun: "deliveries",
+        otpLabel: "Delivery OTP",
+        cancelCta: "Cancel order",
+        keepCta: "Keep order",
+        confirmCancelCta: "Yes, cancel order",
+        cancellingCta: "Cancelling…",
+      }
+    : {
+        searchingTitle: tr("track.searching"),
+        searchingSub: "",
+        headingTitle: tr("track.onTheWay"),
+        arrivedTitle: tr("track.arrived"),
+        onTheWayTitle: tr("track.onTheWay"),
+        minToDrop: tr("track.minToDrop"),
+        doneTitle: tr("track.completed"),
+        doneSub: tr("track.enjoyed"),
+        cancelledTitle: tr("track.cancelled"),
+        cancelledSub: tr("track.cancelledSub"),
+        partnerLabel: "",
+        tripsNoun: tr("track.trips"),
+        otpLabel: tr("track.startOtp"),
+        cancelCta: tr("track.cancelRide"),
+        keepCta: tr("track.keepRide"),
+        confirmCancelCta: tr("track.confirmCancel"),
+        cancellingCta: tr("track.cancelling"),
+      };
+
+  async function cancelOrder() {
     setCancelling(true);
+    setCancelError("");
     try {
       await api(`/api/orders/${orderId}/cancel`, { method: "POST", json: {} });
       const d = await api<{ tracking: Tracking }>(`/api/orders/${orderId}/track`);
       setT(d.tracking);
       setConfirmCancel(false);
-    } catch {
-      // leave the tracker as-is; user can retry
+    } catch (e) {
+      // Food past pickup (or any refusal): surface the server's reason.
+      setCancelError(e instanceof Error ? e.message : "Couldn't cancel — try again.");
+      setConfirmCancel(false);
     } finally {
       setCancelling(false);
     }
@@ -118,6 +181,30 @@ export function RideTracker({
     }
   }
 
+  // Header title + sub, per state and domain.
+  const title = cancelled
+    ? L.cancelledTitle
+    : done
+      ? L.doneTitle
+      : searching
+        ? L.searchingTitle
+        : t?.state === "in_progress"
+          ? isFood
+            ? L.onTheWayTitle
+            : `${L.onTheWayTitle} · ${dropLabel}`
+          : t?.state === "arrived"
+            ? L.arrivedTitle
+            : L.headingTitle;
+  const sub = cancelled
+    ? L.cancelledSub
+    : done
+      ? L.doneSub
+      : t?.state === "in_progress"
+        ? `${t.dropEtaMinutes} ${L.minToDrop}`
+        : searching && isFood
+          ? L.searchingSub
+          : t?.statusMessage ?? "…";
+
   return (
     <FadeIn y={10}>
       <Card className="overflow-hidden p-0">
@@ -128,32 +215,8 @@ export function RideTracker({
               <Navigation size={15} className="text-accent" />
             </span>
             <div>
-              <p className="text-[13px] font-bold text-ink">
-                {cancelled
-                  ? tr("track.cancelled")
-                  : done
-                    ? tr("track.completed")
-                    : t?.state === "in_progress"
-                      ? `${tr("track.onTheWay")} · ${dropLabel}`
-                      : t?.state === "arrived"
-                        ? tr("track.arrived")
-                        : searching
-                          ? isFood
-                            ? "Finding a delivery partner…"
-                            : tr("track.searching")
-                          : tr("track.onTheWay")}
-              </p>
-              <p className="text-[11px] text-cocoa">
-                {cancelled
-                  ? tr("track.cancelledSub")
-                  : done
-                    ? tr("track.enjoyed")
-                    : t?.state === "in_progress"
-                      ? `${t.dropEtaMinutes} ${tr("track.minToDrop")}`
-                      : t && t.pickupEtaMinutes > 0
-                        ? `${t.pickupEtaMinutes} ${tr("track.minAway")}`
-                        : t?.statusMessage ?? "…"}
-              </p>
+              <p className="text-[13px] font-bold text-ink">{title}</p>
+              <p className="text-[11px] text-cocoa">{sub}</p>
             </div>
           </div>
           {!done && !cancelled && (
@@ -173,7 +236,7 @@ export function RideTracker({
           />
         </div>
 
-        {/* Searching shimmer or driver card */}
+        {/* Searching shimmer or partner card */}
         {searching ? (
           <div className="px-4 py-4">
             <div className="flex items-center gap-3">
@@ -185,21 +248,22 @@ export function RideTracker({
             </div>
             {canCancel && (
               <button
-                onClick={() => (confirmCancel ? cancelRide() : setConfirmCancel(true))}
+                onClick={() => (confirmCancel ? cancelOrder() : setConfirmCancel(true))}
                 disabled={cancelling}
                 className="mt-3 w-full rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5 disabled:opacity-60"
               >
-                {cancelling
-                  ? tr("track.cancelling")
-                  : confirmCancel
-                    ? tr("track.confirmCancel")
-                    : tr("track.cancelRide")}
+                {cancelling ? L.cancellingCta : confirmCancel ? L.confirmCancelCta : L.cancelCta}
               </button>
             )}
           </div>
         ) : cancelled ? null : (
           t?.driver && (
             <div className="px-4 py-4">
+              {isFood && (
+                <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide text-muted">
+                  {L.partnerLabel}
+                </p>
+              )}
               <div className="flex items-center gap-3">
                 <span
                   className="flex size-12 shrink-0 items-center justify-center rounded-full text-[18px] font-bold text-white"
@@ -217,13 +281,15 @@ export function RideTracker({
                   </p>
                   <p className="truncate text-[12px] text-cocoa">
                     {t.driver.vehicle.color} {t.driver.vehicle.model} ·{" "}
-                    {t.driver.trips.toLocaleString("en-IN")} {tr("track.trips")}
+                    {t.driver.trips.toLocaleString("en-IN")} {L.tripsNoun}
                   </p>
                 </div>
-                {/* Number plate */}
-                <span className="shrink-0 rounded-md border border-line bg-beige/60 px-2 py-1 text-[12px] font-bold tracking-wide text-ink">
-                  {t.driver.vehicle.plate}
-                </span>
+                {/* Number plate — ride identification only; meaningless for food */}
+                {!isFood && (
+                  <span className="shrink-0 rounded-md border border-line bg-beige/60 px-2 py-1 text-[12px] font-bold tracking-wide text-ink">
+                    {t.driver.vehicle.plate}
+                  </span>
+                )}
               </div>
 
               {/* OTP + call row */}
@@ -242,7 +308,7 @@ export function RideTracker({
                     className="flex flex-1 items-center justify-between rounded-card border border-accent/40 bg-accent-soft/60 px-3 py-2.5"
                   >
                     <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-cocoa">
-                      <ShieldCheck size={13} className="text-accent" /> {tr("track.startOtp")}
+                      <ShieldCheck size={13} className="text-accent" /> {L.otpLabel}
                     </span>
                     <span className="flex items-center gap-1.5 text-[18px] font-bold tracking-[0.2em] text-ink">
                       {t.otp}
@@ -263,44 +329,64 @@ export function RideTracker({
                   </a>
                 </div>
               )}
+              {isFood && !done && (
+                <p className="mt-1.5 text-[10.5px] text-muted">
+                  Share this OTP with the delivery partner at handover.
+                </p>
+              )}
 
-              {/* Share + Cancel actions */}
-              {(canCancel || done) && (
-                <div className="mt-2.5 flex items-center gap-2.5">
-                  <button
-                    onClick={shareTrip}
+              {cancelError && (
+                <p className="mt-2 rounded-card bg-danger/5 px-3 py-2 text-[12px] font-medium text-danger">
+                  {cancelError}
+                </p>
+              )}
+
+              {/* Actions: food → Help (+ Cancel until pickup) · ride → Share (+ Cancel) */}
+              <div className="mt-2.5 flex items-center gap-2.5">
+                {isFood ? (
+                  <Link
+                    href={`/profile/help?order=${orderId}`}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
                   >
-                    <Share2 size={14} className="text-accent" /> {tr("track.share")}
-                  </button>
-                  {canCancel &&
-                    (confirmCancel ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <button
-                          onClick={cancelRide}
-                          disabled={cancelling}
-                          className="flex-1 rounded-pill bg-danger py-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#c0392b] disabled:opacity-60"
-                        >
-                          {cancelling ? tr("track.cancelling") : tr("track.confirmCancel")}
-                        </button>
-                        <button
-                          onClick={() => setConfirmCancel(false)}
-                          disabled={cancelling}
-                          className="rounded-pill border border-line bg-card px-3 py-2.5 text-[12px] font-semibold text-cocoa"
-                        >
-                          {tr("track.keepRide")}
-                        </button>
-                      </div>
-                    ) : (
+                    <LifeBuoy size={14} className="text-accent" /> Get help
+                  </Link>
+                ) : (
+                  (canCancel || done) && (
+                    <button
+                      onClick={shareTrip}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
+                    >
+                      <Share2 size={14} className="text-accent" /> {tr("track.share")}
+                    </button>
+                  )
+                )}
+                {canCancel &&
+                  (confirmCancel ? (
+                    <div className="flex flex-1 items-center gap-2">
                       <button
-                        onClick={() => setConfirmCancel(true)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5"
+                        onClick={cancelOrder}
+                        disabled={cancelling}
+                        className="flex-1 rounded-pill bg-danger py-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#c0392b] disabled:opacity-60"
                       >
-                        <X size={14} /> {tr("track.cancelRide")}
+                        {cancelling ? L.cancellingCta : L.confirmCancelCta}
                       </button>
-                    ))}
-                </div>
-              )}
+                      <button
+                        onClick={() => setConfirmCancel(false)}
+                        disabled={cancelling}
+                        className="rounded-pill border border-line bg-card px-3 py-2.5 text-[12px] font-semibold text-cocoa"
+                      >
+                        {L.keepCta}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmCancel(true)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5"
+                    >
+                      <X size={14} /> {L.cancelCta}
+                    </button>
+                  ))}
+              </div>
             </div>
           )
         )}
