@@ -336,7 +336,12 @@ export async function rejectRefund(paymentId: string): Promise<RefundResult> {
 // plus a rupee column for spreadsheet friendliness.
 
 function csvCell(v: unknown): string {
-  const s = v == null ? "" : String(v);
+  let s = v == null ? "" : String(v);
+  // Formula-injection guard: a cell starting with = + - @ (or a tab/CR remnant)
+  // executes as a formula in Excel/Sheets. Titles and names are user-controlled,
+  // and the person opening these exports is a super-admin — prefix a ' so
+  // spreadsheet apps render it as literal text.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

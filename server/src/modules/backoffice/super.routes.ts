@@ -230,6 +230,8 @@ superRouter.get("/export/orders.csv", async (req, res, next) => {
     });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=orders.csv");
+    // Exports carry customer data — never let a proxy or browser cache them.
+    res.setHeader("Cache-Control", "no-store");
     res.send(csv);
   } catch (err) {
     next(err);
@@ -246,6 +248,8 @@ superRouter.get("/export/users.csv", async (req, res, next) => {
     });
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=users.csv");
+    // PII (emails, phones) — never let a proxy or browser cache this.
+    res.setHeader("Cache-Control", "no-store");
     res.send(csv);
   } catch (err) {
     next(err);

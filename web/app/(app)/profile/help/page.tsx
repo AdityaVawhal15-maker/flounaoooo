@@ -93,8 +93,21 @@ function HelpInner() {
   useEffect(() => {
     loadTickets();
     api<{ orders: OrderSummary[] }>("/api/orders")
-      .then((d) => setOrders(d.orders.slice(0, 10)))
+      .then(async (d) => {
+        let list = d.orders.slice(0, 10);
+        // Deep-linked from "Report an issue" on an order that's older than the
+        // top-10 slice: resolve it so the dropdown shows it as selected instead
+        // of silently displaying the placeholder.
+        if (prefillOrder && !list.some((o) => o.id === prefillOrder)) {
+          const linked = await api<{ order: OrderSummary }>(`/api/orders/${prefillOrder}`)
+            .then((r) => r.order)
+            .catch(() => null);
+          if (linked) list = [linked, ...list];
+        }
+        setOrders(list);
+      })
       .catch(() => setOrders([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submit(e: React.FormEvent) {

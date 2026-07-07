@@ -125,21 +125,42 @@ describe("super-admin broadcast", () => {
 });
 
 describe("super-admin CSV exports", () => {
-  it("exports orders + users as CSV, audited, super-only", async () => {
+  it("exports orders + users as CSV, audited, super-only, uncacheable", async () => {
     const { agent: buyer } = await authedAgent();
     await paidOrder(buyer);
 
     const sup = await consoleAgent("super_admin");
     const orders = await sup.agent.get("/api/console/super/export/orders.csv").expect(200);
     expect(orders.headers["content-type"]).toContain("text/csv");
+    // Customer data must never sit in a proxy or browser cache.
+    expect(orders.headers["cache-control"]).toBe("no-store");
     const lines = orders.text.trim().split("\n");
     expect(lines[0]).toContain("order_id");
     expect(lines.length).toBeGreaterThanOrEqual(2); // header + at least one row
 
     const users = await sup.agent.get("/api/console/super/export/users.csv").expect(200);
     expect(users.text.split("\n")[0]).toContain("user_id");
+    expect(users.headers["cache-control"]).toBe("no-store");
 
     const adm = await consoleAgent("admin");
     await adm.agent.get("/api/console/super/export/orders.csv").expect(404);
+  });
+
+  it("neutralises spreadsheet formula injection in user-controlled cells", async () => {
+    // A user names themselves as a formula — the classic CSV-injection payload.
+    const { email } = await authedAgent();
+    await prisma.user.update({
+      where: { email },
+      data: { name: "=cmd|'/c calc'!A1" },
+    });
+
+    const sup = await consoleAgent("super_admin");
+    const res = await sup.agent.get("/api/console/super/export/users.csv").expect(200);
+    const row = res.text.split("\n").find((l) => l.includes(email));
+    expect(row).toBeTruthy();
+    // The cell is prefixed with a quote so Excel/Sheets treats it as text, and
+    // the raw formula never appears at a cell boundary.
+    expect(row).toContain("'=cmd");
+    expect(row!.includes(",=cmd")).toBe(false);
   });
 });
