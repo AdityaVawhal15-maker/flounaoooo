@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { StatCard } from "@/components/console/ConsoleShell";
-import { ConsolePage, Card, BarRow, rupeesCompact, rupees } from "@/components/console/ui";
+import { StatCard, PageTitle } from "@/components/console/ConsoleShell";
+import { ConsolePage, Card, Empty, rupeesCompact, rupees } from "@/components/console/ui";
+import { DonutChart, BarChartC } from "@/components/console/charts";
 
 type Dashboard = {
   totalOrders: number;
@@ -17,14 +18,6 @@ type Dashboard = {
   domainBreakdown: { domain: string; count: number }[];
 };
 
-const DOMAIN_COLORS: Record<string, string> = {
-  food: "#F59E0B",
-  ride: "#3B82F6",
-  ecom: "#8B5CF6",
-  travel: "#10B981",
-  hotel: "#EF4444",
-};
-
 export default function AdminDashboardPage() {
   const [d, setD] = useState<Dashboard | null>(null);
 
@@ -32,16 +25,22 @@ export default function AdminDashboardPage() {
     api<Dashboard>("/api/console/admin/dashboard").then(setD).catch(() => {});
   }, []);
 
-  const maxCount = d ? Math.max(1, ...d.domainBreakdown.map((x) => x.count)) : 1;
+  const domainData =
+    d?.domainBreakdown.map((x) => ({ name: x.domain, value: x.count })) ?? [];
+  const revenueData = d
+    ? [
+        { name: "ONDC", value: Math.round(d.revenue.ondcPaise / 100) },
+        { name: "Partner", value: Math.round(d.revenue.partnerPaise / 100) },
+        { name: "Convenience", value: Math.round(d.revenue.conveniencePaise / 100) },
+      ]
+    : [];
 
   return (
     <ConsolePage accept={["admin", "super_admin"]}>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-100">Dashboard</h1>
-        <p className="mt-1 text-[13px] text-slate-400">
-          Live snapshot across the decision engine. All figures computed server-side.
-        </p>
-      </div>
+      <PageTitle
+        title="Dashboard"
+        subtitle="Live snapshot across the decision engine. All figures computed server-side."
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard label="Total orders" value={d?.totalOrders ?? "—"} />
@@ -62,23 +61,22 @@ export default function AdminDashboardPage() {
         <StatCard label="· Convenience" value={d ? rupees(d.revenue.conveniencePaise) : "—"} />
       </div>
 
-      <div className="mt-6">
-        <Card title="Domain breakdown">
-          <div className="py-2">
-            {d?.domainBreakdown.length ? (
-              d.domainBreakdown.map((x) => (
-                <BarRow
-                  key={x.domain}
-                  label={x.domain}
-                  value={String(x.count)}
-                  max={(x.count / maxCount) * 100}
-                  color={DOMAIN_COLORS[x.domain] ?? "#64748B"}
-                />
-              ))
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title="Orders by domain">
+          <div className="p-4">
+            {domainData.length ? (
+              <DonutChart data={domainData} />
             ) : (
-              <p className="px-4 py-6 text-center text-[13px] text-slate-500">
-                No paid orders yet — place a test order to populate this.
-              </p>
+              <Empty>No paid orders yet — place a test order to populate this.</Empty>
+            )}
+          </div>
+        </Card>
+        <Card title="Revenue split (₹)">
+          <div className="p-4">
+            {d && d.revenue.totalPaise > 0 ? (
+              <BarChartC data={revenueData} colorful valueLabel={(v) => `₹${v.toLocaleString("en-IN")}`} />
+            ) : (
+              <Empty>No revenue yet.</Empty>
             )}
           </div>
         </Card>

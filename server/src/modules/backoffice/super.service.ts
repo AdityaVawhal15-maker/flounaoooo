@@ -200,6 +200,213 @@ export function configStatus() {
   };
 }
 
+// --- Growth analytics -----------------------------------------------------
+// Daily series for the founder's growth view. Derived entirely from real rows
+// (orders + users); bucketed in JS, which is fine at current volume — swap to a
+// SQL date-trunc groupBy when order counts warrant it.
+
+const PAID = ["confirmed", "in_progress", "completed"] as const;
+const DAY_MS = 86_400_000;
+
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD (UTC buckets)
+}
+
+export async function growthSeries(days = 30) {
+  const since = new Date(Date.now() - (days - 1) * DAY_MS);
+  since.setUTCHours(0, 0, 0, 0);
+
+  const [orders, users] = await Promise.all([
+    prisma.order.findMany({
+      where: { createdAt: { gte: since }, status: { in: [...PAID] } },
+      select: { createdAt: true, amount: true, userId: true },
+    }),
+    prisma.user.findMany({
+      where: { createdAt: { gte: since } },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  // Seed every day so the chart has a continuous axis even with no volume.
+  const series = new Map<
+    string,
+    { date: string; orders: number; gmvPaise: number; signups: number }
+  >();
+  for (let i = 0; i < days; i++) {
+    const key = dayKey(new Date(since.getTime() + i * DAY_MS));
+    series.set(key, { date: key, orders: 0, gmvPaise: 0, signups: 0 });
+  }
+  for (const o of orders) {
+    const row = series.get(dayKey(o.createdAt));
+    if (row) {
+      row.orders += 1;
+      row.gmvPaise += o.amount;
+    }
+  }
+  for (const u of users) {
+    const row = series.get(dayKey(u.createdAt));
+    if (row) row.signups += 1;
+  }
+
+  // Week-over-week movement + active buyers, from the same real rows.
+  const wkAgo = Date.now() - 7 * DAY_MS;
+  const twoWkAgo = Date.now() - 14 * DAY_MS;
+  const thisWeek = orders.filter((o) => o.createdAt.getTime() >= wkAgo);
+  const lastWeek = orders.filter(
+    (o) => o.createdAt.getTime() >= twoWkAgo && o.createdAt.getTime() < wkAgo,
+  );
+  const sum = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
+
+  return {
+    days,
+    series: [...series.values()],
+    totals: {
+      orders: orders.length,
+      gmvPaise: sum(orders),
+      signups: users.length,
+      activeBuyers7d: new Set(thisWeek.map((o) => o.userId)).size,
+    },
+    weekOverWeek: {
+      ordersThisWeek: thisWeek.length,
+      ordersLastWeek: lastWeek.length,
+      gmvThisWeekPaise: sum(thisWeek),
+      gmvLastWeekPaise: sum(lastWeek),
+    },
+  };
+}
+
+// --- Refund approval queue --------------------------------------------------
+// Admins flag a paid order as refund_pending (admin console); only a super-admin
+// settles it here. Approve marks the payment refunded; reject restores success.
+// No gateway money moves yet — when Cashfree goes live, the refund API call
+// slots into approveRefund before the status flip.
+
+export async function listRefundQueue() {
+  const payments = await prisma.payment.findMany({
+    where: { status: "refund_pending" },
+    orderBy: { updatedAt: "asc" }, // oldest waiting first
+    include: {
+      order: { select: { id: true, title: true, domain: true, createdAt: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+  return payments.map((p) => ({
+    paymentId: p.id,
+    orderId: p.orderId,
+    orderTitle: p.order.title,
+    domain: p.order.domain,
+    amountPaise: p.amount,
+    method: p.method,
+    user: p.user,
+    flaggedAt: p.updatedAt,
+  }));
+}
+
+type RefundResult = { ok: true } | { ok: false; reason: "not_found" | "not_pending" };
+
+async function settleRefund(
+  paymentId: string,
+  nextStatus: "refunded" | "success",
+): Promise<RefundResult> {
+  // Status-scoped claim: only a payment still awaiting review can be settled,
+  // and two concurrent decisions can't both win.
+  const claim = await prisma.payment.updateMany({
+    where: { id: paymentId, status: "refund_pending" },
+    data: { status: nextStatus },
+  });
+  if (claim.count === 0) {
+    const exists = await prisma.payment.findUnique({ where: { id: paymentId } });
+    return { ok: false, reason: exists ? "not_pending" : "not_found" };
+  }
+  return { ok: true };
+}
+
+export async function approveRefund(paymentId: string): Promise<RefundResult> {
+  // TODO(cashfree): call the gateway refund API here once live keys exist; only
+  // flip to "refunded" after the gateway confirms.
+  return settleRefund(paymentId, "refunded");
+}
+
+export async function rejectRefund(paymentId: string): Promise<RefundResult> {
+  return settleRefund(paymentId, "success");
+}
+
+// --- CSV exports ------------------------------------------------------------
+// Founder-grade data pulls. Values are quoted/escaped; money stays integer paise
+// plus a rupee column for spreadsheet friendliness.
+
+function csvCell(v: unknown): string {
+  let s = v == null ? "" : String(v);
+  // Formula-injection guard: a cell starting with = + - @ (or a tab/CR remnant)
+  // executes as a formula in Excel/Sheets. Titles and names are user-controlled,
+  // and the person opening these exports is a super-admin — prefix a ' so
+  // spreadsheet apps render it as literal text.
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function toCsv(header: string[], rows: unknown[][]): string {
+  return [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
+}
+
+export async function ordersCsv(): Promise<string> {
+  const orders = await prisma.order.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      user: { select: { email: true } },
+      payment: { select: { status: true, method: true } },
+    },
+  });
+  return toCsv(
+    ["order_id", "created_at", "domain", "provider", "status", "payment_status", "method", "amount_paise", "amount_rupees", "saved_paise", "user_email", "title"],
+    orders.map((o) => [
+      o.id,
+      o.createdAt.toISOString(),
+      o.domain,
+      o.provider,
+      o.status,
+      o.payment?.status ?? "",
+      o.payment?.method ?? "",
+      o.amount,
+      (o.amount / 100).toFixed(2),
+      o.savedPaise,
+      o.user.email,
+      o.title,
+    ]),
+  );
+}
+
+export async function usersCsv(): Promise<string> {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      emailVerified: true,
+      plusActive: true,
+      role: true,
+      createdAt: true,
+      _count: { select: { orders: true } },
+    },
+  });
+  return toCsv(
+    ["user_id", "name", "email", "phone", "verified", "plus", "role", "orders", "joined_at"],
+    users.map((u) => [
+      u.id,
+      u.name,
+      u.email,
+      u.phone ?? "",
+      u.emailVerified,
+      u.plusActive,
+      u.role,
+      u._count.orders,
+      u.createdAt.toISOString(),
+    ]),
+  );
+}
+
 // --- Full audit viewer ---------------------------------------------------
 
 export async function auditPage(opts: { action?: string; page?: number }) {

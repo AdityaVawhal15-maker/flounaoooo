@@ -5,6 +5,8 @@ import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useOperator } from "@/components/console/useOperator";
 import { ConsoleShell, PageTitle, StatCard } from "@/components/console/ConsoleShell";
+import { Card, Empty } from "@/components/console/ui";
+import { DonutChart, BarChartC } from "@/components/console/charts";
 
 type Revenue = {
   grossPaise: number;
@@ -28,15 +30,34 @@ export default function SuperRevenuePage() {
 
   if (state.status !== "ok") {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-500">
+      <div
+        className="flex min-h-dvh items-center justify-center"
+        style={{ color: "var(--c-maroon)" }}
+      >
         <Loader2 className="animate-spin" />
       </div>
     );
   }
 
+  const domainEntries = rev ? Object.entries(rev.byDomain) : [];
+  const domainBars = domainEntries.map(([domain, d]) => ({
+    name: domain,
+    value: Math.round(d.grossPaise / 100),
+  }));
+  const revenueSplit = rev
+    ? [
+        { name: "Gross (30d)", value: Math.round(rev.gross30dPaise / 100) },
+        {
+          name: "Plus run-rate",
+          value: Math.round(rev.subscriptions.monthlyRunRatePaise / 100),
+        },
+        { name: "Refunded", value: Math.round(rev.refunds.refundedPaise / 100) },
+      ].filter((x) => x.value > 0)
+    : [];
+
   return (
     <ConsoleShell operator={state.operator}>
-      <PageTitle title="Revenue" subtitle="Gross volume, subscriptions and refunds." />
+      <PageTitle title="Revenue & commissions" subtitle="Gross volume, subscriptions and refunds." />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Gross (paid)" value={rev ? rupees(rev.grossPaise) : "—"} tone="good" />
@@ -54,20 +75,44 @@ export default function SuperRevenuePage() {
         />
       </div>
 
-      {rev && (
-        <div className="mt-8">
-          <h2 className="mb-3 text-[14px] font-semibold text-slate-200">By domain</h2>
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title="Gross by domain (₹)">
+          <div className="p-4">
+            {domainBars.length ? (
+              <BarChartC data={domainBars} colorful valueLabel={(v) => `₹${v.toLocaleString("en-IN")}`} />
+            ) : (
+              <Empty>No paid orders yet.</Empty>
+            )}
+          </div>
+        </Card>
+        <Card title="Revenue mix (₹)">
+          <div className="p-4">
+            {revenueSplit.length ? <DonutChart data={revenueSplit} /> : <Empty>No revenue yet.</Empty>}
+          </div>
+        </Card>
+      </div>
+
+      {domainEntries.length > 0 && (
+        <div className="mt-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(rev.byDomain).map(([domain, d]) => (
+            {domainEntries.map(([domain, d]) => (
               <div
                 key={domain}
-                className="rounded-xl border border-slate-800 bg-slate-900/40 p-4"
+                className="rounded-xl bg-white p-4"
+                style={{ border: "1px solid var(--c-border)" }}
               >
-                <p className="text-[12px] capitalize text-slate-400">{domain}</p>
-                <p className="mt-1 text-xl font-semibold text-slate-100">
+                <p className="c-label text-[10.5px]" style={{ color: "var(--c-muted)" }}>
+                  {domain}
+                </p>
+                <p
+                  className="c-serif mt-1 text-xl font-extrabold"
+                  style={{ color: "var(--c-maroon)" }}
+                >
                   {rupees(d.grossPaise)}
                 </p>
-                <p className="mt-0.5 text-[12px] text-slate-500">{d.orders} orders</p>
+                <p className="mt-0.5 text-[12px]" style={{ color: "var(--c-muted)" }}>
+                  {d.orders} orders
+                </p>
               </div>
             ))}
           </div>

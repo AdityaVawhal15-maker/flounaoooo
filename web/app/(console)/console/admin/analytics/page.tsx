@@ -2,24 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { StatCard } from "@/components/console/ConsoleShell";
-import { ConsolePage, Card, BarRow, rupeesCompact } from "@/components/console/ui";
+import { StatCard, PageTitle } from "@/components/console/ConsoleShell";
+import { ConsolePage, Card, Empty, rupeesCompact } from "@/components/console/ui";
+import { BarChartC, DonutChart } from "@/components/console/charts";
 
 type Domain = { domain: string; gmvPaise: number; orders: number };
 type Analytics = {
-  users: { total: number; new7d: number; plus: number };
-  orders: { total: number };
-  revenuePaise: number;
-  revenue7dPaise: number;
-  userSavedPaise: number;
-};
-
-const COLORS: Record<string, string> = {
-  food: "#F59E0B",
-  ride: "#3B82F6",
-  ecom: "#8B5CF6",
-  travel: "#10B981",
-  hotel: "#EF4444",
+  users?: { total: number; new7d: number; plus: number };
+  orders?: { total: number };
+  revenuePaise?: number;
+  revenue7dPaise?: number;
+  userSavedPaise?: number;
 };
 
 export default function AnalyticsPage() {
@@ -33,38 +26,35 @@ export default function AnalyticsPage() {
     api<Analytics>("/api/console/admin/analytics").then(setA).catch(() => {});
   }, []);
 
-  const maxGmv = Math.max(1, ...domains.map((d) => d.gmvPaise));
+  const gmvData = domains.map((d) => ({ name: d.domain, value: Math.round(d.gmvPaise / 100) }));
+  const orderShare = domains
+    .filter((d) => d.orders > 0)
+    .map((d) => ({ name: d.domain, value: d.orders }));
 
   return (
     <ConsolePage accept={["admin", "super_admin"]}>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-100">Analytics</h1>
-        <p className="mt-1 text-[13px] text-slate-400">Revenue and growth across all domains.</p>
-      </div>
+      <PageTitle title="Analytics" subtitle="Revenue and growth across all domains." />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Orders (total)" value={a?.orders.total ?? "—"} />
-        <StatCard label="Revenue (all-time)" value={a ? rupeesCompact(a.revenuePaise) : "—"} tone="good" />
-        <StatCard label="Revenue (7d)" value={a ? rupeesCompact(a.revenue7dPaise) : "—"} />
-        <StatCard label="Saved for users" value={a ? rupeesCompact(a.userSavedPaise) : "—"} />
+        <StatCard label="Orders (total)" value={a?.orders?.total ?? "—"} />
+        <StatCard label="Revenue (all-time)" value={a?.revenuePaise != null ? rupeesCompact(a.revenuePaise) : "—"} tone="good" />
+        <StatCard label="Revenue (7d)" value={a?.revenue7dPaise != null ? rupeesCompact(a.revenue7dPaise) : "—"} />
+        <StatCard label="Saved for users" value={a?.userSavedPaise != null ? rupeesCompact(a.userSavedPaise) : "—"} />
       </div>
 
-      <div className="mt-6">
-        <Card title="GMV by domain">
-          <div className="py-2">
-            {domains.length ? (
-              domains.map((x) => (
-                <BarRow
-                  key={x.domain}
-                  label={x.domain}
-                  value={rupeesCompact(x.gmvPaise)}
-                  max={(x.gmvPaise / maxGmv) * 100}
-                  color={COLORS[x.domain] ?? "#64748B"}
-                />
-              ))
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card title="GMV by domain (₹)">
+          <div className="p-4">
+            {gmvData.length ? (
+              <BarChartC data={gmvData} colorful valueLabel={(v) => `₹${v.toLocaleString("en-IN")}`} />
             ) : (
-              <p className="px-4 py-6 text-center text-[13px] text-slate-500">No paid orders yet.</p>
+              <Empty>No paid orders yet.</Empty>
             )}
+          </div>
+        </Card>
+        <Card title="Order share by domain">
+          <div className="p-4">
+            {orderShare.length ? <DonutChart data={orderShare} /> : <Empty>No paid orders yet.</Empty>}
           </div>
         </Card>
       </div>

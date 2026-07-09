@@ -79,11 +79,19 @@ export default function ConsoleLoginPage() {
     <div className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-slate-800 text-emerald-400 ring-1 ring-slate-700">
-            <ShieldCheck size={24} />
+          <span
+            className="flex size-12 items-center justify-center rounded-xl text-white"
+            style={{ background: "var(--c-crimson)" }}
+          >
+            <ShieldCheck size={24} style={{ color: "var(--c-amber)" }} />
           </span>
-          <h1 className="mt-4 text-lg font-semibold text-slate-100">Radiues Console</h1>
-          <p className="mt-1 text-[13px] text-slate-400">
+          <h1
+            className="c-serif mt-4 text-xl font-extrabold"
+            style={{ color: "var(--c-maroon)" }}
+          >
+            Radiues Console
+          </h1>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--c-muted)" }}>
             Operator access only. Two-factor required. All actions are audited.
           </p>
         </div>
@@ -91,33 +99,37 @@ export default function ConsoleLoginPage() {
         {step === "password" ? (
           <form
             onSubmit={submitPassword}
-            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
+            className="space-y-3 rounded-2xl bg-white p-6"
+            style={{ border: "1px solid var(--c-border)" }}
           >
             <label className="block">
-              <span className="text-[12px] font-medium text-slate-400">Email</span>
+              <span className="text-[12px] font-medium" style={{ color: "var(--c-muted)" }}>Email</span>
               <input
                 type="email"
                 required
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-[14px] text-slate-100 outline-none focus:border-emerald-500"
+                className="c-input mt-1 w-full rounded-lg px-3 py-2.5 text-[14px] outline-none"
               />
             </label>
             <label className="block">
-              <span className="text-[12px] font-medium text-slate-400">Password</span>
+              <span className="text-[12px] font-medium" style={{ color: "var(--c-muted)" }}>Password</span>
               <input
                 type="password"
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-[14px] text-slate-100 outline-none focus:border-emerald-500"
+                className="c-input mt-1 w-full rounded-lg px-3 py-2.5 text-[14px] outline-none"
               />
             </label>
 
             {error && (
-              <p className="rounded-lg bg-rose-950/60 px-3 py-2 text-[13px] text-rose-300">
+              <p
+                className="rounded-lg px-3 py-2 text-[13px]"
+                style={{ background: "#F6E7E5", color: "var(--c-red)" }}
+              >
                 {error}
               </p>
             )}
@@ -125,7 +137,8 @@ export default function ConsoleLoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--c-maroon)" }}
             >
               {busy && <Loader2 size={16} className="animate-spin" />}
               Continue
@@ -134,11 +147,15 @@ export default function ConsoleLoginPage() {
         ) : (
           <form
             onSubmit={submitOtp}
-            className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
+            className="space-y-3 rounded-2xl bg-white p-6"
+            style={{ border: "1px solid var(--c-border)" }}
           >
-            <div className="mb-2 flex items-center gap-2 text-[13px] text-slate-300">
-              <KeyRound size={15} className="text-emerald-400" />
-              We emailed a 6-digit code to <span className="font-medium">{email}</span>.
+            <div className="mb-2 flex items-start gap-2 text-[13px]" style={{ color: "var(--c-ink)" }}>
+              <KeyRound size={15} className="mt-0.5 shrink-0" style={{ color: "var(--c-amber)" }} />
+              <p className="leading-relaxed">
+                We emailed a 6-digit code to{" "}
+                <span className="font-semibold break-all">{email}</span>.
+              </p>
             </div>
             <input
               inputMode="numeric"
@@ -149,11 +166,14 @@ export default function ConsoleLoginPage() {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="······"
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-center text-[20px] tracking-[0.4em] text-slate-100 outline-none focus:border-emerald-500"
+              className="c-input c-mono w-full rounded-lg px-3 py-3 text-center text-[20px] tracking-[0.4em] outline-none"
             />
 
             {error && (
-              <p className="rounded-lg bg-rose-950/60 px-3 py-2 text-[13px] text-rose-300">
+              <p
+                className="rounded-lg px-3 py-2 text-[13px]"
+                style={{ background: "#F6E7E5", color: "var(--c-red)" }}
+              >
                 {error}
               </p>
             )}
@@ -161,7 +181,8 @@ export default function ConsoleLoginPage() {
             <button
               type="submit"
               disabled={busy || code.length !== 6}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: "var(--c-maroon)" }}
             >
               {busy && <Loader2 size={16} className="animate-spin" />}
               Verify &amp; sign in
@@ -175,14 +196,16 @@ export default function ConsoleLoginPage() {
                   setCode("");
                   setError(null);
                 }}
-                className="flex items-center gap-1 text-slate-500 hover:text-slate-300"
+                className="flex items-center gap-1 hover:opacity-80"
+                style={{ color: "var(--c-muted)" }}
               >
                 <ArrowLeft size={13} /> Back
               </button>
               <button
                 type="button"
                 onClick={resend}
-                className="text-emerald-400 hover:text-emerald-300"
+                className="font-semibold hover:opacity-80"
+                style={{ color: "var(--c-red)" }}
               >
                 Resend code
               </button>
@@ -190,7 +213,7 @@ export default function ConsoleLoginPage() {
           </form>
         )}
 
-        <p className="mt-6 text-center text-[12px] text-slate-600">
+        <p className="mt-6 text-center text-[12px]" style={{ color: "var(--c-muted)" }}>
           Unauthorized access is prohibited and logged.
         </p>
       </div>

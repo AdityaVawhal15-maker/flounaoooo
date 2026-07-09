@@ -20,6 +20,45 @@ export type PushPayload = {
   url?: string;
 };
 
+// Broadcast to EVERY registered device across all users (super-admin
+// announcements). Returns honest delivery counts; {configured:false} when VAPID
+// keys are absent rather than pretending anything was sent. Dead subscriptions
+// are pruned as they're discovered, same as the per-user path.
+export async function sendPushToAll(
+  payload: PushPayload,
+): Promise<{ configured: boolean; sent: number; failed: number; devices: number }> {
+  if (!pushConfigured) return { configured: false, sent: 0, failed: 0, devices: 0 };
+
+  const subs = await prisma.pushSubscription.findMany();
+  const body = JSON.stringify(payload);
+  let sent = 0;
+  let failed = 0;
+  // Send in bounded batches rather than one unbounded Promise.all — keeps
+  // sockets/memory flat and stays under push-provider rate limits as the
+  // subscriber list grows.
+  const BATCH = 100;
+  for (let i = 0; i < subs.length; i += BATCH) {
+    await Promise.all(
+      subs.slice(i, i + BATCH).map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            body,
+          );
+          sent += 1;
+        } catch (err) {
+          failed += 1;
+          const statusCode = (err as { statusCode?: number }).statusCode;
+          if (statusCode === 404 || statusCode === 410) {
+            await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+          }
+        }
+      }),
+    );
+  }
+  return { configured: true, sent, failed, devices: subs.length };
+}
+
 // Sends a notification to every device a user has registered. Dead
 // subscriptions (410/404) are pruned automatically.
 export async function sendPushToUser(userId: string, payload: PushPayload) {
