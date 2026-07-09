@@ -26,11 +26,14 @@ export function LiveTrackingMap({
   drop,
   driverLocation,
   done,
+  vehicle = "car",
 }: {
   pickup: LatLng;
   drop: LatLng;
   driverLocation: LatLng | null;
   done: boolean;
+  // Marker glyph: rides show a car, food deliveries a scooter.
+  vehicle?: "car" | "bike";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -156,7 +159,7 @@ export function LiveTrackingMap({
     if (!driverRef.current) {
       const el = document.createElement("div");
       el.className = "driver-pin";
-      el.innerHTML = carSvg();
+      el.innerHTML = vehicle === "bike" ? bikeSvg() : carSvg();
       driverRef.current = new maplibregl.Marker({ element: el })
         .setLngLat(pos)
         .addTo(map);
@@ -265,6 +268,18 @@ function sliceRoute(geom: [number, number][], t: number): [number, number][] {
     acc += seg;
   }
   return out;
+}
+
+// Scooter glyph for food deliveries — the partner is on two wheels, not in a cab.
+function bikeSvg(): string {
+  return `
+  <span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#3d1c00;box-shadow:0 4px 12px rgba(61,28,0,0.4);border:3px solid #fff;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="5.5" cy="17.5" r="2.5"/><circle cx="18.5" cy="17.5" r="2.5"/>
+      <path d="M12 17.5h-3l1.5-5h5"/><path d="M15.5 12.5 13 7h-2.5"/><path d="M18.5 17.5 15.5 12.5"/>
+      <path d="M13 7h2l1 2.5"/>
+    </svg>
+  </span>`;
 }
 
 function carSvg(): string {

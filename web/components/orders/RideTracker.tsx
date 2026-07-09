@@ -233,6 +233,7 @@ export function RideTracker({
             drop={drop}
             driverLocation={t?.driverLocation ?? null}
             done={Boolean(done)}
+            vehicle={isFood ? "bike" : "car"}
           />
         </div>
 
