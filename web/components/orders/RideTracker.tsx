@@ -106,27 +106,27 @@ export function RideTracker({
   // (mirrors the server's cut-off — the button disappears when it would 409).
   const canCancel = Boolean(t) && !done && !cancelled && (!isFood || !pickedUp);
 
-  // All user-facing copy in one place, per domain. Ride strings stay on the
-  // localized keys; the food set is Swiggy-shaped (localization follow-up).
+  // All user-facing copy in one place, per domain — every string comes from the
+  // localization layer (en/hi/te), for the ride AND food experiences alike.
   const L = isFood
     ? {
-        searchingTitle: "Preparing your order",
-        searchingSub: "Restaurant confirmed · assigning a delivery partner…",
-        headingTitle: "Preparing your order",
-        arrivedTitle: "Picking up your order",
-        onTheWayTitle: "Out for delivery",
-        minToDrop: "min to your door",
-        doneTitle: "Delivered",
-        doneSub: "Enjoy your meal!",
-        cancelledTitle: "Order cancelled",
-        cancelledSub: "This order was cancelled.",
-        partnerLabel: "Delivery partner",
-        tripsNoun: "deliveries",
-        otpLabel: "Delivery OTP",
-        cancelCta: "Cancel order",
-        keepCta: "Keep order",
-        confirmCancelCta: "Yes, cancel order",
-        cancellingCta: "Cancelling…",
+        searchingTitle: tr("track.food.preparing"),
+        searchingSub: tr("track.food.preparingSub"),
+        headingTitle: tr("track.food.preparing"),
+        arrivedTitle: tr("track.food.pickingUp"),
+        onTheWayTitle: tr("track.food.outForDelivery"),
+        minToDrop: tr("track.food.minToDoor"),
+        doneTitle: tr("track.food.delivered"),
+        doneSub: tr("track.food.enjoy"),
+        cancelledTitle: tr("track.food.cancelled"),
+        cancelledSub: tr("track.food.cancelledSub"),
+        partnerLabel: tr("track.food.partner"),
+        tripsNoun: tr("track.food.deliveries"),
+        otpLabel: tr("track.food.otp"),
+        cancelCta: tr("track.food.cancelOrder"),
+        keepCta: tr("track.food.keepOrder"),
+        confirmCancelCta: tr("track.food.confirmCancel"),
+        cancellingCta: tr("track.cancelling"),
       }
     : {
         searchingTitle: tr("track.searching"),
@@ -332,7 +332,7 @@ export function RideTracker({
               )}
               {isFood && !done && (
                 <p className="mt-1.5 text-[10.5px] text-muted">
-                  Share this OTP with the delivery partner at handover.
+                  {tr("track.food.otpHint")}
                 </p>
               )}
 
@@ -349,7 +349,7 @@ export function RideTracker({
                     href={`/profile/help?order=${orderId}`}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
                   >
-                    <LifeBuoy size={14} className="text-accent" /> Get help
+                    <LifeBuoy size={14} className="text-accent" /> {tr("track.food.getHelp")}
                   </Link>
                 ) : (
                   (canCancel || done) && (
