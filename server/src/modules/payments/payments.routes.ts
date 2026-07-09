@@ -12,6 +12,7 @@ import {
   verifyCashfreeWebhook,
 } from "./cashfree.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { sendReceiptEmail } from "../../lib/mailer.js";
 import { emitOrderConfirmation } from "../backoffice/ondc.service.js";
 
 export const paymentsRouter = Router();
@@ -80,6 +81,22 @@ async function markPaid(
   ]);
 
   const updated = await prisma.order.findUnique({ where: { id: orderId } });
+
+  // Fire-and-forget receipt email (no-op if SMTP isn't configured).
+  void prisma.user
+    .findUnique({ where: { id: order.userId }, select: { email: true } })
+    .then((u) => {
+      if (u && updated) {
+        return sendReceiptEmail(u.email, {
+          id: updated.id,
+          title: updated.title,
+          domain: updated.domain,
+          amount: updated.amount,
+          savedPaise: updated.savedPaise,
+        });
+      }
+    })
+    .catch((err) => console.error("[payments] receipt email failed:", err));
 
   // Fire-and-forget confirmation push (no-op if push isn't configured).
   void sendPushToUser(order.userId, {

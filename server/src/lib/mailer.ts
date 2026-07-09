@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
+import { otpEmail, welcomeEmail, receiptEmail, type OtpPurpose } from "./emailTemplates.js";
 
 const transport =
   env.SMTP_HOST && env.SMTP_PORT
@@ -17,7 +18,11 @@ const transport =
 // Test hook: under NODE_ENV=test, codes are captured here instead of sent.
 export const otpOutbox: Array<{ to: string; code: string }> = [];
 
-export async function sendOtpEmail(to: string, code: string) {
+export async function sendOtpEmail(
+  to: string,
+  code: string,
+  purpose: OtpPurpose = "signup",
+) {
   if (env.NODE_ENV === "test") {
     otpOutbox.push({ to, code });
     return;
@@ -27,10 +32,32 @@ export async function sendOtpEmail(to: string, code: string) {
     console.log(`[mailer] OTP for ${to}: ${code}`);
     return;
   }
-  await transport.sendMail({
-    from: env.MAIL_FROM,
-    to,
-    subject: `${code} is your Radiues verification code`,
-    text: `Your Radiues verification code is ${code}. It expires in 10 minutes. If you didn't request this, ignore this email.`,
-  });
+  const mail = otpEmail(code, purpose);
+  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+}
+
+// Non-OTP mail is best-effort: auth and payment flows must never fail because
+// an email couldn't be sent, so callers fire-and-forget and errors only log.
+
+export async function sendWelcomeEmail(to: string, name: string) {
+  if (env.NODE_ENV === "test" || !transport) return;
+  try {
+    const mail = welcomeEmail(name);
+    await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+  } catch (err) {
+    console.error(`[mailer] welcome email to ${to} failed:`, err);
+  }
+}
+
+export async function sendReceiptEmail(
+  to: string,
+  order: { id: string; title: string; domain: string; amount: number; savedPaise: number },
+) {
+  if (env.NODE_ENV === "test" || !transport) return;
+  try {
+    const mail = receiptEmail(order);
+    await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+  } catch (err) {
+    console.error(`[mailer] receipt email to ${to} failed:`, err);
+  }
 }

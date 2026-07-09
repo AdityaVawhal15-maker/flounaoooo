@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/prisma.js";
-import { sendOtpEmail } from "../../lib/mailer.js";
+import { sendOtpEmail, sendWelcomeEmail } from "../../lib/mailer.js";
 import {
   clearAuthCookies,
   hashPassword,
@@ -148,6 +148,8 @@ authRouter.post(
         where: { email },
         data: { emailVerified: true },
       });
+      // Best-effort — never blocks or fails the verification response.
+      void sendWelcomeEmail(user.email, user.name ?? "");
       await startSession(res, user.id);
       res.json({ user: publicUser(user) });
     } catch (err) {
@@ -306,7 +308,7 @@ authRouter.post(
         target: email,
         purpose: "step_up",
       });
-      await sendOtpEmail(email, code);
+      await sendOtpEmail(email, code, "step_up");
       res.json({ next: "otp" });
     } catch (err) {
       next(err);
@@ -410,7 +412,7 @@ authRouter.post(
           target: email,
           purpose: "reset",
         });
-        await sendOtpEmail(email, code);
+        await sendOtpEmail(email, code, "reset");
       }
       res.json({ ok: true });
     } catch (err) {
