@@ -198,7 +198,7 @@ export function LiveTrackingMap({
     };
     if (map.isStyleLoaded()) trim();
     else map.once("load", trim);
-  }, [driverLocation, done, route]);
+  }, [driverLocation, done, route, vehicle]);
 
   return <div ref={containerRef} className="size-full min-h-[260px]" />;
 }
