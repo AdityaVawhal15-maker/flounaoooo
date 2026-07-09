@@ -9,15 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { GroupCart } from "@/components/food/GroupCartTypes";
 
-const PLATFORMS = [
-  { key: "ondc", label: "ONDC (in-app)" },
-  { key: "swiggy", label: "Swiggy" },
-  { key: "zomato", label: "Zomato" },
-] as const;
-
 export default function GroupStartPage() {
   const router = useRouter();
-  const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]["key"]>("ondc");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,9 +19,10 @@ export default function GroupStartPage() {
     setBusy(true);
     setError("");
     try {
+      // All group orders fulfil in-app — no network choice to make.
       const cart = await api<GroupCart>("/api/groups", {
         method: "POST",
-        json: { platform },
+        json: { platform: "ondc" },
       });
       router.push(`/food/group/${cart.id}`);
     } catch (e) {
@@ -72,21 +66,9 @@ export default function GroupStartPage() {
       {/* Start new */}
       <Card className="mt-5">
         <p className="text-[14px] font-bold text-ink">Start a new group order</p>
-        <div className="mt-3 flex gap-2">
-          {PLATFORMS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setPlatform(p.key)}
-              className={
-                p.key === platform
-                  ? "flex-1 rounded-pill border border-accent bg-accent-soft px-3 py-2 text-[12px] font-semibold text-accent"
-                  : "flex-1 rounded-pill border border-line bg-card px-3 py-2 text-[12px] text-cocoa hover:bg-beige/40"
-              }
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <p className="mt-1 text-[12px] text-cocoa">
+          Everyone orders inside Radiues — one shared cart, one payment, split equally.
+        </p>
         <Button onClick={create} disabled={busy} className="mt-4 w-full">
           Create &amp; get a code
         </Button>

@@ -27,6 +27,7 @@ type OrderDetail = {
     restaurant?: string;
     name?: string;
     productName?: string;
+    displayName?: string;
   };
   payment: { status: string; method: string | null } | null;
 };
@@ -94,7 +95,7 @@ export default function InvoicePage({
   const dt = new Date(order.createdAt);
   const paid = PAID_STATUSES.has(order.status) || order.payment?.status === "success";
   const seller =
-    order.details.restaurant ?? order.details.productName ?? order.provider.toUpperCase();
+    order.details.restaurant ?? order.details.displayName ?? "Radiues fulfilment partner";
 
   // Line items. The total shown is always order.amount (the authoritative,
   // server-computed charge). We derive the line subtotal and only render fee
@@ -114,7 +115,7 @@ export default function InvoicePage({
     const fare = order.details.farePaise;
     if (fare != null)
       lines.push({
-        label: `${order.details.productName ?? "Ride"} · ${order.details.pickup ?? "pickup"} → ${order.details.drop ?? "drop"}`,
+        label: `${order.details.displayName ?? "Ride"} · ${order.details.pickup ?? "pickup"} → ${order.details.drop ?? "drop"}`,
         value: fare,
       });
   }
@@ -183,8 +184,7 @@ export default function InvoicePage({
             <p className="font-semibold uppercase tracking-wide text-cocoa">Fulfilled by</p>
             <p className="mt-1 text-ink">{seller}</p>
             <p className="text-cocoa">
-              via {order.provider.toUpperCase()} ·{" "}
-              {order.domain === "food" ? "Food" : "Ride"}
+              {order.domain === "food" ? "Food delivery" : "Ride"} · via Radiues
             </p>
           </div>
           <div className="text-right">
