@@ -404,7 +404,7 @@ function RidesInner() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-                          {q.productName}
+                          {q.displayName}
                           {q.badge && (
                             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                               {q.badge}
@@ -447,7 +447,7 @@ function RidesInner() {
             {busy
               ? "Booking…"
               : selected
-                ? `Confirm ${selected.productName} · ${rupees(selected.effectivePaise)}`
+                ? `Confirm ${selected.displayName} · ${rupees(selected.effectivePaise)}`
                 : pickup && drop
                   ? "Choose a ride"
                   : "Select Drop"}

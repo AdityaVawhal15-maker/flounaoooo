@@ -15,7 +15,7 @@ export default function AboutPage() {
         <p className="text-[13px] leading-relaxed text-cocoa">
           Radiues is your AI decision engine. Instead of switching between apps and
           comparing prices yourself, you tell Radiues what you need — it searches
-          across ONDC and partner platforms, applies the best offers, reads the
+          across restaurants and mobility partners, applies the best offers, reads the
           reviews, and gives you one clear answer.
         </p>
         <p className="mt-3 text-[13px] font-semibold text-ink">

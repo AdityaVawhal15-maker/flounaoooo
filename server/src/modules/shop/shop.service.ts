@@ -124,21 +124,21 @@ export function recommendProduct(
 
   let why: string;
   if (priority === "rating") {
-    why = `Top-rated pick — ${best.rating}★ (${best.reviews.toLocaleString("en-IN")} reviews) on ${best.platform}`;
+    why = `Top-rated pick — ${best.rating}★ (${best.reviews.toLocaleString("en-IN")} reviews)`;
   } else if (priority === "speed") {
-    why = `Fastest delivery — ${best.deliveryDays} day${best.deliveryDays > 1 ? "s" : ""} on ${best.platform}, rated ${best.rating}★`;
+    why = `Fastest delivery — ${best.deliveryDays} day${best.deliveryDays > 1 ? "s" : ""}, rated ${best.rating}★`;
   } else if (priority === "price") {
-    why = `Lowest effective price after offers on ${best.platform}`;
+    why = `Lowest effective price after offers`;
     if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
   } else {
     why = `Best overall — ${best.rating}★, ${best.deliveryDays}-day delivery`;
     if (saving > 0) why += `, and ₹${Math.round(saving / 100)} cheaper than the next`;
-    else why += ` on ${best.platform}`;
+    else why += ` — best value across sellers`;
   }
   if (topRated.rating > best.rating && priority !== "rating") {
     why += `. Highest rated: ${topRated.brand} at ${topRated.rating}★`;
   } else if (fastest.deliveryDays < best.deliveryDays && priority !== "speed") {
-    why += `. Need it sooner? ${fastest.platform} delivers in ${fastest.deliveryDays} day${fastest.deliveryDays > 1 ? "s" : ""}`;
+    why += `. Need it sooner? Another seller delivers in ${fastest.deliveryDays} day${fastest.deliveryDays > 1 ? "s" : ""}`;
   }
 
   return { best, alternatives, why, pickReason: reasonForPriority(priority) };

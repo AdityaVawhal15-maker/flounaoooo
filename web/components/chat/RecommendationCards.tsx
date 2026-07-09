@@ -82,7 +82,7 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
             <span className="flex items-center gap-0.5">
               <Clock size={12} /> {q.etaMinutes} min
             </span>
-            <span className="uppercase">{q.platform}</span>
+
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -170,7 +170,7 @@ function RideQuoteRow({ q, drop }: { q: RideQuote; drop?: string }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-            {q.productName}
+            {q.displayName}
             {q.badge && (
               <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                 {q.badge}
@@ -300,7 +300,7 @@ function ProductRow({ q, highlight }: { q: ProductQuote; highlight?: boolean }) 
             <span className="flex items-center gap-0.5">
               <Truck size={12} /> {q.deliveryDays}d
             </span>
-            <span className="uppercase">{q.platform}</span>
+
           </p>
         </div>
         <div className="shrink-0 text-right">

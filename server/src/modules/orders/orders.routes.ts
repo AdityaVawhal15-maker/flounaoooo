@@ -176,7 +176,7 @@ ordersRouter.post(
           status: "pending_payment",
           provider: quote.provider,
           fulfillment: quote.fulfillment,
-          title: `${quote.productName}: ${body.pickup} → ${body.drop}`,
+          title: `${quote.displayName}: ${body.pickup} → ${body.drop}`,
           details: JSON.stringify({
             ...quote,
             pickup: body.pickup,

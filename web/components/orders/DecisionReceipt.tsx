@@ -30,7 +30,7 @@ export function DecisionReceipt({
 
   const what = domain === "food" ? "my food order" : "my ride";
   const shareText =
-    `Radiues compared ${comparedOptions} options across ${comparedPlatforms} platforms for ${what}` +
+    `Radiues compared ${comparedOptions} options across ${comparedPlatforms} apps for ${what}` +
     (savedPaise > 0 ? ` and saved me ${rupees(savedPaise)}` : " and picked the best one") +
     ". Stop searching, start deciding 🔶";
 
@@ -90,7 +90,7 @@ export function DecisionReceipt({
       </p>
       <p className="mt-2 text-[15px] font-bold leading-snug text-ink">
         Radiues compared {comparedOptions} options across {comparedPlatforms}{" "}
-        platforms
+        apps
         {savedPaise > 0 ? (
           <>
             {" "}

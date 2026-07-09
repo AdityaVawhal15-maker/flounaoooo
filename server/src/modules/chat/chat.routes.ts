@@ -134,7 +134,7 @@ async function buildAssistantPayload(
           drop: intent.ride.drop,
           pickup: intent.ride.pickup,
           quotes: rideQuotes.slice(0, 3),
-          why: `Cheapest fare is ${rideQuotes[0]?.productName} — open Rides to set exact pickup.`,
+          why: `Cheapest fare is ${rideQuotes[0]?.displayName} — open Rides to set exact pickup.`,
           advice: await adviseRide(rideQuotes[0]?.vehicle ?? null, ctx.now, ctx),
         },
       },
@@ -208,7 +208,7 @@ async function buildAssistantPayload(
         drop: intent.ride.drop,
         pickup: intent.ride.pickup,
         quotes: sent,
-        why: `Cheapest effective fare is ${quotes[0]?.productName} after offers — open Rides to set exact pickup and book.`,
+        why: `Cheapest effective fare is ${quotes[0]?.displayName} after offers — open Rides to set exact pickup and book.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };

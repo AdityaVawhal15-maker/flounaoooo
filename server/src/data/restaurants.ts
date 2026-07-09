@@ -45,7 +45,7 @@ export const dishes: Dish[] = [
         basePaise: 24900,
         deliveryFeePaise: 1500,
         etaMinutes: 30,
-        offers: [{ label: "ONDC launch offer", discountPaise: 3500 }],
+        offers: [{ label: "Radiues launch offer", discountPaise: 3500 }],
       },
       {
         platform: "swiggy",
@@ -147,7 +147,7 @@ export const dishes: Dish[] = [
         basePaise: 13900,
         deliveryFeePaise: 2000,
         etaMinutes: 21,
-        offers: [{ label: "Zomato Gold", discountPaise: 1400 }],
+        offers: [{ label: "Gold member offer", discountPaise: 1400 }],
       },
     ],
   },

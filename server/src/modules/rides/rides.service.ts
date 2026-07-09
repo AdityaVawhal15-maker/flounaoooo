@@ -104,7 +104,8 @@ export type VehicleType = "bike" | "auto" | "cab";
 export type RideQuote = {
   provider: "uber" | "ola" | "rapido" | "ondc";
   vehicle: VehicleType;
-  productName: string;
+  productName: string; // internal id — order matching keys on this
+  displayName: string; // what users see: neutral tier, no network brand
   farePaise: number;
   offers: { label: string; discountPaise: number }[];
   effectivePaise: number;
@@ -120,6 +121,7 @@ type ProviderConfig = {
   products: Array<{
     vehicle: VehicleType;
     name: string;
+    displayName: string;
     basePaise: number;
     perKmPaise: number;
     pickupEta: number;
@@ -128,35 +130,38 @@ type ProviderConfig = {
   }>;
 };
 
+// `name` is the internal product id (stable — order matching + tests key on it).
+// `displayName` is what users see: neutral service tiers with NO network brand —
+// users book with Radiues; ONDC routes to whichever registered partner fulfils.
 const providers: ProviderConfig[] = [
   {
     provider: "uber",
     products: [
-      { vehicle: "bike", name: "Uber Moto", basePaise: 2000, perKmPaise: 600, pickupEta: 5, rating: 4.7 },
-      { vehicle: "auto", name: "Uber Auto", basePaise: 3000, perKmPaise: 1100, pickupEta: 4, rating: 4.9 },
-      { vehicle: "cab", name: "Uber Go", basePaise: 5000, perKmPaise: 1600, pickupEta: 6, rating: 4.8 },
+      { vehicle: "bike", name: "Uber Moto", displayName: "Bike", basePaise: 2000, perKmPaise: 600, pickupEta: 5, rating: 4.7 },
+      { vehicle: "auto", name: "Uber Auto", displayName: "Auto", basePaise: 3000, perKmPaise: 1100, pickupEta: 4, rating: 4.9 },
+      { vehicle: "cab", name: "Uber Go", displayName: "Cab", basePaise: 5000, perKmPaise: 1600, pickupEta: 6, rating: 4.8 },
     ],
   },
   {
     provider: "ola",
     products: [
-      { vehicle: "bike", name: "Ola Bike", basePaise: 1800, perKmPaise: 580, pickupEta: 7, rating: 4.4 },
-      { vehicle: "auto", name: "Ola Auto", basePaise: 2800, perKmPaise: 1050, pickupEta: 6, rating: 4.5, offer: { label: "Coupon OLA50", discountPaise: 5000 } },
-      { vehicle: "cab", name: "Ola Mini", basePaise: 4800, perKmPaise: 1500, pickupEta: 8, rating: 4.4 },
+      { vehicle: "bike", name: "Ola Bike", displayName: "Bike Lite", basePaise: 1800, perKmPaise: 580, pickupEta: 7, rating: 4.4 },
+      { vehicle: "auto", name: "Ola Auto", displayName: "Auto Plus", basePaise: 2800, perKmPaise: 1050, pickupEta: 6, rating: 4.5, offer: { label: "Coupon RIDE50", discountPaise: 5000 } },
+      { vehicle: "cab", name: "Ola Mini", displayName: "Cab Mini", basePaise: 4800, perKmPaise: 1500, pickupEta: 8, rating: 4.4 },
     ],
   },
   {
     provider: "rapido",
     products: [
-      { vehicle: "bike", name: "Rapido Bike", basePaise: 1500, perKmPaise: 520, pickupEta: 3, rating: 4.3, offer: { label: "First ride ₹25 off", discountPaise: 2500 } },
-      { vehicle: "auto", name: "Rapido Auto", basePaise: 2600, perKmPaise: 1000, pickupEta: 7, rating: 4.2 },
+      { vehicle: "bike", name: "Rapido Bike", displayName: "Bike Express", basePaise: 1500, perKmPaise: 520, pickupEta: 3, rating: 4.3, offer: { label: "First ride ₹25 off", discountPaise: 2500 } },
+      { vehicle: "auto", name: "Rapido Auto", displayName: "Auto Express", basePaise: 2600, perKmPaise: 1000, pickupEta: 7, rating: 4.2 },
     ],
   },
   {
     provider: "ondc",
     products: [
-      { vehicle: "auto", name: "ONDC Auto", basePaise: 2400, perKmPaise: 950, pickupEta: 6, rating: 4.3, offer: { label: "Network pricing", discountPaise: 1500 } },
-      { vehicle: "cab", name: "ONDC Cab", basePaise: 4200, perKmPaise: 1400, pickupEta: 9, rating: 4.2 },
+      { vehicle: "auto", name: "ONDC Auto", displayName: "Auto Saver", basePaise: 2400, perKmPaise: 950, pickupEta: 6, rating: 4.3, offer: { label: "Smart network pricing", discountPaise: 1500 } },
+      { vehicle: "cab", name: "ONDC Cab", displayName: "Cab Saver", basePaise: 4200, perKmPaise: 1400, pickupEta: 9, rating: 4.2 },
     ],
   },
 ];
@@ -180,6 +185,7 @@ export function quoteRides(opts: {
           provider: p.provider,
           vehicle: prod.vehicle,
           productName: prod.name,
+          displayName: prod.displayName,
           farePaise: fare,
           offers,
           effectivePaise: Math.max(0, fare - discount),

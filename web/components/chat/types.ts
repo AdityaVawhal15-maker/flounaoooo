@@ -19,6 +19,7 @@ export type RideQuote = {
   provider: string;
   vehicle: string;
   productName: string;
+  displayName: string;
   farePaise: number;
   offers: { label: string; discountPaise: number }[];
   effectivePaise: number;

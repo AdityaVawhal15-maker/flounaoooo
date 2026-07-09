@@ -126,19 +126,19 @@ export function recommendFood(
 
   let why: string;
   if (priority === "rating") {
-    why = `Top-rated pick — ${best.rating}★ at ${best.restaurant} on ${best.platform.toUpperCase()}`;
+    why = `Top-rated pick — ${best.rating}★ at ${best.restaurant}`;
     if (best.dishId === cheapest.dishId && best.platform === cheapest.platform)
       why += ", and it's the best price too";
   } else if (priority === "speed") {
     why = `Fastest good option — arrives in ${best.etaMinutes} min, rated ${best.rating}★`;
   } else if (priority === "price") {
-    why = `Best effective price after offers on ${best.platform.toUpperCase()}`;
+    why = `Best effective price after offers`;
     if (saving > 0) why += ` — you save ₹${Math.round(saving / 100)} vs the next option`;
   } else {
     // balanced: explain the trade-off it optimised
     why = `Best overall — ${best.rating}★, ${best.etaMinutes} min`;
     if (saving > 0) why += `, and ₹${Math.round(saving / 100)} cheaper than the next`;
-    else why += ` on ${best.platform.toUpperCase()}`;
+    else why += ` — best value right now`;
   }
   if (topRated.rating > best.rating && priority !== "rating") {
     why += `. Want the highest rated? ${topRated.restaurant} is ${topRated.rating}★`;
