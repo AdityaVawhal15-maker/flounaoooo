@@ -116,7 +116,9 @@ function compute(
   vehicle: DriverInfo["vehicle"]["type"],
   rideSeconds: number,
   elapsedS: number,
+  domain: "ride" | "food" = "ride",
 ): RideAssignment {
+  const isFood = domain === "food";
   const otp = otpFor(seed);
   const driver = makeDriver(seed, vehicle);
 
@@ -136,27 +138,35 @@ function compute(
     driverOut = null;
     driverLocation = null;
     pickupEtaMinutes = Math.ceil(ARRIVE_SECONDS / 60);
-    statusMessage = "Finding you the nearest captain…";
+    statusMessage = isFood
+      ? "Restaurant is preparing your order…"
+      : "Finding you the nearest captain…";
   } else if (elapsedS < arriveEnd) {
     state = "arriving";
     const p = (elapsedS - SEARCH_SECONDS) / ARRIVE_SECONDS;
     driverLocation = approachPoint(pickup, drop, p);
     pickupEtaMinutes = Math.max(1, Math.ceil((arriveEnd - elapsedS) / 60));
-    statusMessage = `${driver.name} is arriving in ${pickupEtaMinutes} min`;
+    statusMessage = isFood
+      ? `${driver.name} is heading to the restaurant`
+      : `${driver.name} is arriving in ${pickupEtaMinutes} min`;
   } else if (elapsedS < handoverEnd) {
     state = "arrived";
     driverLocation = pickup;
-    statusMessage = `${driver.name} has arrived — share OTP ${otp}`;
+    statusMessage = isFood
+      ? `${driver.name} is picking up your order`
+      : `${driver.name} has arrived — share OTP ${otp}`;
   } else if (elapsedS < tripEnd) {
     state = "in_progress";
     const p = (elapsedS - handoverEnd) / rideSeconds;
     driverLocation = pointAlong(geom, p);
     dropEtaMinutes = Math.max(1, Math.ceil((tripEnd - elapsedS) / 60));
-    statusMessage = `On the way — ${dropEtaMinutes} min to your drop`;
+    statusMessage = isFood
+      ? `Out for delivery — ${dropEtaMinutes} min to you`
+      : `On the way — ${dropEtaMinutes} min to your drop`;
   } else {
     state = "completed";
     driverLocation = drop;
-    statusMessage = "Trip completed";
+    statusMessage = isFood ? "Delivered — enjoy your meal!" : "Trip completed";
   }
 
   return {
@@ -196,6 +206,7 @@ export class SimulationProvider implements RideProvider {
     routeGeometry: [number, number][];
     bookedAt: Date;
     now?: Date;
+    domain?: "ride" | "food";
   }): Promise<RideAssignment> {
     const elapsedS = Math.max(
       0,
@@ -209,6 +220,7 @@ export class SimulationProvider implements RideProvider {
       input.vehicle,
       this.rideSeconds(input.routeGeometry),
       elapsedS,
+      input.domain ?? "ride",
     );
   }
 

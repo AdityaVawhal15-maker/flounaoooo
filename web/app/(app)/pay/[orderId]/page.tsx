@@ -59,7 +59,16 @@ export default function PayPage({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api<Status>(`/api/payments/status/${orderId}`)
+    // Verify-then-load: if the buyer is returning from the Cashfree checkout,
+    // the server confirms the payment against Cashfree directly (webhook-
+    // independent), so a paid order shows success immediately instead of
+    // re-offering payment. Harmless no-op for unpaid/simulated orders.
+    api<{ orderStatus: string }>("/api/payments/verify", {
+      method: "POST",
+      json: { orderId },
+    })
+      .catch(() => null)
+      .then(() => api<Status>(`/api/payments/status/${orderId}`))
       .then((s) => {
         setStatus(s);
         if (s.orderStatus !== "pending_payment") setStage("done");
