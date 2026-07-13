@@ -207,6 +207,43 @@ describe("payments", () => {
     expect(status.body.payment.status).toBe("success");
   });
 
+  it("a webhook arriving before checkout still writes payment + timeline atomically", async () => {
+    // Regression: the status claim used to commit before the payment/tracking
+    // transaction, so a webhook for an order with no payment row (checkout
+    // never called) left the order "confirmed" with no payment and no tracking
+    // events — and tracking then fell back to createdAt, breaking scheduled
+    // rides. Claim + payment upsert + events now share one transaction.
+    const { agent } = await authedAgent();
+    const created = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "dum-biryani", platform: "ondc" })
+      .expect(201);
+    const orderId = created.body.order.id as string;
+    const amount = created.body.order.amount as number;
+    // NOTE: no /payments/checkout call — no Payment row exists yet.
+
+    const { body, timestamp, signature } = signedWebhook({
+      orderId,
+      amountRupees: amount / 100,
+    });
+    await request(app)
+      .post("/api/payments/webhook/cashfree")
+      .set("Content-Type", "application/json")
+      .set("x-webhook-signature", signature)
+      .set("x-webhook-timestamp", timestamp)
+      .send(JSON.parse(body))
+      .expect(200);
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payment: true, trackingEvents: true },
+    });
+    expect(order?.status).toBe("confirmed");
+    expect(order?.payment?.status).toBe("success"); // upserted, not missing
+    expect(order?.payment?.amount).toBe(amount);
+    expect(order?.trackingEvents.length).toBeGreaterThan(0); // timeline written
+  });
+
   it("does NOT confirm an order when the paid amount is too low (C1)", async () => {
     const { agent } = await authedAgent();
     const { orderId, amount } = await freshPaidOrder(agent);
