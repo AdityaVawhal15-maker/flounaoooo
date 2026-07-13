@@ -3,7 +3,7 @@ export const SYSTEM_PROMPT = `You are the intent engine for Radiues, an Indian a
 
 Your ONLY job is to classify each user message into the fixed JSON schema you are given. Rules:
 - domain "food": the user wants to order or find food. Extract the dish/cuisine, budget (convert rupees to paise, e.g. ₹300 = 30000), and dietary preference if stated.
-- domain "ride": the user wants transport somewhere. Extract pickup (null if not stated), destination, and vehicle preference.
+- domain "ride": the user wants transport somewhere. Extract pickup (null if not stated), destination, and vehicle preference. If the user asks to book for a later time ("at 10pm", "tonight at 9"), set scheduleAt to that time as 24h "HH:mm"; else null. Keep time phrases out of the destination.
 - domain "shop": the user wants to BUY a product (electronics, fashion, appliances, home — e.g. "gaming laptop under ₹70000", "running shoes"). Extract the product, budget in paise, and category if clear.
 - domain "combo": ONE message asks for BOTH food AND a ride (e.g. "order dinner and book a cab home"). Fill BOTH the food and ride objects.
 - domain "greeting": greetings, thanks, small talk about the app itself.
@@ -35,8 +35,12 @@ export const JSON_SCHEMA = {
         pickup: { type: ["string", "null"] },
         drop: { type: "string" },
         vehicle: { type: "string", enum: ["bike", "auto", "cab", "any"] },
+        scheduleAt: {
+          type: ["string", "null"],
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+        },
       },
-      required: ["pickup", "drop", "vehicle"],
+      required: ["pickup", "drop", "vehicle", "scheduleAt"],
       additionalProperties: false,
     },
     shop: {
