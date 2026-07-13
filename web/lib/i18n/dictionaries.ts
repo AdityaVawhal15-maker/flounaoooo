@@ -13,8 +13,12 @@ export const dictionaries = {
   en: {
     "landing.headline1": "Stop Searching",
     "landing.headline2": "Start Deciding",
+    "landing.blurb":
+      "Radiues is your AI decision engine that finds the single best option across food, rides and more all in one place. No switching apps. No endless comparisons. Just the smartest choice, instantly.",
     "landing.getStarted": "Get Started",
     "landing.login": "Log In",
+    "landing.privacy": "Privacy Policy",
+    "landing.terms": "Terms of Service",
     "nav.home": "Home",
     "nav.history": "History",
     "nav.food": "Food",
@@ -110,8 +114,12 @@ export const dictionaries = {
   hi: {
     "landing.headline1": "खोजना बंद करें",
     "landing.headline2": "फ़ैसला करें",
+    "landing.blurb":
+      "Radiues आपका AI निर्णय इंजन है जो खाना, राइड और बहुत कुछ — सबके लिए सबसे अच्छा विकल्प एक ही जगह ढूँढता है। न ऐप बदलना, न अंतहीन तुलना। बस सबसे समझदारी भरा चुनाव, तुरंत।",
     "landing.getStarted": "शुरू करें",
     "landing.login": "लॉग इन करें",
+    "landing.privacy": "गोपनीयता नीति",
+    "landing.terms": "सेवा की शर्तें",
     "nav.home": "होम",
     "nav.history": "इतिहास",
     "nav.food": "खाना",
@@ -207,8 +215,12 @@ export const dictionaries = {
   te: {
     "landing.headline1": "వెతకడం ఆపండి",
     "landing.headline2": "నిర్ణయించండి",
+    "landing.blurb":
+      "Radiues మీ AI నిర్ణయ ఇంజిన్ — ఫుడ్, రైడ్స్ ఇంకా మరెన్నో విషయాల్లో ఉత్తమ ఎంపికను ఒకే చోట కనుగొంటుంది. యాప్‌లు మారాల్సిన పని లేదు, అంతులేని పోలికలు లేవు. అత్యంత తెలివైన ఎంపిక, క్షణాల్లో.",
     "landing.getStarted": "ప్రారంభించండి",
     "landing.login": "లాగిన్",
+    "landing.privacy": "గోప్యతా విధానం",
+    "landing.terms": "సేవా నిబంధనలు",
     "nav.home": "హోమ్",
     "nav.history": "చరిత్ర",
     "nav.food": "ఆహారం",
