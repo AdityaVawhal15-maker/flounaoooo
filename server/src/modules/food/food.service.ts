@@ -57,12 +57,37 @@ function toQuotes(dish: Dish): FoodQuote[] {
   }));
 }
 
+// Taste/mood descriptors → catalog keywords. Chat requests arrive as free
+// text ("something spicy", "light dinner") that no dish keyword contains —
+// without this the search falls through to the whole catalog and the scorer
+// can pick something absurd (a dessert for "spicy"). Keys are what users say;
+// values are keywords that exist in the catalog.
+const DESCRIPTOR_KEYWORDS: Record<string, string[]> = {
+  spicy: ["biryani", "momos", "roll", "thali"],
+  hot: ["biryani", "momos"],
+  sweet: ["cake", "dessert"],
+  dessert: ["cake", "ice cream"],
+  light: ["salad", "dosa", "momos"],
+  healthy: ["salad", "bowl", "quinoa"],
+  protein: ["salad", "chicken", "paneer"],
+  breakfast: ["dosa", "idli"],
+  tiffin: ["dosa", "idli"],
+  snack: ["momos", "roll"],
+  snacks: ["momos", "roll"],
+  lunch: ["thali", "biryani", "meals"],
+  dinner: ["biryani", "thali", "pizza"],
+  chinese: ["momos"],
+  italian: ["pizza", "pasta"],
+  cheesy: ["pizza", "pasta"],
+};
+
 export function searchFood(opts: {
   query: string;
   budgetPaise?: number | null;
   dietary?: "veg" | "nonveg" | "any";
 }): FoodQuote[] {
-  const terms = opts.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const direct = opts.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const terms = [...direct, ...direct.flatMap((t) => DESCRIPTOR_KEYWORDS[t] ?? [])];
 
   let matched = dishes.filter((d) =>
     terms.some(
