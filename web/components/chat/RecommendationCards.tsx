@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet, Zap, Award, Tag } from "lucide-react";
+import { Star, Clock, Sparkles, Truck, Package, Wallet, Zap, Award, Tag } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
 import { FadeIn } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
+import { DishArt } from "@/components/food/DishArt";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import type {
@@ -66,9 +67,7 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
       }
     >
       <div className="flex items-start gap-3">
-        <span className="shrink-0">
-          <CategoryTile icon={Utensils} theme={highlight ? "orange" : "amber"} size={46} />
-        </span>
+        <DishArt name={q.name} size={46} />
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}

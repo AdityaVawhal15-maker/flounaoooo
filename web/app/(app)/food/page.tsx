@@ -24,6 +24,7 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { BudgetBar, useBudget } from "@/components/food/BudgetBar";
+import { DishArt } from "@/components/food/DishArt";
 import { FadeIn, ScrollReveal, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -266,12 +267,13 @@ export default function FoodLandingPage() {
   );
 }
 
-// Dish card — Figma layout: tag pill, name, clock · rating, price + Order now.
-// No left icon tile (matches the design).
+// Dish card — Figma layout: tag pill, name, clock · rating, price + Order now,
+// with a dish-art tile standing in until real photography lands.
 function DishRow({ q }: { q: FoodQuote }) {
   return (
     <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
       <div className="flex items-center gap-3">
+        <DishArt name={q.name} size={48} />
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}

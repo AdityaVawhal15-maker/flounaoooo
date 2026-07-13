@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import dynamic from "next/dynamic";
 import { useBudget } from "@/components/food/BudgetBar";
+import { DishArt } from "@/components/food/DishArt";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
 
@@ -109,16 +110,21 @@ export default function FoodOrderPage({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6 lg:px-6">
-      <h1 className="text-[20px] font-bold text-ink">{selected.name}</h1>
-      <p className="text-[13px] text-cocoa">{selected.restaurant}</p>
-      <p className="mt-1 flex items-center gap-3 text-[12px] text-cocoa">
-        <span className="flex items-center gap-0.5">
-          <Star size={12} className="fill-accent text-accent" /> {selected.rating}
-        </span>
-        <span className="flex items-center gap-0.5">
-          <Clock size={12} /> {selected.etaMinutes} min
-        </span>
-      </p>
+      <div className="flex items-center gap-3.5">
+        <DishArt name={selected.name} size={64} />
+        <div className="min-w-0">
+          <h1 className="text-[20px] font-bold text-ink">{selected.name}</h1>
+          <p className="text-[13px] text-cocoa">{selected.restaurant}</p>
+          <p className="mt-1 flex items-center gap-3 text-[12px] text-cocoa">
+            <span className="flex items-center gap-0.5">
+              <Star size={12} className="fill-accent text-accent" /> {selected.rating}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Clock size={12} /> {selected.etaMinutes} min
+            </span>
+          </p>
+        </div>
+      </div>
 
       <p className="mt-4 text-[12px] italic leading-relaxed text-cocoa">
         “{selected.reviewSummary}”
