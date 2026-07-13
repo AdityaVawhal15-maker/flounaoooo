@@ -3,7 +3,7 @@ import type { Intent, LlmProvider } from "./types.js";
 // Keyless fallback so the whole product runs without any LLM account.
 // Simple keyword rules — replaced in production by Anthropic/DeepSeek.
 const FOOD_WORDS =
-  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry)\b/i;
+  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry|spicy|sweet|healthy|cheesy|meal|craving)\b/i;
 const RIDE_WORDS =
   /\b(ride|cab|taxi|auto|bike|uber|ola|rapido|drop|pickup|pick me|airport|station|office|go to|take me)\b/i;
 const SHOP_WORDS =

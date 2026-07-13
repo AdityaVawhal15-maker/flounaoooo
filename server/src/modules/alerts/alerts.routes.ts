@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { searchFood } from "../food/food.service.js";
+import { quotesForDish } from "../food/food.service.js";
 
 export const alertsRouter = Router();
 alertsRouter.use(requireAuth);
@@ -22,8 +22,9 @@ alertsRouter.post("/", validateBody(createBody), async (req, res, next) => {
     const { itemKey, targetRupees } = req.body as z.infer<typeof createBody>;
 
     // Look up the dish server-side — name and current price are trusted, never
-    // taken from the client.
-    const quote = searchFood({ query: "" }).find((q) => q.dishId === itemKey);
+    // taken from the client. Direct id lookup so it works for every dish
+    // including desserts, independent of the text-search tuning.
+    const quote = quotesForDish(itemKey)[0];
     if (!quote) throw new ApiError(404, "That item is no longer available");
 
     const activeCount = await prisma.priceAlert.count({

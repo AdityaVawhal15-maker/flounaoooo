@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { searchFood } from "../food/food.service.js";
+import { quotesForDish } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
 import { predictForUser } from "../advisor/prediction.service.js";
@@ -275,7 +275,7 @@ usersRouter.get("/usual", async (req, res, next) => {
     if (!top || top[1] < 2) return res.json({ usual: null });
 
     const [dishId, timesOrdered] = top;
-    const bestNow = searchFood({ query: "" }).find((q) => q.dishId === dishId);
+    const bestNow = quotesForDish(dishId)[0];
     if (!bestNow) return res.json({ usual: null });
 
     res.json({ usual: { ...bestNow, timesOrdered } });

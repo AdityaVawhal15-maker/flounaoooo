@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
-import { recommendFood, searchFood } from "./food.service.js";
+import { recommendFood, searchFood, quotesForDish, allQuotes } from "./food.service.js";
 import { dishes } from "../../data/restaurants.js";
 import { adviseFood } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
@@ -23,7 +23,7 @@ foodRouter.get("/feed", async (_req, res) => {
     })
     .filter((q) => q !== undefined);
 
-  const all = searchFood({ query: "" });
+  const all = allQuotes();
   const fastest = Math.min(...all.map((q) => q.etaMinutes));
   const topRated = dishes.filter((d) => d.rating >= 4.0).length;
 
@@ -75,9 +75,7 @@ foodRouter.get("/recommend", (req, res, next) => {
 
 // Quote detail for the order screen — dish + chosen platform listing.
 foodRouter.get("/dishes/:dishId", (req, res) => {
-  const quotes = searchFood({ query: "" }).filter(
-    (q) => q.dishId === req.params.dishId,
-  );
+  const quotes = quotesForDish(req.params.dishId);
   if (quotes.length === 0) {
     return res.status(404).json({ error: "Dish not found" });
   }

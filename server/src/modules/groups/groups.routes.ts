@@ -5,7 +5,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { searchFood } from "../food/food.service.js";
+import { quotesForDish } from "../food/food.service.js";
 import { sendPushToUser } from "../notifications/push.service.js";
 import { joinLimiter } from "../../middleware/rateLimit.js";
 
@@ -183,9 +183,7 @@ groupsRouter.post(
       if (cart.status !== "open") throw new ApiError(409, "This group order is closed");
 
       // Price comes from the cart's platform — server-trusted, never the client.
-      const quote = searchFood({ query: "" }).find(
-        (q) => q.dishId === dishId && q.platform === cart.platform,
-      );
+      const quote = quotesForDish(dishId).find((q) => q.platform === cart.platform);
       if (!quote) throw new ApiError(404, "That dish isn't available on this platform");
 
       await prisma.groupCartItem.create({

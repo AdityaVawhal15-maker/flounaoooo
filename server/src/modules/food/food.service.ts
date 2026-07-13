@@ -57,6 +57,24 @@ function toQuotes(dish: Dish): FoodQuote[] {
   }));
 }
 
+// Every quote for a specific dish by id (all platforms), cheapest first, or
+// [] if the id is unknown. A direct catalog lookup — does not go through the
+// descriptor/fallback search logic, so callers that need an exact dish
+// (price alerts, order pricing) get a stable answer regardless of how the
+// text search is tuned.
+export function quotesForDish(dishId: string): FoodQuote[] {
+  const dish = dishes.find((d) => d.id === dishId);
+  if (!dish) return [];
+  return toQuotes(dish).sort((a, b) => a.effectivePaise - b.effectivePaise);
+}
+
+// Every quote in the catalog (all dishes, all platforms) — for aggregate stats
+// like the feed's "fastest delivery". Distinct from searchFood(""), which is a
+// tuned text search (it excludes desserts on an empty query).
+export function allQuotes(): FoodQuote[] {
+  return dishes.flatMap(toQuotes);
+}
+
 // Taste/mood descriptors → catalog keywords. Chat requests arrive as free
 // text ("something spicy", "light dinner") that no dish keyword contains —
 // without this the search falls through to the whole catalog and the scorer
@@ -81,22 +99,43 @@ const DESCRIPTOR_KEYWORDS: Record<string, string[]> = {
   cheesy: ["pizza", "pasta"],
 };
 
+// Generic filler words an LLM sometimes emits as the "item" ("popular dishes",
+// "food") — these should NOT be matched literally (nothing in the catalog says
+// "popular"), or the search wrongly falls through to the whole catalog and the
+// scorer can pick anything. Stripped before matching so real descriptors and
+// dish names in the same phrase still count.
+const FILLER_WORDS = new Set([
+  "popular", "dishes", "dish", "food", "foods", "something", "eat", "order",
+  "want", "get", "me", "a", "an", "the", "some", "any", "to", "for", "please",
+  "good", "nice", "tasty", "yummy", "recommend", "recommendation", "hungry",
+]);
+
 export function searchFood(opts: {
   query: string;
   budgetPaise?: number | null;
   dietary?: "veg" | "nonveg" | "any";
 }): FoodQuote[] {
-  const direct = opts.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const rawTerms = opts.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const direct = rawTerms.filter((t) => !FILLER_WORDS.has(t));
   const terms = [...direct, ...direct.flatMap((t) => DESCRIPTOR_KEYWORDS[t] ?? [])];
 
-  let matched = dishes.filter((d) =>
-    terms.some(
-      (t) =>
-        d.keywords.some((k) => k.includes(t) || t.includes(k)) ||
-        d.name.toLowerCase().includes(t),
-    ),
-  );
-  if (matched.length === 0) matched = dishes; // generic queries see the catalog
+  let matched =
+    terms.length === 0
+      ? []
+      : dishes.filter((d) =>
+          terms.some(
+            (t) =>
+              d.keywords.some((k) => k.includes(t) || t.includes(k)) ||
+              d.name.toLowerCase().includes(t),
+          ),
+        );
+  if (matched.length === 0) {
+    // A term-less / unmatched query ("food", "I'm hungry") sees the catalog,
+    // but excludes desserts — nobody who just says "hungry" wants cake as the
+    // top pick. Desserts stay fully reachable when actually asked for (the
+    // "sweet"/"cake"/"dessert" descriptors above match them directly).
+    matched = dishes.filter((d) => !d.keywords.includes("dessert"));
+  }
 
   if (opts.dietary && opts.dietary !== "any") {
     matched = matched.filter((d) => d.dietary === opts.dietary);

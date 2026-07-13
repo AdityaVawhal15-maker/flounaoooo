@@ -122,7 +122,7 @@ async function buildAssistantPayload(
         ? comboBudget.remainingPaise
         : null);
     const foodRec = recommendFood({
-      query: intent.food.item,
+      query: `${intent.food.item} ${message}`,
       budgetPaise: comboCap,
       dietary: intent.food.dietary,
       priority: intent.food.priority,
@@ -169,8 +169,12 @@ async function buildAssistantPayload(
     const effectiveBudget = intent.food.budgetPaise ?? weeklyCap;
 
     const personal = await personalForBalanced(userId, intent.food.priority);
+    // Some models genericize the extracted item ("popular dishes") and drop
+    // the user's actual craving words. Append the raw message so descriptors
+    // like "spicy" / "healthy" always reach the search (filler words are
+    // stripped there); the LLM's item still leads for real dish names.
     const rec = recommendFood({
-      query: intent.food.item,
+      query: `${intent.food.item} ${message}`,
       budgetPaise: effectiveBudget,
       dietary: intent.food.dietary,
       priority: intent.food.priority,

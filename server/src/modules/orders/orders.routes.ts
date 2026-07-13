@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { searchFood } from "../food/food.service.js";
+import { quotesForDish } from "../food/food.service.js";
 import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
@@ -76,9 +76,7 @@ ordersRouter.post(
         | z.infer<typeof createRideOrder>;
 
       if (body.domain === "food") {
-        const allQuotes = searchFood({ query: "" }).filter(
-          (q) => q.dishId === body.dishId,
-        );
+        const allQuotes = quotesForDish(body.dishId);
         const quote = allQuotes.find((q) => q.platform === body.platform);
         if (!quote) throw new ApiError(404, "That option is no longer available");
 
