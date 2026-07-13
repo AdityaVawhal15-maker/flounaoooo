@@ -82,11 +82,15 @@ async function markPaid(
 
   const updated = await prisma.order.findUnique({ where: { id: orderId } });
 
-  // Fire-and-forget receipt email (no-op if SMTP isn't configured).
+  // Fire-and-forget receipt email (no-op if SMTP isn't configured or the
+  // user has turned off email updates — OTP/security mail is unaffected).
   void prisma.user
-    .findUnique({ where: { id: order.userId }, select: { email: true } })
+    .findUnique({
+      where: { id: order.userId },
+      select: { email: true, emailUpdates: true },
+    })
     .then((u) => {
-      if (u && updated) {
+      if (u?.emailUpdates && updated) {
         return sendReceiptEmail(u.email, {
           id: updated.id,
           title: updated.title,

@@ -57,6 +57,7 @@ export default function FoodLandingPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodQuote[] | null>(null);
   const [error, setError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const budget = useBudget();
   const { t } = useI18n();
 
@@ -64,6 +65,10 @@ export default function FoodLandingPage() {
     api<Feed>("/api/food/feed")
       .then(setFeed)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+    // Settings → Smart suggestions toggle; default to shown on any failure.
+    api<{ smartSuggestions: boolean }>("/api/users/preferences")
+      .then((p) => setShowSuggestions(p.smartSuggestions))
+      .catch(() => {});
   }, []);
 
   const activeQuery = (category === "All" ? query : `${query} ${category}`).trim();
@@ -217,7 +222,8 @@ export default function FoodLandingPage() {
             </Stagger>
           </section>
 
-          {/* Smart suggestions */}
+          {/* Smart suggestions (hidden when turned off in Settings) */}
+          {showSuggestions && (
           <ScrollReveal className="mt-8">
             <h2 className="text-[17px] font-bold text-ink">{t("food.smartSuggestions")}</h2>
             <p className="text-[12px] text-cocoa">
@@ -253,6 +259,7 @@ export default function FoodLandingPage() {
               />
             </div>
           </ScrollReveal>
+          )}
         </>
       )}
     </div>
