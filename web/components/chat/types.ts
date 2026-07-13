@@ -73,6 +73,8 @@ type RideRec = {
   drop: string;
   pickup: string | null;
   quotes: RideQuote[];
+  // ISO timestamp when the user asked to book for later ("cab at 10pm").
+  scheduledAt?: string | null;
   why: string;
   advice?: Advice;
 };

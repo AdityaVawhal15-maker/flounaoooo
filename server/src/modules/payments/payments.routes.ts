@@ -64,6 +64,15 @@ async function markPaid(
     return prisma.order.findUnique({ where: { id: orderId } });
   }
 
+  // Scheduled rides anchor their timeline at the scheduled time — the captain
+  // search starts then, not at payment. Everything else starts now.
+  let timelineStart = Date.now();
+  if (order.domain === "ride") {
+    const details = JSON.parse(order.details) as { scheduledAt?: string };
+    const scheduled = details.scheduledAt ? Date.parse(details.scheduledAt) : NaN;
+    if (!Number.isNaN(scheduled) && scheduled > timelineStart) timelineStart = scheduled;
+  }
+
   await prisma.$transaction([
     prisma.payment.update({
       where: { orderId },
@@ -75,7 +84,7 @@ async function markPaid(
         status: e.status,
         message: e.message,
         // Future timestamps simulate live progress for the tracking screen.
-        createdAt: new Date(Date.now() + i * 45_000),
+        createdAt: new Date(timelineStart + i * 45_000),
       })),
     }),
   ]);

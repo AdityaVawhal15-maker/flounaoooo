@@ -153,11 +153,20 @@ export function FoodRecommendation({
   );
 }
 
-function RideQuoteRow({ q, drop }: { q: RideQuote; drop?: string }) {
-  // Carry the destination + chosen vehicle so the rides screen opens ready —
-  // pickup comes from live GPS, drop is geocoded, no re-asking.
+function RideQuoteRow({
+  q,
+  drop,
+  scheduledAt,
+}: {
+  q: RideQuote;
+  drop?: string;
+  scheduledAt?: string | null;
+}) {
+  // Carry the destination + chosen vehicle (and the scheduled time, if any)
+  // so the rides screen opens ready — pickup comes from live GPS, drop is
+  // geocoded, no re-asking.
   const href = drop
-    ? `/rides?drop=${encodeURIComponent(drop)}&vehicle=${q.vehicle}`
+    ? `/rides?drop=${encodeURIComponent(drop)}&vehicle=${q.vehicle}${scheduledAt ? `&at=${encodeURIComponent(scheduledAt)}` : ""}`
     : "/rides";
   return (
     <Card
@@ -226,6 +235,18 @@ export function RideRecommendation({
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
 
+      {rec.scheduledAt && (
+        <p className="flex items-center gap-1.5 self-start rounded-pill bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent">
+          <Clock size={12} /> Scheduled for{" "}
+          {new Date(rec.scheduledAt).toLocaleString("en-IN", {
+            hour: "numeric",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short",
+          })}
+        </p>
+      )}
+
       {/* Vehicle switcher */}
       {vehicles.length > 1 && (
         <div className="flex rounded-pill bg-accent-soft/40 p-1">
@@ -245,7 +266,12 @@ export function RideRecommendation({
       )}
 
       {shown.map((q) => (
-        <RideQuoteRow key={q.productName} q={q} drop={rec.drop} />
+        <RideQuoteRow
+          key={q.productName}
+          q={q}
+          drop={rec.drop}
+          scheduledAt={rec.scheduledAt}
+        />
       ))}
     </FadeIn>
   );

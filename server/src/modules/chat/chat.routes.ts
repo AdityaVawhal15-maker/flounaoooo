@@ -101,6 +101,19 @@ async function buildAssistantPayload(
   // once and layered onto food/ride advice. Never blocks — degrades offline.
   const ctx = await buildContext();
 
+  // "at 10pm" → the next occurrence of that local time (today, else tomorrow),
+  // as an ISO timestamp the rides screen books with.
+  const resolveScheduleAt = (hhmm: string | null | undefined): string | null => {
+    if (!hhmm) return null;
+    const [h, m] = hhmm.split(":").map(Number);
+    const t = new Date(ctx.now);
+    t.setHours(h!, m!, 0, 0);
+    if (t.getTime() <= ctx.now.getTime()) t.setDate(t.getDate() + 1);
+    return t.toISOString();
+  };
+  const scheduleLabel = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+
   if (intent.domain === "combo" && intent.food && intent.ride) {
     const comboBudget = await weeklyFoodBudget(userId);
     const comboCap =
@@ -122,6 +135,7 @@ async function buildAssistantPayload(
     });
     if (foodRec) recordObservation("food", foodRec.best.dishId, foodRec.best.effectivePaise);
     if (rideQuotes[0]) recordObservation("ride", rideQuotes[0].vehicle, rideQuotes[0].effectivePaise);
+    const comboScheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
     return {
       reply: intent.reply,
       intent,
@@ -134,7 +148,10 @@ async function buildAssistantPayload(
           drop: intent.ride.drop,
           pickup: intent.ride.pickup,
           quotes: rideQuotes.slice(0, 3),
-          why: `Cheapest fare is ${rideQuotes[0]?.displayName} — open Rides to set exact pickup.`,
+          scheduledAt: comboScheduledAt,
+          why: comboScheduledAt
+            ? `Cheapest fare is ${rideQuotes[0]?.displayName} — scheduled for ${scheduleLabel(comboScheduledAt)}, open Rides to confirm.`
+            : `Cheapest fare is ${rideQuotes[0]?.displayName} — open Rides to set exact pickup.`,
           advice: await adviseRide(rideQuotes[0]?.vehicle ?? null, ctx.now, ctx),
         },
       },
@@ -200,6 +217,7 @@ async function buildAssistantPayload(
       intent.ride.vehicle && intent.ride.vehicle !== "any"
         ? quotes.slice(0, 5)
         : quotes;
+    const scheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
     return {
       reply: intent.reply,
       intent,
@@ -208,7 +226,10 @@ async function buildAssistantPayload(
         drop: intent.ride.drop,
         pickup: intent.ride.pickup,
         quotes: sent,
-        why: `Cheapest effective fare is ${quotes[0]?.displayName} after offers — open Rides to set exact pickup and book.`,
+        scheduledAt,
+        why: scheduledAt
+          ? `Cheapest effective fare is ${quotes[0]?.displayName} after offers — scheduled for ${scheduleLabel(scheduledAt)}, open Rides to confirm.`
+          : `Cheapest effective fare is ${quotes[0]?.displayName} after offers — open Rides to set exact pickup and book.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };

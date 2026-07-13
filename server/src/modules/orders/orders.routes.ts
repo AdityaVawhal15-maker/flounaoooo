@@ -59,6 +59,9 @@ const createRideOrder = z.object({
   pickupLng: z.number().min(-180).max(180),
   dropLat: z.number().min(-90).max(90),
   dropLng: z.number().min(-180).max(180),
+  // Ride scheduling ("book a cab at 10pm"). Omitted = ride now. Must be in
+  // the future but within a week; the captain search begins at this time.
+  scheduledAt: z.string().datetime().optional(),
 });
 
 // Prices are always recomputed server-side from the catalog/quote engine —
@@ -169,6 +172,17 @@ ordersRouter.post(
         ? Math.max(0, cheapestOther - quote.effectivePaise)
         : 0;
 
+      let scheduledAt: string | undefined;
+      if (body.scheduledAt) {
+        const when = new Date(body.scheduledAt);
+        const leadMs = when.getTime() - Date.now();
+        if (leadMs < 5 * 60_000)
+          throw new ApiError(400, "Scheduled rides need at least 5 minutes' notice");
+        if (leadMs > 7 * 24 * 3600_000)
+          throw new ApiError(400, "Rides can be scheduled up to 7 days ahead");
+        scheduledAt = when.toISOString();
+      }
+
       const order = await prisma.order.create({
         data: {
           userId: req.userId!,
@@ -192,6 +206,9 @@ ordersRouter.post(
             routeGeometry: route.geometry,
             comparedOptions: quotes.length,
             comparedPlatforms: new Set(quotes.map((q) => q.provider)).size,
+            // Set only for scheduled rides; the tracking timeline (and the
+            // captain search) anchors here instead of at payment time.
+            scheduledAt,
           }),
           amount: quote.effectivePaise,
           savedPaise,
@@ -320,8 +337,28 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
     }
 
     // The captain search begins when the ride is confirmed (first tracking
-    // event), so the simulation's clock is anchored there.
+    // event), so the simulation's clock is anchored there. For scheduled
+    // rides that anchor is the scheduled time — until it arrives, report a
+    // calm "scheduled" placeholder instead of a fake live search.
     const bookedAt = order.trackingEvents[0]?.createdAt ?? order.createdAt;
+    if (bookedAt.getTime() > Date.now()) {
+      const when = bookedAt.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      return res.json({
+        tracking: {
+          providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+          state: "searching",
+          otp: "----",
+          driver: null,
+          driverLocation: null,
+          pickupEtaMinutes: Math.ceil((bookedAt.getTime() - Date.now()) / 60_000),
+          dropEtaMinutes: 0,
+          statusMessage: `Ride scheduled for ${when} — we'll find your captain then`,
+        },
+      });
+    }
     const pickup = { lat: d.pickupLat, lng: d.pickupLng };
     const drop = { lat: d.dropLat, lng: d.dropLng };
     const geometry =
