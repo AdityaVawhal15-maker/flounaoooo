@@ -13,6 +13,7 @@ import {
   Share2,
   X,
   LifeBuoy,
+  MessageCircle,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -324,9 +325,19 @@ export function RideTracker({
                     href="tel:"
                     onClick={(e) => e.preventDefault()}
                     title={t.driver.phoneMasked}
+                    aria-label="Call"
                     className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white transition-transform hover:scale-105"
                   >
                     <Phone size={17} />
+                  </a>
+                  <a
+                    href="sms:"
+                    onClick={(e) => e.preventDefault()}
+                    title={t.driver.phoneMasked}
+                    aria-label="Message"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-ink transition-transform hover:scale-105"
+                  >
+                    <MessageCircle size={17} />
                   </a>
                 </div>
               )}

@@ -368,6 +368,7 @@ ordersRouter.get("/", async (req, res, next) => {
         provider: true,
         title: true,
         amount: true,
+        savedPaise: true,
         createdAt: true,
       },
     });
