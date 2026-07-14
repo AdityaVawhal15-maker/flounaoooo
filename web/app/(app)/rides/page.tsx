@@ -281,6 +281,36 @@ function RidesInner() {
     [pickup, drop],
   );
 
+  // Shared ride: create the group cart for the selected trip and open the
+  // invite screen. Only autos/cabs can be shared (server enforces seats too).
+  async function splitWithFriends() {
+    if (!selected || !pickup || !drop) return;
+    setBusy(true);
+    setError("");
+    try {
+      const cart = await api<{ id: string }>("/api/groups", {
+        method: "POST",
+        json: {
+          domain: "ride",
+          ride: {
+            provider: selected.provider,
+            productName: selected.productName,
+            pickup: pickup.name,
+            drop: drop.name,
+            pickupLat: pickup.lat,
+            pickupLng: pickup.lng,
+            dropLat: drop.lat,
+            dropLng: drop.lng,
+          },
+        },
+      });
+      router.push(`/rides/group/${cart.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start a shared ride");
+      setBusy(false);
+    }
+  }
+
   async function confirmRide() {
     if (!selected || !pickup || !drop || !route) return;
     setBusy(true);
@@ -509,6 +539,16 @@ function RidesInner() {
                   ? "Choose a ride"
                   : "Select Drop"}
           </Button>
+          {/* Fare-splitting: autos/cabs only, and a scheduled group is booked now */}
+          {selected && !scheduledAt && selected.vehicle !== "bike" && (
+            <button
+              onClick={splitWithFriends}
+              disabled={busy}
+              className="mt-2 w-full text-center text-[13px] font-semibold text-accent hover:underline disabled:opacity-50"
+            >
+              Split the fare with friends →
+            </button>
+          )}
         </div>
       </div>
     </div>
