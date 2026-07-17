@@ -209,7 +209,7 @@ export default function AddressesPage() {
       {formOpen ? (
         <form onSubmit={save} className="mt-4 flex flex-col gap-3">
           <p className="text-[14px] font-bold text-ink">
-            {editingId ? "Edit address" : "New address"}
+            {editingId ? t("pp.addr.editTitle") : t("pp.addr.newTitle")}
           </p>
 
           {/* Use current location */}
@@ -225,8 +225,8 @@ export default function AddressesPage() {
           >
             {located ? <Check size={16} /> : <LocateFixed size={16} />}
             {located
-              ? "Location captured — used for the delivery map"
-              : "Use current location"}
+              ? t("pp.addr.located")
+              : t("pp.addr.useLocation")}
           </button>
 
           {/* Label chips */}
@@ -261,7 +261,7 @@ export default function AddressesPage() {
           <div className="grid grid-cols-2 gap-3">
             <Input
               label={t("pp.det.fullName")}
-              placeholder="Who receives it"
+              placeholder={t("pp.addr.receiverPh")}
               value={form.contactName}
               onChange={(e) => setForm({ ...form, contactName: e.target.value })}
             />
@@ -280,20 +280,20 @@ export default function AddressesPage() {
           </div>
 
           <Input
-            label="Flat / House no."
+            label={t("pp.addr.flat")}
             placeholder="Flat No. 402"
             value={form.line1}
             onChange={(e) => setForm({ ...form, line1: e.target.value })}
             required
           />
           <Input
-            label="Building / Street name"
+            label={t("pp.addr.building")}
             placeholder="Sunrise Apartments, MG Road"
             value={form.line2}
             onChange={(e) => setForm({ ...form, line2: e.target.value })}
           />
           <Input
-            label="Landmark (optional)"
+            label={t("pp.addr.landmark")}
             placeholder="Near the metro station"
             value={form.landmark}
             onChange={(e) => setForm({ ...form, landmark: e.target.value })}
@@ -327,7 +327,7 @@ export default function AddressesPage() {
               {busy
                 ? t("pp.addr.saving")
                 : editingId
-                  ? "Update address"
+                  ? t("pp.addr.update")
                   : t("pp.addr.save")}
             </Button>
             <Button

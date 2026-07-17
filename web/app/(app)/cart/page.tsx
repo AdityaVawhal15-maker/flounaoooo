@@ -22,10 +22,12 @@ import { useCart } from "@/lib/cart";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 export default function CartPage() {
   const router = useRouter();
   const { lines, setQty, remove, clear } = useCart();
+  const { t } = useI18n();
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,9 +66,9 @@ export default function CartPage() {
           onClick={() => router.push("/food")}
           className="flex items-center gap-1 text-[13px] font-medium text-cocoa hover:text-ink"
         >
-          <ChevronLeft size={16} /> Food
+          <ChevronLeft size={16} /> {t("nav.food")}
         </button>
-        <h1 className="text-[18px] font-bold text-ink">My Cart</h1>
+        <h1 className="text-[18px] font-bold text-ink">{t("cart.title")}</h1>
         <span className="w-12" />
       </div>
 
@@ -75,20 +77,19 @@ export default function CartPage() {
           <span className="flex size-14 items-center justify-center rounded-full bg-beige/70">
             <ShoppingBag size={24} className="text-cocoa" />
           </span>
-          <p className="mt-3 text-[14px] font-semibold text-ink">Your cart is empty</p>
+          <p className="mt-3 text-[14px] font-semibold text-ink">{t("cart.empty")}</p>
           <p className="mt-1 text-[12px] text-cocoa">
-            Add dishes from the food screen — they collect here.
+            {t("cart.emptySub")}
           </p>
           <Button onClick={() => router.push("/food")} className="mt-5">
-            Browse food
+            {t("cart.browse")}
           </Button>
         </div>
       ) : (
         <>
           {/* Reassurance banner (Figma: "Yay! Your items are added…") */}
           <p className="mt-4 rounded-card border border-success/30 bg-success/5 px-3.5 py-2.5 text-[12px] text-success">
-            Your items are in the cart — add more and save on delivery (one
-            delivery fee per order).
+            {t("cart.banner")}
           </p>
 
           {/* Lines */}
@@ -148,12 +149,12 @@ export default function CartPage() {
               <Tag size={15} className="mt-0.5 shrink-0 text-accent" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold text-ink">
-                  Add cooking instructions (optional)
+                  {t("cart.instructions")}
                 </span>
                 <input
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value.slice(0, 300))}
-                  placeholder="E.g. No onions, less spicy…"
+                  placeholder={t("cart.instructionsPh")}
                   className="mt-1 w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-cocoa/50"
                 />
               </span>
@@ -162,21 +163,21 @@ export default function CartPage() {
 
           {/* Price details — estimates; the server recomputes at checkout */}
           <Card className="mt-4">
-            <p className="text-[14px] font-bold text-ink">Price details</p>
+            <p className="text-[14px] font-bold text-ink">{t("cart.priceDetails")}</p>
             <div className="mt-2 flex flex-col gap-1.5 text-[13px]">
               <div className="flex justify-between text-cocoa">
                 <span>
-                  Item total ({lines.reduce((s, l) => s + l.qty, 0)} items)
+                  {t("bill.itemTotal")} ({lines.reduce((s, l) => s + l.qty, 0)})
                 </span>
                 <span className="text-ink">{rupees(itemsTotal)}</span>
               </div>
               <div className="flex justify-between text-cocoa">
-                <span>Delivery & fees</span>
-                <span className="text-ink">shown at payment</span>
+                <span>{t("cart.deliveryFees")}</span>
+                <span className="text-ink">{t("cart.shownAtPay")}</span>
               </div>
               <div className="my-1 h-px bg-line" />
               <div className="flex justify-between font-bold text-ink">
-                <span>To pay (est.)</span>
+                <span>{t("cart.toPay")}</span>
                 <span>{rupees(itemsTotal)}</span>
               </div>
             </div>
@@ -185,7 +186,7 @@ export default function CartPage() {
           {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
 
           <p className="mt-3 flex items-center justify-center gap-1 text-[11px] text-cocoa/70">
-            <ShieldCheck size={12} /> 100% secure payments · offers auto-applied
+            <ShieldCheck size={12} /> {t("cart.secure")}
           </p>
 
           {/* Sticky checkout bar */}
@@ -196,8 +197,8 @@ export default function CartPage() {
               className="h-[56px] w-full rounded-[22px] text-[15px] shadow-card"
             >
               {busy
-                ? "Placing order…"
-                : `Proceed to checkout · ${rupees(itemsTotal)}`}
+                ? t("foodOrder.placing")
+                : `${t("cart.checkout")} · ${rupees(itemsTotal)}`}
             </Button>
           </div>
         </>
