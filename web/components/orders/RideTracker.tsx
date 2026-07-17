@@ -348,6 +348,19 @@ export function RideTracker({
           />
         </div>
 
+        {/* Ride confirmed banner (Figma) — pre-trip reassurance for rides */}
+        {!isFood && !done && !cancelled && t && ["searching", "arriving", "arrived"].includes(t.state) && (
+          <div className="mx-4 mt-3 flex items-start gap-2.5 rounded-card border border-success/40 bg-success/5 px-3.5 py-2.5">
+            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-success" />
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-success">Your ride is confirmed</p>
+              <p className="text-[11.5px] text-cocoa">
+                Track it live here — we&apos;ll notify you at every step.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Searching shimmer or partner card */}
         {searching ? (
           <div className="px-4 py-4">
