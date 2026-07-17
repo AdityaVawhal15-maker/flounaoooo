@@ -562,9 +562,15 @@ ordersRouter.post(
         providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
       });
 
+      // Keep the cancellation reason ("Help us improve" sheet) on the order —
+      // ops reads it in the console, and it feeds churn analysis later.
+      const { reason } = req.body as { reason?: string };
+      const details = JSON.parse(order.details) as Record<string, unknown>;
+      if (reason) details.cancelReason = reason;
+
       const updated = await prisma.order.update({
         where: { id: order.id },
-        data: { status: "cancelled" },
+        data: { status: "cancelled", details: JSON.stringify(details) },
       });
 
       void sendPushToUser(order.userId, {
