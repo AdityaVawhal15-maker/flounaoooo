@@ -35,6 +35,10 @@ model User {
   // smartSuggestions gates the AI suggestion surfaces in the app.
   emailUpdates     Boolean @default(true)
   smartSuggestions Boolean @default(true)
+  // Outbox category toggles. Security mail always sends (no toggle);
+  // emailUpdates keeps gating order/receipt mail.
+  emailMoneyUpdates Boolean @default(true) // savings, price drops, Plus ROI
+  emailTips         Boolean @default(true) // lifecycle nudges & announcements
   // Radiues Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive    Boolean   @default(false)
@@ -64,6 +68,28 @@ model User {
   groupCartMemberships GroupCartMember[]
   priceAlerts   PriceAlert[]
   supportTickets SupportTicket[]
+  notifications Notification[]
+}
+
+// Email-notification outbox: every user-facing email (except time-critical
+// OTP) is enqueued here and drained by a worker — idempotent via dedupeKey,
+// preference-gated per category, capped per user per day.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // registry key, e.g. "security.password_changed"
+  payload   String    @default("{}") // JSON string (SQLite has no Json type)
+  dedupeKey String?   @unique // same key twice = second enqueue is a no-op
+  status    String    @default("queued") // queued | sent | skipped | failed
+  attempts  Int       @default(0)
+  error     String?
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, sentAt])
 }
 
 // Group ordering: a shared cart one person hosts and others join via a code.
