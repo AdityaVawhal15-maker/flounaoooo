@@ -49,6 +49,21 @@ export async function sendWelcomeEmail(to: string, name: string) {
   }
 }
 
+// Used by the notification outbox — the worker builds the mail from its
+// registry and this just puts it on the wire. Test env is a no-op (the outbox
+// records delivery itself for assertions).
+export async function sendPrebuiltEmail(
+  to: string,
+  mail: { subject: string; html: string; text: string },
+) {
+  if (env.NODE_ENV === "test") return;
+  if (!transport) {
+    console.log(`[mailer] (no SMTP) would send "${mail.subject}" to ${to}`);
+    return;
+  }
+  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+}
+
 export async function sendReceiptEmail(
   to: string,
   order: { id: string; title: string; domain: string; amount: number; savedPaise: number },
