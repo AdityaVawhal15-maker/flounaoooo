@@ -4,6 +4,7 @@ import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/prisma.js";
 import { sendOtpEmail, sendWelcomeEmail } from "../../lib/mailer.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 import {
   clearAuthCookies,
   hashPassword,
@@ -455,6 +456,10 @@ authRouter.post(
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      // Security alert — one cheap insert, but never fails the reset.
+      await enqueueNotification(user.id, "security.password_changed").catch(
+        () => {},
+      );
       res.json({ ok: true });
     } catch (err) {
       next(err);

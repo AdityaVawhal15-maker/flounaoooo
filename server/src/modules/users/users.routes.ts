@@ -8,6 +8,7 @@ import { quotesForDish } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
 import { predictForUser } from "../advisor/prediction.service.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 import {
   createTicket,
   listUserTickets,
@@ -137,7 +138,12 @@ usersRouter.get("/preferences", async (req, res, next) => {
   try {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: req.userId! },
-      select: { emailUpdates: true, smartSuggestions: true },
+      select: {
+        emailUpdates: true,
+        smartSuggestions: true,
+        emailMoneyUpdates: true,
+        emailTips: true,
+      },
     });
     res.json(user);
   } catch (err) {
@@ -152,16 +158,28 @@ usersRouter.put(
       .object({
         emailUpdates: z.boolean().optional(),
         smartSuggestions: z.boolean().optional(),
+        emailMoneyUpdates: z.boolean().optional(),
+        emailTips: z.boolean().optional(),
       })
       .refine((b) => Object.keys(b).length > 0, { message: "Nothing to update" }),
   ),
   async (req, res, next) => {
     try {
-      const body = req.body as { emailUpdates?: boolean; smartSuggestions?: boolean };
+      const body = req.body as {
+        emailUpdates?: boolean;
+        smartSuggestions?: boolean;
+        emailMoneyUpdates?: boolean;
+        emailTips?: boolean;
+      };
       const user = await prisma.user.update({
         where: { id: req.userId! },
         data: body,
-        select: { emailUpdates: true, smartSuggestions: true },
+        select: {
+          emailUpdates: true,
+          smartSuggestions: true,
+          emailMoneyUpdates: true,
+          emailTips: true,
+        },
       });
       res.json(user);
     } catch (err) {
@@ -439,6 +457,14 @@ usersRouter.post("/addresses", validateBody(addressBody), async (req, res, next)
     const address = await prisma.address.create({
       data: { ...body, userId: req.userId! },
     });
+    // Security signal — account thieves change the delivery address first.
+    // Awaited (it's one cheap insert) but never allowed to fail the request.
+    await enqueueNotification(
+      req.userId!,
+      "security.address_added",
+      { label: address.label },
+      { dedupeKey: `address_added:${address.id}` },
+    ).catch(() => {});
     res.status(201).json({ address });
   } catch (err) {
     next(err);

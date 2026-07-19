@@ -11,6 +11,7 @@
 
 import { prisma } from "../../lib/prisma.js";
 import { env, isProd } from "../../config/env.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 import { ROLES, type Role } from "../../lib/rbac.js";
 import {
   cashfreeConfigured,
@@ -328,6 +329,29 @@ async function settleRefund(
   return { ok: true };
 }
 
+// The customer hears about their approved refund by email (outbox-gated).
+async function notifyRefundApproved(payment: {
+  id: string;
+  orderId: string;
+  userId: string;
+  amount: number;
+}) {
+  const order = await prisma.order.findUnique({
+    where: { id: payment.orderId },
+    select: { title: true },
+  });
+  await enqueueNotification(
+    payment.userId,
+    "orders.refund_approved",
+    {
+      title: order?.title ?? "your order",
+      amount: `₹${Math.round(payment.amount / 100)}`,
+      orderId: payment.orderId,
+    },
+    { dedupeKey: `refund_approved:${payment.id}` },
+  ).catch(() => {});
+}
+
 export async function approveRefund(paymentId: string): Promise<RefundResult> {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!payment) return { ok: false, reason: "not_found" };
@@ -357,6 +381,7 @@ export async function approveRefund(paymentId: string): Promise<RefundResult> {
             }),
           },
         });
+        void notifyRefundApproved(payment);
       }
       return settled;
     } catch (err) {
@@ -379,7 +404,9 @@ export async function approveRefund(paymentId: string): Promise<RefundResult> {
       message: "Refunds require the payment gateway to be configured in production",
     };
   }
-  return settleRefund(paymentId, "refunded");
+  const settled = await settleRefund(paymentId, "refunded");
+  if (settled.ok) void notifyRefundApproved(payment);
+  return settled;
 }
 
 export async function rejectRefund(paymentId: string): Promise<RefundResult> {
