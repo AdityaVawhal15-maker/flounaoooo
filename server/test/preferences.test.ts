@@ -2,35 +2,47 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
 
-// Settings → notification preferences. Both flags default on, persist per
+// Settings → notification preferences. All flags default on, persist per
 // user, and reject empty/invalid updates.
 
+const DEFAULTS = {
+  emailUpdates: true,
+  smartSuggestions: true,
+  emailMoneyUpdates: true,
+  emailTips: true,
+};
+
 describe("user preferences", () => {
-  it("defaults both preferences to true", async () => {
+  it("defaults every preference to true", async () => {
     const { agent } = await authedAgent();
     const res = await agent.get("/api/users/preferences").expect(200);
-    expect(res.body).toEqual({ emailUpdates: true, smartSuggestions: true });
+    expect(res.body).toEqual(DEFAULTS);
   });
 
-  it("persists a partial update and leaves the other flag untouched", async () => {
+  it("persists a partial update and leaves the other flags untouched", async () => {
     const { agent } = await authedAgent();
     const put = await agent
       .put("/api/users/preferences")
       .send({ emailUpdates: false })
       .expect(200);
-    expect(put.body).toEqual({ emailUpdates: false, smartSuggestions: true });
+    expect(put.body).toEqual({ ...DEFAULTS, emailUpdates: false });
 
     const res = await agent.get("/api/users/preferences").expect(200);
-    expect(res.body).toEqual({ emailUpdates: false, smartSuggestions: true });
+    expect(res.body).toEqual({ ...DEFAULTS, emailUpdates: false });
   });
 
-  it("updates both flags together", async () => {
+  it("updates several flags together", async () => {
     const { agent } = await authedAgent();
     const put = await agent
       .put("/api/users/preferences")
-      .send({ emailUpdates: false, smartSuggestions: false })
+      .send({ emailUpdates: false, smartSuggestions: false, emailTips: false })
       .expect(200);
-    expect(put.body).toEqual({ emailUpdates: false, smartSuggestions: false });
+    expect(put.body).toEqual({
+      ...DEFAULTS,
+      emailUpdates: false,
+      smartSuggestions: false,
+      emailTips: false,
+    });
   });
 
   it("rejects an empty update", async () => {
