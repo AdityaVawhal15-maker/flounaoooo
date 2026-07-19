@@ -3,6 +3,7 @@ import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
+import { startOutboxWorker } from "./modules/notifications/outbox.service.js";
 import { initMonitoring } from "./lib/monitoring.js";
 
 initMonitoring();
@@ -24,6 +25,9 @@ const alertLoop = setInterval(async () => {
     console.error("[alerts] check failed:", err);
   }
 }, 60_000);
+
+// Drain the email-notification outbox every 30s.
+const stopOutbox = startOutboxWorker();
 
 // Hourly housekeeping: expired OTP codes and dead refresh tokens never pile up.
 const cleanup = setInterval(
@@ -50,6 +54,7 @@ async function shutdown(signal: string) {
   console.log(`[shutdown] ${signal} received`);
   clearInterval(cleanup);
   clearInterval(alertLoop);
+  stopOutbox();
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);
