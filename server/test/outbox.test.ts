@@ -280,6 +280,149 @@ describe("notification outbox", () => {
     ).toBe(1);
   });
 
+  it("crossing a savings milestone emails once, idempotently", async () => {
+    const { checkSavingsMilestone } = await import(
+      "../src/modules/notifications/outbox.service.js"
+    );
+    const { email } = await authedAgent();
+    const userId = await userIdFor(email);
+
+    // Book ₹520 of lifetime savings across two orders → crosses ₹500.
+    await prisma.order.create({
+      data: {
+        userId,
+        domain: "food",
+        title: "Order A",
+        provider: "ondc",
+        fulfillment: "in_app",
+        amount: 20000,
+        savedPaise: 30000,
+        status: "confirmed",
+        details: "{}",
+      },
+    });
+    await prisma.order.create({
+      data: {
+        userId,
+        domain: "food",
+        title: "Order B",
+        provider: "ondc",
+        fulfillment: "in_app",
+        amount: 20000,
+        savedPaise: 22000,
+        status: "confirmed",
+        details: "{}",
+      },
+    });
+
+    await checkSavingsMilestone(userId);
+    await checkSavingsMilestone(userId); // second call must not re-enqueue
+
+    const rows = await prisma.notification.findMany({
+      where: { userId, type: "money.savings_milestone" },
+    });
+    expect(rows).toHaveLength(1);
+    expect(JSON.parse(rows[0].payload).amount).toBe("₹500");
+  });
+
+  it("a triggered price alert enqueues a price-drop email", async () => {
+    const { agent, email } = await authedAgent();
+    const userId = await userIdFor(email);
+    const { checkPriceAlerts } = await import(
+      "../src/modules/alerts/alerts.service.js"
+    );
+
+    const created = await agent
+      .post("/api/alerts")
+      .send({ domain: "food", itemKey: "masala-dosa", targetRupees: 150 })
+      .expect(201);
+    // Observe a price below target so the alert fires.
+    await prisma.priceObservation.create({
+      data: { domain: "food", key: "masala-dosa", hour: 12, weekday: 0, bestPaise: 12000 },
+    });
+    await checkPriceAlerts();
+
+    const row = await prisma.notification.findFirst({
+      where: { userId, type: "money.price_drop" },
+    });
+    expect(row).not.toBeNull();
+    expect(JSON.parse(row!.payload).item).toBe(created.body.alert.itemName);
+  });
+
+  it("the lifecycle sweep sends onboarding, win-back, and plus-value emails", async () => {
+    const { runLifecycleSweep } = await import(
+      "../src/modules/notifications/outbox.service.js"
+    );
+    const day = 24 * 60 * 60 * 1000;
+
+    // Newbie: joined ~3.5 days ago, no orders.
+    const { email: newbie } = await authedAgent();
+    const newbieId = await userIdFor(newbie);
+    await prisma.user.update({
+      where: { id: newbieId },
+      data: { createdAt: new Date(Date.now() - 3.5 * day) },
+    });
+
+    // Lapsed: last (only) order ~30.5 days ago.
+    const { email: lapsed } = await authedAgent();
+    const lapsedId = await userIdFor(lapsed);
+    await prisma.order.create({
+      data: {
+        userId: lapsedId,
+        domain: "food",
+        title: "Old Biryani",
+        provider: "ondc",
+        fulfillment: "in_app",
+        amount: 20000,
+        savedPaise: 0,
+        status: "confirmed",
+        details: "{}",
+        createdAt: new Date(Date.now() - 30.5 * day),
+      },
+    });
+
+    // Plus member: active.
+    const { email: plusMember } = await authedAgent();
+    const plusId = await userIdFor(plusMember);
+    await prisma.user.update({
+      where: { id: plusId },
+      data: {
+        plusActive: true,
+        plusSince: new Date(),
+        plusUntil: new Date(Date.now() + 20 * day),
+      },
+    });
+
+    const res = await runLifecycleSweep();
+    expect(res.onboarding).toBeGreaterThanOrEqual(1);
+    expect(res.winBack).toBeGreaterThanOrEqual(1);
+    expect(res.plusValue).toBeGreaterThanOrEqual(1);
+
+    expect(
+      await prisma.notification.count({
+        where: { userId: newbieId, type: "tips.onboarding_no_order" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { userId: lapsedId, type: "tips.win_back" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { userId: plusId, type: "money.plus_value" },
+      }),
+    ).toBe(1);
+
+    // Idempotent second run.
+    await runLifecycleSweep();
+    expect(
+      await prisma.notification.count({
+        where: { userId: newbieId, type: "tips.onboarding_no_order" },
+      }),
+    ).toBe(1);
+  });
+
   it("preferences API round-trips the new toggles", async () => {
     const { agent } = await authedAgent();
     const res = await agent
