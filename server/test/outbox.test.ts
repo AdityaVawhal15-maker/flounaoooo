@@ -212,6 +212,74 @@ describe("notification outbox", () => {
     expect(JSON.parse(row!.payload).attempts).toBe("2");
   });
 
+  it("activating Plus enqueues a welcome/receipt email", async () => {
+    const { agent, email } = await authedAgent();
+    const userId = await userIdFor(email);
+    await agent.post("/api/subscription/subscribe").expect(200);
+
+    const row = await prisma.notification.findFirst({
+      where: { userId, type: "plus.activated" },
+    });
+    expect(row).not.toBeNull();
+  });
+
+  it("the Plus sweep reminds ~3 days out and expires lapsed members once", async () => {
+    const { sweepPlusMemberships } = await import(
+      "../src/modules/subscription/subscription.service.js"
+    );
+
+    // A member renewing in ~3 days.
+    const { email: soon } = await authedAgent();
+    const soonId = await userIdFor(soon);
+    await prisma.user.update({
+      where: { id: soonId },
+      data: {
+        plusActive: true,
+        plusSince: new Date(),
+        plusUntil: new Date(Date.now() + 2.5 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // A member whose period already lapsed.
+    const { email: gone } = await authedAgent();
+    const goneId = await userIdFor(gone);
+    await prisma.user.update({
+      where: { id: goneId },
+      data: {
+        plusActive: true,
+        plusSince: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000),
+        plusUntil: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const first = await sweepPlusMemberships();
+    expect(first.reminded).toBeGreaterThanOrEqual(1);
+    expect(first.expired).toBeGreaterThanOrEqual(1);
+
+    // Reminder enqueued for the renewing member…
+    expect(
+      await prisma.notification.count({
+        where: { userId: soonId, type: "plus.renewal_reminder" },
+      }),
+    ).toBe(1);
+    // …expiry enqueued and the flag cleared for the lapsed one.
+    expect(
+      await prisma.notification.count({
+        where: { userId: goneId, type: "plus.expired" },
+      }),
+    ).toBe(1);
+    const goneUser = await prisma.user.findUniqueOrThrow({ where: { id: goneId } });
+    expect(goneUser.plusActive).toBe(false);
+
+    // Idempotent: a second sweep doesn't re-remind or re-expire the same period.
+    await sweepPlusMemberships();
+    expect(
+      await prisma.notification.count({
+        where: { userId: soonId, type: "plus.renewal_reminder" },
+      }),
+    ).toBe(1);
+  });
+
   it("preferences API round-trips the new toggles", async () => {
     const { agent } = await authedAgent();
     const res = await agent
