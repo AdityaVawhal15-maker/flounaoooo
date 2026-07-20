@@ -159,6 +159,59 @@ describe("notification outbox", () => {
     expect(JSON.parse(row!.payload).label).toBe("home");
   });
 
+  it("cancelling a paid order enqueues the cancellation email", async () => {
+    const { agent, email } = await authedAgent();
+    const userId = await userIdFor(email);
+    // Place a food order so there's something cancellable before dispatch.
+    const order = await agent
+      .post("/api/orders")
+      .send({
+        domain: "food",
+        items: [{ dishId: "masala-dosa", platform: "ondc", qty: 1 }],
+      })
+      .expect(201);
+    const orderId = order.body.order.id as string;
+
+    await agent
+      .post(`/api/orders/${orderId}/cancel`)
+      .send({ reason: "Changed my mind" })
+      .expect(200);
+
+    const row = await prisma.notification.findFirst({
+      where: { userId, type: "orders.cancelled" },
+    });
+    expect(row).not.toBeNull();
+    const payload = JSON.parse(row!.payload);
+    expect(payload.orderId).toBe(orderId);
+    expect(payload.reason).toBe("Changed my mind");
+  });
+
+  it("a login after failed attempts enqueues a suspicious-login alert", async () => {
+    const { email } = await authedAgent();
+    const userId = await userIdFor(email);
+    const { default: request } = await import("supertest");
+    const { app } = await import("./helpers.js");
+
+    // Two wrong passwords bump failedLogins to 2…
+    for (let i = 0; i < 2; i++) {
+      await request(app)
+        .post("/api/auth/login")
+        .send({ email, password: "wrong-password" })
+        .expect(401);
+    }
+    // …then the correct password gets in → alert fires.
+    await request(app)
+      .post("/api/auth/login")
+      .send({ email, password: "password123" })
+      .expect(200);
+
+    const row = await prisma.notification.findFirst({
+      where: { userId, type: "security.suspicious_login" },
+    });
+    expect(row).not.toBeNull();
+    expect(JSON.parse(row!.payload).attempts).toBe("2");
+  });
+
   it("preferences API round-trips the new toggles", async () => {
     const { agent } = await authedAgent();
     const res = await agent
