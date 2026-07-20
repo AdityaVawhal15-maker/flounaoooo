@@ -181,6 +181,67 @@ export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
       ctaPath: "/history",
     }),
   },
+  "money.price_drop": {
+    category: "money",
+    build: (p) => ({
+      subject: `Price drop: ${p.item ?? "an item you're watching"} is now ${p.price ?? "cheaper"}`,
+      heading: "A price you're watching just dropped",
+      lines: [
+        `${p.item ?? "An item on your watch-list"} has fallen to ${p.price ?? "your target"}${p.target ? ` — at or below your ${p.target} target` : ""}.`,
+        "Prices move fast — grab it while it lasts.",
+      ],
+      ctaLabel: "Order now",
+      ctaPath: p.domain === "ride" ? "/rides" : "/food",
+    }),
+  },
+  "money.plus_value": {
+    category: "money",
+    build: (p) => ({
+      subject: p.active
+        ? "Your Radiues Plus is paying off"
+        : `You'd have saved ${p.wouldSave ?? "more"} with Plus`,
+      heading: p.active
+        ? "Plus is working for you"
+        : "See what Plus could save you",
+      lines: p.active
+        ? [
+            `This month your Radiues Plus saved you ${p.saved ?? "more than its cost"} in waived fees and better picks.`,
+            "That's the membership paying for itself — keep enjoying it.",
+          ]
+        : [
+            `Over the last month you'd have saved about ${p.wouldSave ?? "₹50+"} with Radiues Plus — waived convenience fees plus deeper price comparison.`,
+            "Plus is ₹50/month and comes with a saved-you-more-than-₹50 guarantee.",
+          ],
+      ctaLabel: p.active ? "View membership" : "Try Plus",
+      ctaPath: "/profile/plus",
+    }),
+  },
+  "tips.onboarding_no_order": {
+    category: "tips",
+    build: () => ({
+      subject: "Your first pick is waiting on Radiues",
+      heading: "Let Radiues find your best deal",
+      lines: [
+        "You signed up but haven't placed your first order yet. Radiues compares prices across platforms and books the cheapest — you just ask.",
+        'Try: "order a biryani under ₹300" or "book a cab to the airport".',
+      ],
+      ctaLabel: "Make your first pick",
+      ctaPath: "/home",
+    }),
+  },
+  "tips.win_back": {
+    category: "tips",
+    build: (p) => ({
+      subject: "We've missed you at Radiues",
+      heading: "Come back to smarter ordering",
+      lines: [
+        `It's been a while! Radiues is still comparing prices so you always pay the least.${p.usual ? ` Your usual — ${p.usual} — is one tap away.` : ""}`,
+        "Pick up right where you left off.",
+      ],
+      ctaLabel: "Open Radiues",
+      ctaPath: "/home",
+    }),
+  },
   "tips.feature_announcement": {
     category: "tips",
     build: (p) => ({
@@ -193,6 +254,9 @@ export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
   },
 };
 
+// Lifetime-savings milestones (paise). Crossing one emails once.
+export const SAVINGS_MILESTONES_PAISE = [50_000, 100_000, 500_000];
+
 // Non-security emails per user per day, across categories. Security mail is
 // never capped.
 const DAILY_CAP = 8;
@@ -202,6 +266,28 @@ const BATCH = 25;
 // Test hook — what the worker "delivered", visible to assertions.
 export const outboxDelivered: Array<{ to: string; type: string; subject: string }> =
   [];
+
+// Called after a payment succeeds. If the user's lifetime savings just crossed
+// a milestone, email them once (dedupeKey per milestone makes it idempotent
+// even though we recompute the running total each time).
+export async function checkSavingsMilestone(userId: string): Promise<void> {
+  const agg = await prisma.order.aggregate({
+    where: { userId },
+    _sum: { savedPaise: true },
+  });
+  const total = agg._sum.savedPaise ?? 0;
+  // Highest milestone the running total has reached.
+  const reached = [...SAVINGS_MILESTONES_PAISE]
+    .reverse()
+    .find((m) => total >= m);
+  if (!reached) return;
+  await enqueueNotification(
+    userId,
+    "money.savings_milestone",
+    { amount: `₹${Math.round(reached / 100)}` },
+    { dedupeKey: `savings:${userId}:${reached}` },
+  ).catch(() => {});
+}
 
 export async function enqueueNotification(
   userId: string,
@@ -313,6 +399,96 @@ export async function drainOutbox() {
 
 function mark(id: string, status: string, error: string) {
   return prisma.notification.update({ where: { id }, data: { status, error } });
+}
+
+// Daily lifecycle sweep — enqueues engagement emails on time-based rules. All
+// idempotent via dedupeKey so repeated runs (or restarts) never double-send.
+//   • onboarding nudge: signed up ~3 days ago, never ordered
+//   • win-back: last order ~30 days ago
+//   • Plus value: monthly ROI (subscribers) / upsell (non-subscribers)
+export async function runLifecycleSweep(now = new Date()): Promise<{
+  onboarding: number;
+  winBack: number;
+  plusValue: number;
+}> {
+  const day = 24 * 60 * 60 * 1000;
+  let onboarding = 0;
+  let winBack = 0;
+  let plusValue = 0;
+
+  // --- Onboarding: verified users who joined 3–4 days ago with zero orders.
+  const joinedFrom = new Date(now.getTime() - 4 * day);
+  const joinedTo = new Date(now.getTime() - 3 * day);
+  const newbies = await prisma.user.findMany({
+    where: {
+      emailVerified: true,
+      createdAt: { gte: joinedFrom, lte: joinedTo },
+      orders: { none: {} },
+    },
+    select: { id: true },
+    take: 500,
+  });
+  for (const u of newbies) {
+    const res = await enqueueNotification(
+      u.id,
+      "tips.onboarding_no_order",
+      {},
+      { dedupeKey: `onboarding:${u.id}` },
+    );
+    if (res) onboarding++;
+  }
+
+  // --- Win-back: users whose most recent order was ~30 days ago. One nudge per
+  // 30-day-inactivity window (keyed to the order date so it can re-fire later).
+  const staleFrom = new Date(now.getTime() - 31 * day);
+  const staleTo = new Date(now.getTime() - 30 * day);
+  const recentOrders = await prisma.order.findMany({
+    where: { createdAt: { gte: staleFrom, lte: staleTo } },
+    select: { userId: true, title: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 1000,
+  });
+  const seen = new Set<string>();
+  for (const o of recentOrders) {
+    if (seen.has(o.userId)) continue;
+    seen.add(o.userId);
+    // Skip if they've ordered since the stale window.
+    const newer = await prisma.order.count({
+      where: { userId: o.userId, createdAt: { gt: staleTo } },
+    });
+    if (newer > 0) continue;
+    const res = await enqueueNotification(
+      o.userId,
+      "tips.win_back",
+      { usual: o.title },
+      { dedupeKey: `winback:${o.userId}:${o.createdAt.toISOString().slice(0, 10)}` },
+    );
+    if (res) winBack++;
+  }
+
+  // --- Plus value: a monthly ROI touch for active members, bucketed by
+  // calendar month so it's sent at most once per user per month. (The
+  // non-subscriber "you'd have saved ₹X" upsell branch of money.plus_value is
+  // intentionally NOT blasted here — it needs a real per-user counterfactual
+  // savings figure to be honest, and monthly mail to every free user would hurt
+  // domain deliverability. It's triggered case-by-case instead.)
+  const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
+  const activePlus = await prisma.user.findMany({
+    where: { plusActive: true, plusUntil: { gt: now } },
+    select: { id: true },
+    take: 500,
+  });
+  for (const u of activePlus) {
+    const res = await enqueueNotification(
+      u.id,
+      "money.plus_value",
+      { active: "1" },
+      { dedupeKey: `plusvalue:${u.id}:${monthKey}` },
+    );
+    if (res) plusValue++;
+  }
+
+  return { onboarding, winBack, plusValue };
 }
 
 export function startOutboxWorker(intervalMs = 30_000) {
