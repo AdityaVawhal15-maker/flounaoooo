@@ -16,12 +16,24 @@ import { useI18n } from "@/components/i18n/I18nContext";
 import { LANGUAGES } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
-// Server-persisted preferences (PUT /api/users/preferences).
+// Server-persisted preferences (PUT /api/users/preferences). Security mail
+// (password changed, new address, etc.) isn't listed here — it always sends
+// and isn't a user choice.
 const PREF_SETTINGS = [
   {
     key: "emailUpdates" as const,
-    label: "Email updates",
-    subtitle: "Receipts and announcements",
+    label: "Order emails",
+    subtitle: "Receipts, cancellations, refund updates",
+  },
+  {
+    key: "emailMoneyUpdates" as const,
+    label: "Money-saving emails",
+    subtitle: "Savings milestones, price drops, Plus value",
+  },
+  {
+    key: "emailTips" as const,
+    label: "Tips & announcements",
+    subtitle: "New features and occasional offers",
   },
   {
     key: "smartSuggestions" as const,
@@ -30,13 +42,20 @@ const PREF_SETTINGS = [
   },
 ];
 
-type Prefs = { emailUpdates: boolean; smartSuggestions: boolean };
+type Prefs = {
+  emailUpdates: boolean;
+  smartSuggestions: boolean;
+  emailMoneyUpdates: boolean;
+  emailTips: boolean;
+};
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const [prefs, setPrefs] = useState<Prefs>({
     emailUpdates: true,
     smartSuggestions: true,
+    emailMoneyUpdates: true,
+    emailTips: true,
   });
   const [pushState, setPushState] = useState<
     "loading" | "unsupported" | "denied" | "subscribed" | "default"
@@ -201,6 +220,9 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      <p className="mb-2 mt-1 px-1 text-[13px] font-bold text-ink">
+        Email &amp; suggestions
+      </p>
       <Card className="p-0">
         {PREF_SETTINGS.map((s, i) => (
           <div
