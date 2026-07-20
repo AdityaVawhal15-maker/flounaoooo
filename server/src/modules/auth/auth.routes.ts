@@ -225,6 +225,13 @@ authRouter.post(
 
       // Successful auth — clear any failure counter / lock.
       if (user.failedLogins > 0 || user.lockedUntil) {
+        // A login that succeeds right after failed attempts is worth flagging:
+        // it's the shape of a guessed/leaked password finally getting in.
+        if (user.failedLogins >= 2) {
+          await enqueueNotification(user.id, "security.suspicious_login", {
+            attempts: String(user.failedLogins),
+          }).catch(() => {});
+        }
         await prisma.user.update({
           where: { id: user.id },
           data: { failedLogins: 0, lockedUntil: null },

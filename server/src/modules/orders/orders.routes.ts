@@ -13,6 +13,7 @@ import {
   CONVENIENCE_FEE_PAISE,
 } from "../subscription/subscription.service.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 import { emitOrderDiscovery } from "../backoffice/ondc.service.js";
 
 export const ordersRouter = Router();
@@ -578,6 +579,13 @@ ordersRouter.post(
         body: `${order.title} was cancelled.`,
         url: `/orders/${order.id}`,
       });
+      // Email confirmation of the cancellation + refund status (outbox-gated).
+      void enqueueNotification(
+        order.userId,
+        "orders.cancelled",
+        { title: order.title, orderId: order.id, ...(reason ? { reason } : {}) },
+        { dedupeKey: `cancelled:${order.id}` },
+      ).catch(() => {});
 
       res.json({ order: { ...updated, details: JSON.parse(updated.details) } });
     } catch (err) {
