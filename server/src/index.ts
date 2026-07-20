@@ -3,7 +3,10 @@ import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
-import { startOutboxWorker } from "./modules/notifications/outbox.service.js";
+import {
+  startOutboxWorker,
+  runLifecycleSweep,
+} from "./modules/notifications/outbox.service.js";
 import { sweepPlusMemberships } from "./modules/subscription/subscription.service.js";
 import { initMonitoring } from "./lib/monitoring.js";
 
@@ -41,8 +44,21 @@ async function runPlusSweep() {
     console.error("[plus] sweep failed:", err);
   }
 }
+async function runLifecycle() {
+  try {
+    const { onboarding, winBack, plusValue } = await runLifecycleSweep();
+    if (onboarding || winBack || plusValue)
+      console.log(
+        `[lifecycle] onboarding ${onboarding}, win-back ${winBack}, plus-value ${plusValue}`,
+      );
+  } catch (err) {
+    console.error("[lifecycle] sweep failed:", err);
+  }
+}
 void runPlusSweep();
+void runLifecycle();
 const plusSweep = setInterval(runPlusSweep, 24 * 60 * 60_000);
+const lifecycleSweep = setInterval(runLifecycle, 24 * 60 * 60_000);
 
 // Hourly housekeeping: expired OTP codes and dead refresh tokens never pile up.
 const cleanup = setInterval(
@@ -70,6 +86,7 @@ async function shutdown(signal: string) {
   clearInterval(cleanup);
   clearInterval(alertLoop);
   clearInterval(plusSweep);
+  clearInterval(lifecycleSweep);
   stopOutbox();
   server.close(async () => {
     await prisma.$disconnect();
