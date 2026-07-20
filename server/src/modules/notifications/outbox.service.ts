@@ -61,6 +61,35 @@ export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
       footnote: SECURITY_FOOTNOTE,
     }),
   },
+  "security.suspicious_login": {
+    category: "security",
+    build: (p) => ({
+      subject: "Your Radiues account was just accessed",
+      heading: "Sign-in after failed attempts",
+      lines: [
+        `Someone signed in to your account${p.attempts ? ` after ${p.attempts} failed password attempt${p.attempts === "1" ? "" : "s"}` : ""}.`,
+        "If that was you, no action is needed — you can ignore this email.",
+      ],
+      ctaLabel: "Secure my account",
+      ctaPath: "/profile/settings",
+      footnote: SECURITY_FOOTNOTE,
+    }),
+  },
+  "security.account_deletion_requested": {
+    category: "security",
+    build: () => ({
+      subject: "Your Radiues account is scheduled for deletion",
+      heading: "Account deletion requested",
+      lines: [
+        "We've received a request to delete your Radiues account. It will be permanently removed after a 7-day grace period.",
+        "Changed your mind? Sign in any time in the next 7 days to keep your account and cancel the deletion.",
+      ],
+      ctaLabel: "Keep my account",
+      ctaPath: "/profile/settings",
+      footnote:
+        "If you didn't request this, sign in immediately and change your password — someone may have access to your account.",
+    }),
+  },
   "orders.refund_approved": {
     category: "orders",
     build: (p) => ({
