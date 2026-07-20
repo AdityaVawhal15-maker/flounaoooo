@@ -116,6 +116,58 @@ export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
       ctaPath: p.orderId ? `/orders/${p.orderId}` : "/history",
     }),
   },
+  "plus.activated": {
+    category: "orders", // subscription receipts ride the transactional gate
+    build: (p) => ({
+      subject: "Welcome to Radiues Plus 🎉",
+      heading: "Your Plus membership is active",
+      lines: [
+        `Radiues Plus is now active${p.until ? ` until ${p.until}` : ""}. You're unlocking deeper AI picks, price-drop alerts, zero convenience fees and the savings guarantee.`,
+        "We'll email you before your next renewal so there are never any surprises.",
+      ],
+      ctaLabel: "Explore Plus",
+      ctaPath: "/profile/plus",
+    }),
+  },
+  "plus.renewal_reminder": {
+    category: "orders",
+    build: (p) => ({
+      subject: "Your Radiues Plus renews soon",
+      heading: "Heads up — Plus renews in 3 days",
+      lines: [
+        `Your Radiues Plus membership renews${p.until ? ` on ${p.until}` : " soon"} for ${p.price ?? "₹50"}.`,
+        "Nothing to do if you'd like to continue. If not, you can cancel any time before then.",
+      ],
+      ctaLabel: "Manage membership",
+      ctaPath: "/profile/plus",
+    }),
+  },
+  "plus.payment_failed": {
+    category: "orders",
+    build: () => ({
+      subject: "We couldn't renew your Radiues Plus",
+      heading: "Your Plus renewal didn't go through",
+      lines: [
+        "We tried to renew your Radiues Plus membership but the payment didn't succeed.",
+        "Update your payment method to keep your Plus perks — we'll retry automatically.",
+      ],
+      ctaLabel: "Fix payment",
+      ctaPath: "/profile/plus",
+    }),
+  },
+  "plus.expired": {
+    category: "orders",
+    build: () => ({
+      subject: "Your Radiues Plus has ended",
+      heading: "Your Plus membership expired",
+      lines: [
+        "Your Radiues Plus membership has ended. Core Radiues — best-pick AI, live tracking and OTP — stays free, always.",
+        "Renew any time to bring back deeper AI, price-drop alerts and the savings guarantee.",
+      ],
+      ctaLabel: "Renew Plus",
+      ctaPath: "/profile/plus",
+    }),
+  },
   "money.savings_milestone": {
     category: "money",
     build: (p) => ({
