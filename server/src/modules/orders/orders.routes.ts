@@ -580,7 +580,8 @@ ordersRouter.post(
         url: `/orders/${order.id}`,
       });
       // Email confirmation of the cancellation + refund status (outbox-gated).
-      void enqueueNotification(
+      // Awaited (one cheap insert) but never allowed to fail the cancellation.
+      await enqueueNotification(
         order.userId,
         "orders.cancelled",
         { title: order.title, orderId: order.id, ...(reason ? { reason } : {}) },
