@@ -123,8 +123,8 @@ export default function OrderDetailPage({
       </Link>
 
       <h1 className="mt-3 text-[19px] font-bold text-ink">{order.title}</h1>
-      <p className="mt-0.5 text-[12px] uppercase text-cocoa">
-        {order.provider} · {new Date(order.createdAt).toLocaleString("en-IN")}
+      <p className="mt-0.5 text-[12px] text-cocoa">
+        {new Date(order.createdAt).toLocaleString("en-IN")}
       </p>
 
       {/* Live tracking — driver / delivery partner, OTP, moving map (free) */}

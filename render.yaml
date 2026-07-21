@@ -1,0 +1,70 @@
+# Render blueprint for the Radiues API (server/). The web app deploys to
+# Vercel separately and proxies /api/* here (web/next.config.ts rewrites),
+# so browsers only ever see the web origin and auth cookies stay first-party.
+#
+# Secrets (sync: false) are entered once in the Render dashboard; the
+# database is a Neon Postgres connection string (DATABASE_URL).
+services:
+  - type: web
+    name: radiues-api
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: server
+    buildCommand: >-
+      npm install &&
+      node scripts/set-db-provider.mjs postgresql &&
+      npx prisma generate &&
+      npx prisma db push --skip-generate &&
+      npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: DB_PROVIDER
+        value: postgresql
+      - key: WEB_ORIGIN
+        sync: false # https://<app>.vercel.app
+      - key: DATABASE_URL
+        sync: false # Neon Postgres connection string (with ?sslmode=require)
+      - key: JWT_ACCESS_SECRET
+        sync: false # 48+ random chars (production boot gate enforces this)
+      - key: JWT_REFRESH_SECRET
+        sync: false # 48+ random chars, different from the access secret
+      - key: LLM_PROVIDER
+        value: google
+      - key: GOOGLE_AI_API_KEY
+        sync: false # free key from aistudio.google.com
+      - key: MAPTILER_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: CASHFREE_APP_ID
+        sync: false
+      - key: CASHFREE_SECRET_KEY
+        sync: false
+      - key: CASHFREE_ENV
+        value: sandbox
+      - key: GEOAPIFY_KEY
+        sync: false
+      - key: ORS_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

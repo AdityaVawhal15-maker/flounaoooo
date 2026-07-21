@@ -16,7 +16,7 @@ const FAQS = [
   },
   {
     q: "Where do my orders actually get placed?",
-    a: "ONDC orders are placed directly inside Radiues. For partner platforms, we hand you over to their checkout with the offers pre-applied.",
+    a: "Right inside Radiues — you order and pay here, and we route it to the restaurant or mobility partner fulfilling it. You never leave the app.",
   },
   {
     q: "How do refunds work?",

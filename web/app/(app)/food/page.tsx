@@ -24,6 +24,7 @@ import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { BudgetBar, useBudget } from "@/components/food/BudgetBar";
+import { DishArt } from "@/components/food/DishArt";
 import { FadeIn, ScrollReveal, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -57,6 +58,7 @@ export default function FoodLandingPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodQuote[] | null>(null);
   const [error, setError] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const budget = useBudget();
   const { t } = useI18n();
 
@@ -64,6 +66,10 @@ export default function FoodLandingPage() {
     api<Feed>("/api/food/feed")
       .then(setFeed)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+    // Settings → Smart suggestions toggle; default to shown on any failure.
+    api<{ smartSuggestions: boolean }>("/api/users/preferences")
+      .then((p) => setShowSuggestions(p.smartSuggestions))
+      .catch(() => {});
   }, []);
 
   const activeQuery = (category === "All" ? query : `${query} ${category}`).trim();
@@ -217,7 +223,8 @@ export default function FoodLandingPage() {
             </Stagger>
           </section>
 
-          {/* Smart suggestions */}
+          {/* Smart suggestions (hidden when turned off in Settings) */}
+          {showSuggestions && (
           <ScrollReveal className="mt-8">
             <h2 className="text-[17px] font-bold text-ink">{t("food.smartSuggestions")}</h2>
             <p className="text-[12px] text-cocoa">
@@ -253,18 +260,20 @@ export default function FoodLandingPage() {
               />
             </div>
           </ScrollReveal>
+          )}
         </>
       )}
     </div>
   );
 }
 
-// Dish card — Figma layout: tag pill, name, clock · rating, price + Order now.
-// No left icon tile (matches the design).
+// Dish card — Figma layout: tag pill, name, clock · rating, price + Order now,
+// with a dish-art tile standing in until real photography lands.
 function DishRow({ q }: { q: FoodQuote }) {
   return (
     <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
       <div className="flex items-center gap-3">
+        <DishArt name={q.name} size={48} />
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}

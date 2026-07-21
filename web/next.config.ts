@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // In hosted environments the web app proxies /api/* to the API service so
+  // auth cookies stay first-party on this origin (same-origin requirement).
+  // Set API_PROXY_TARGET to the API base URL (no trailing slash) and leave
+  // NEXT_PUBLIC_API_URL empty so the client fetches relative /api paths.
+  // Unset in local dev — the client calls http://localhost:4000 directly.
+  async rewrites() {
+    const target = process.env.API_PROXY_TARGET;
+    if (!target) return [];
+    return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
+  },
 };
 
 export default nextConfig;

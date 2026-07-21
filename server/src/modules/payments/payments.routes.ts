@@ -12,6 +12,7 @@ import {
   verifyCashfreeWebhook,
 } from "./cashfree.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { sendReceiptEmail } from "../../lib/mailer.js";
 import { emitOrderConfirmation } from "../backoffice/ondc.service.js";
 
 export const paymentsRouter = Router();
@@ -51,35 +52,81 @@ async function markPaid(
     return order;
   }
 
-  // Atomically claim the order: only the first concurrent PAYMENT_SUCCESS
-  // delivery flips it out of pending_payment. A later/duplicate delivery sees
-  // count === 0 and no-ops, so the payment update, tracking events and push
-  // fire exactly once even under racing webhooks.
-  const claim = await prisma.order.updateMany({
-    where: { id: orderId, status: "pending_payment" },
-    data: { status: "confirmed" },
-  });
-  if (claim.count === 0) {
-    return prisma.order.findUnique({ where: { id: orderId } });
+  // Scheduled rides anchor their timeline at the scheduled time — the captain
+  // search starts then, not at payment. Everything else starts now.
+  let timelineStart = Date.now();
+  if (order.domain === "ride") {
+    const details = JSON.parse(order.details) as { scheduledAt?: string };
+    const scheduled = details.scheduledAt ? Date.parse(details.scheduledAt) : NaN;
+    if (!Number.isNaN(scheduled) && scheduled > timelineStart) timelineStart = scheduled;
   }
 
-  await prisma.$transaction([
-    prisma.payment.update({
+  // Claim the order and write the payment + timeline in ONE transaction. The
+  // status-scoped claim is what makes this exactly-once: only the first
+  // concurrent PAYMENT_SUCCESS delivery flips it out of pending_payment, and a
+  // duplicate sees count === 0 and aborts. Keeping the claim inside the
+  // transaction means a failure anywhere (e.g. a webhook arriving for an order
+  // that never went through checkout, so no payment row exists) rolls the
+  // claim back too — an order can never end up "confirmed" with no payment and
+  // no tracking events. The payment row is upserted for exactly that case.
+  const claimed = await prisma.$transaction(async (tx) => {
+    const claim = await tx.order.updateMany({
+      where: { id: orderId, status: "pending_payment" },
+      data: { status: "confirmed" },
+    });
+    if (claim.count === 0) return false;
+
+    await tx.payment.upsert({
       where: { orderId },
-      data: { status: "success", method, gatewayResponse: opts.gatewayResponse },
-    }),
-    prisma.trackingEvent.createMany({
+      update: { status: "success", method, gatewayResponse: opts.gatewayResponse },
+      create: {
+        orderId,
+        userId: order.userId,
+        amount: order.amount,
+        currency: "INR",
+        status: "success",
+        method,
+        gatewayResponse: opts.gatewayResponse,
+      },
+    });
+
+    await tx.trackingEvent.createMany({
       data: (order.domain === "food" ? FOOD_EVENTS : RIDE_EVENTS).map((e, i) => ({
         orderId,
         status: e.status,
         message: e.message,
         // Future timestamps simulate live progress for the tracking screen.
-        createdAt: new Date(Date.now() + i * 45_000),
+        createdAt: new Date(timelineStart + i * 45_000),
       })),
-    }),
-  ]);
+    });
+    return true;
+  });
+
+  if (!claimed) {
+    return prisma.order.findUnique({ where: { id: orderId } });
+  }
 
   const updated = await prisma.order.findUnique({ where: { id: orderId } });
+
+  // Fire-and-forget receipt email (no-op if SMTP isn't configured or the
+  // user has turned off email updates — OTP/security mail is unaffected).
+  void prisma.user
+    .findUnique({
+      where: { id: order.userId },
+      select: { email: true, emailUpdates: true },
+    })
+    .then((u) => {
+      if (u?.emailUpdates && updated) {
+        return sendReceiptEmail(u.email, {
+          id: updated.id,
+          title: updated.title,
+          domain: updated.domain,
+          amount: updated.amount,
+          savedPaise: updated.savedPaise,
+        });
+      }
+    })
+    .catch((err) => console.error("[payments] receipt email failed:", err));
 
   // Fire-and-forget confirmation push (no-op if push isn't configured).
   void sendPushToUser(order.userId, {

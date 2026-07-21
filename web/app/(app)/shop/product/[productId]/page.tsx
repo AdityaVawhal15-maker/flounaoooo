@@ -5,6 +5,7 @@ import { Star, Truck, BadgePercent, ChevronLeft, ShieldCheck } from "lucide-reac
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
+import { sellerName } from "@/lib/sellerName";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { LoadingView, ErrorView } from "@/components/ui/StatusView";
@@ -107,7 +108,7 @@ export default function ProductPage({
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[14px] font-bold uppercase text-ink">{q.platform}</p>
+                  <p className="text-[14px] font-bold text-ink">{sellerName(q.platform)}</p>
                   <p className="flex items-center gap-1 text-[12px] text-cocoa">
                     <Truck size={12} /> {q.deliveryDays}-day delivery
                   </p>

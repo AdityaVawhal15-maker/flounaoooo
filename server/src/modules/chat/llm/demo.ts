@@ -3,7 +3,7 @@ import type { Intent, LlmProvider } from "./types.js";
 // Keyless fallback so the whole product runs without any LLM account.
 // Simple keyword rules — replaced in production by Anthropic/DeepSeek.
 const FOOD_WORDS =
-  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry)\b/i;
+  /\b(biryani|pizza|burger|dosa|pasta|noodles|thali|paneer|chicken|veg|tiffin|breakfast|lunch|dinner|snack|dessert|cake|ice ?cream|samosa|idli|paratha|roll|shawarma|momos|food|eat|hungry|spicy|sweet|healthy|cheesy|meal|craving)\b/i;
 const RIDE_WORDS =
   /\b(ride|cab|taxi|auto|bike|uber|ola|rapido|drop|pickup|pick me|airport|station|office|go to|take me)\b/i;
 const SHOP_WORDS =
@@ -71,8 +71,32 @@ function extractFood(message: string) {
   };
 }
 
+// "at 10pm", "at 10:30 pm", "at 22:00", "tonight at 10" → 24h "HH:mm".
+// No match (or an unparseable time) → null, meaning "ride now".
+function extractScheduleAt(message: string): string | null {
+  const m = message.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+  if (!m) return null;
+  let hours = Number(m[1]);
+  const minutes = Number(m[2] ?? 0);
+  const meridiem = m[3]?.toLowerCase();
+  if (minutes > 59) return null;
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return null;
+    if (meridiem === "pm" && hours !== 12) hours += 12;
+    if (meridiem === "am" && hours === 12) hours = 0;
+  } else {
+    if (hours > 23) return null;
+    // Bare "at 10" defaults to evening (the common booking phrasing);
+    // explicit 24h times like "at 22:00" pass through unchanged.
+    if (hours >= 1 && hours <= 7 && m[2] === undefined) hours += 12;
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 function extractRide(message: string) {
   const dropMatch = message.match(/(?:to|towards|till)\s+([a-z0-9 ,.'-]{3,60})/i);
+  // Keep a trailing time phrase out of the destination ("airport at 10pm").
+  const drop = dropMatch?.[1]?.replace(/\s+at\s+\d.*$/i, "").trim();
   const vehicle = /bike/i.test(message)
     ? ("bike" as const)
     : /auto/i.test(message)
@@ -82,9 +106,10 @@ function extractRide(message: string) {
         : ("any" as const);
   return {
     pickup: null,
-    drop: dropMatch?.[1]?.trim() ?? "your destination",
+    drop: drop || "your destination",
     vehicle,
     priority: extractPriority(message),
+    scheduleAt: extractScheduleAt(message),
   };
 }
 

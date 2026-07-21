@@ -16,17 +16,27 @@ import { useI18n } from "@/components/i18n/I18nContext";
 import { LANGUAGES } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
-// Local-only preferences (no server effect yet).
-const LOCAL_SETTINGS = [
-  { key: "email", label: "Email updates", subtitle: "Receipts and announcements" },
-  { key: "tips", label: "Smart suggestions", subtitle: "AI picks based on your orders" },
+// Server-persisted preferences (PUT /api/users/preferences).
+const PREF_SETTINGS = [
+  {
+    key: "emailUpdates" as const,
+    label: "Email updates",
+    subtitle: "Receipts and announcements",
+  },
+  {
+    key: "smartSuggestions" as const,
+    label: "Smart suggestions",
+    subtitle: "AI picks based on your orders",
+  },
 ];
+
+type Prefs = { emailUpdates: boolean; smartSuggestions: boolean };
 
 export default function SettingsPage() {
   const { t, lang, setLang } = useI18n();
-  const [values, setValues] = useState<Record<string, boolean>>({
-    email: true,
-    tips: true,
+  const [prefs, setPrefs] = useState<Prefs>({
+    emailUpdates: true,
+    smartSuggestions: true,
   });
   const [pushState, setPushState] = useState<
     "loading" | "unsupported" | "denied" | "subscribed" | "default"
@@ -45,7 +55,21 @@ export default function SettingsPage() {
     getSubscriptionState()
       .then(setPushState)
       .catch(() => setPushState("unsupported"));
+    api<Prefs>("/api/users/preferences").then(setPrefs).catch(() => {});
   }, []);
+
+  function togglePref(key: keyof Prefs) {
+    // Optimistic flip; revert if the save fails.
+    const previous = prefs;
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    api<Prefs>("/api/users/preferences", {
+      method: "PUT",
+      json: { [key]: next[key] },
+    })
+      .then(setPrefs)
+      .catch(() => setPrefs(previous));
+  }
 
   async function togglePush() {
     setPushBusy(true);
@@ -178,12 +202,12 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="p-0">
-        {LOCAL_SETTINGS.map((s, i) => (
+        {PREF_SETTINGS.map((s, i) => (
           <div
             key={s.key}
             className={cn(
               "flex items-center gap-3 px-4 py-3.5",
-              i < LOCAL_SETTINGS.length - 1 && "border-b border-line/70",
+              i < PREF_SETTINGS.length - 1 && "border-b border-line/70",
             )}
           >
             <div className="min-w-0 flex-1">
@@ -192,18 +216,18 @@ export default function SettingsPage() {
             </div>
             <button
               role="switch"
-              aria-checked={values[s.key]}
+              aria-checked={prefs[s.key]}
               aria-label={s.label}
-              onClick={() => setValues((v) => ({ ...v, [s.key]: !v[s.key] }))}
+              onClick={() => togglePref(s.key)}
               className={cn(
                 "h-6 w-11 rounded-full p-0.5 transition-colors",
-                values[s.key] ? "bg-accent" : "bg-line",
+                prefs[s.key] ? "bg-accent" : "bg-line",
               )}
             >
               <span
                 className={cn(
                   "block size-5 rounded-full bg-white shadow transition-transform",
-                  values[s.key] && "translate-x-5",
+                  prefs[s.key] && "translate-x-5",
                 )}
               />
             </button>

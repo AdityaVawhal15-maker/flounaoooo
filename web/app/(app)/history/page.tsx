@@ -124,7 +124,7 @@ export default function HistoryPage() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}{" "}
-                    · {o.provider.toUpperCase()}
+
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

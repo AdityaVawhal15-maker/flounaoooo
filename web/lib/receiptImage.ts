@@ -195,7 +195,7 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
   ctx.font = "600 42px Inter, system-ui, sans-serif";
   const compareLines = wrapLines(
     ctx,
-    `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} platforms`,
+    `Compared ${data.comparedOptions} options across ${data.comparedPlatforms} apps`,
     cardW - 160,
   );
   const compareLH = 52;

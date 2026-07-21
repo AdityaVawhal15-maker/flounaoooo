@@ -31,6 +31,16 @@ export const intentSchema = z.object({
       priority: z
         .enum(["price", "rating", "speed", "balanced"])
         .default("balanced"),
+      // "book a cab at 10pm" → "22:00". Resolved server-side to the next
+      // occurrence of that local time (today or tomorrow).
+      scheduleAt: z
+        .string()
+        .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+        .nullable()
+        .default(null)
+        .describe(
+          "24h HH:mm if the user asked to book for a later time, else null",
+        ),
     })
     .optional(),
   shop: z

@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { searchFood } from "../food/food.service.js";
+import { quotesForDish } from "../food/food.service.js";
 import { weeklyFoodBudget, startOfWeek } from "./budget.service.js";
 import { buildDecisionProfile } from "../advisor/decisionProfile.service.js";
 import { predictForUser } from "../advisor/prediction.service.js";
@@ -131,6 +131,45 @@ usersRouter.put(
   },
 );
 
+// ---------- Notification preferences ----------
+
+usersRouter.get("/preferences", async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: { emailUpdates: true, smartSuggestions: true },
+    });
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.put(
+  "/preferences",
+  validateBody(
+    z
+      .object({
+        emailUpdates: z.boolean().optional(),
+        smartSuggestions: z.boolean().optional(),
+      })
+      .refine((b) => Object.keys(b).length > 0, { message: "Nothing to update" }),
+  ),
+  async (req, res, next) => {
+    try {
+      const body = req.body as { emailUpdates?: boolean; smartSuggestions?: boolean };
+      const user = await prisma.user.update({
+        where: { id: req.userId! },
+        data: body,
+        select: { emailUpdates: true, smartSuggestions: true },
+      });
+      res.json(user);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // Decision profile — the user's learned taste, spend behaviour and routines.
 // Powers personalized recommendations and proactive nudges.
 usersRouter.get("/profile", async (req, res, next) => {
@@ -236,7 +275,7 @@ usersRouter.get("/usual", async (req, res, next) => {
     if (!top || top[1] < 2) return res.json({ usual: null });
 
     const [dishId, timesOrdered] = top;
-    const bestNow = searchFood({ query: "" }).find((q) => q.dishId === dishId);
+    const bestNow = quotesForDish(dishId)[0];
     if (!bestNow) return res.json({ usual: null });
 
     res.json({ usual: { ...bestNow, timesOrdered } });

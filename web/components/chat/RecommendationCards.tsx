@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Star, Clock, Sparkles, Truck, Utensils, Package, Wallet, Zap, Award, Tag } from "lucide-react";
+import { Star, Clock, Sparkles, Truck, Package, Wallet, Zap, Award, Tag } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
 import { FadeIn } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
+import { DishArt } from "@/components/food/DishArt";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import type {
@@ -66,9 +67,7 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
       }
     >
       <div className="flex items-start gap-3">
-        <span className="shrink-0">
-          <CategoryTile icon={Utensils} theme={highlight ? "orange" : "amber"} size={46} />
-        </span>
+        <DishArt name={q.name} size={46} />
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}
@@ -82,7 +81,7 @@ function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
             <span className="flex items-center gap-0.5">
               <Clock size={12} /> {q.etaMinutes} min
             </span>
-            <span className="uppercase">{q.platform}</span>
+
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -153,11 +152,20 @@ export function FoodRecommendation({
   );
 }
 
-function RideQuoteRow({ q, drop }: { q: RideQuote; drop?: string }) {
-  // Carry the destination + chosen vehicle so the rides screen opens ready —
-  // pickup comes from live GPS, drop is geocoded, no re-asking.
+function RideQuoteRow({
+  q,
+  drop,
+  scheduledAt,
+}: {
+  q: RideQuote;
+  drop?: string;
+  scheduledAt?: string | null;
+}) {
+  // Carry the destination + chosen vehicle (and the scheduled time, if any)
+  // so the rides screen opens ready — pickup comes from live GPS, drop is
+  // geocoded, no re-asking.
   const href = drop
-    ? `/rides?drop=${encodeURIComponent(drop)}&vehicle=${q.vehicle}`
+    ? `/rides?drop=${encodeURIComponent(drop)}&vehicle=${q.vehicle}${scheduledAt ? `&at=${encodeURIComponent(scheduledAt)}` : ""}`
     : "/rides";
   return (
     <Card
@@ -170,7 +178,7 @@ function RideQuoteRow({ q, drop }: { q: RideQuote; drop?: string }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-            {q.productName}
+            {q.displayName}
             {q.badge && (
               <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                 {q.badge}
@@ -226,6 +234,18 @@ export function RideRecommendation({
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
 
+      {rec.scheduledAt && (
+        <p className="flex items-center gap-1.5 self-start rounded-pill bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent">
+          <Clock size={12} /> Scheduled for{" "}
+          {new Date(rec.scheduledAt).toLocaleString("en-IN", {
+            hour: "numeric",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short",
+          })}
+        </p>
+      )}
+
       {/* Vehicle switcher */}
       {vehicles.length > 1 && (
         <div className="flex rounded-pill bg-accent-soft/40 p-1">
@@ -245,7 +265,12 @@ export function RideRecommendation({
       )}
 
       {shown.map((q) => (
-        <RideQuoteRow key={q.productName} q={q} drop={rec.drop} />
+        <RideQuoteRow
+          key={q.productName}
+          q={q}
+          drop={rec.drop}
+          scheduledAt={rec.scheduledAt}
+        />
       ))}
     </FadeIn>
   );
@@ -300,7 +325,7 @@ function ProductRow({ q, highlight }: { q: ProductQuote; highlight?: boolean }) 
             <span className="flex items-center gap-0.5">
               <Truck size={12} /> {q.deliveryDays}d
             </span>
-            <span className="uppercase">{q.platform}</span>
+
           </p>
         </div>
         <div className="shrink-0 text-right">

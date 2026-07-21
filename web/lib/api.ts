@@ -1,6 +1,9 @@
 // Thin client for the Radiues API. All authenticated requests rely on
 // httpOnly cookies (credentials: "include") — tokens are never stored in JS.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// NEXT_PUBLIC_API_URL="/" means same-origin: the host proxies /api/* to the
+// API service (see next.config.ts rewrites) so cookies stay first-party.
+const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_URL = configured === "/" ? "" : configured.replace(/\/$/, "");
 
 export class ApiClientError extends Error {
   constructor(

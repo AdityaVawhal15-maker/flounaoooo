@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import dynamic from "next/dynamic";
 import { useBudget } from "@/components/food/BudgetBar";
+import { DishArt } from "@/components/food/DishArt";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
 
@@ -109,58 +110,71 @@ export default function FoodOrderPage({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6 lg:px-6">
-      <h1 className="text-[20px] font-bold text-ink">{selected.name}</h1>
-      <p className="text-[13px] text-cocoa">{selected.restaurant}</p>
-      <p className="mt-1 flex items-center gap-3 text-[12px] text-cocoa">
-        <span className="flex items-center gap-0.5">
-          <Star size={12} className="fill-accent text-accent" /> {selected.rating}
-        </span>
-        <span className="flex items-center gap-0.5">
-          <Clock size={12} /> {selected.etaMinutes} min
-        </span>
-      </p>
+      <div className="flex items-center gap-3.5">
+        <DishArt name={selected.name} size={64} />
+        <div className="min-w-0">
+          <h1 className="text-[20px] font-bold text-ink">{selected.name}</h1>
+          <p className="text-[13px] text-cocoa">{selected.restaurant}</p>
+          <p className="mt-1 flex items-center gap-3 text-[12px] text-cocoa">
+            <span className="flex items-center gap-0.5">
+              <Star size={12} className="fill-accent text-accent" /> {selected.rating}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Clock size={12} /> {selected.etaMinutes} min
+            </span>
+          </p>
+        </div>
+      </div>
 
       <p className="mt-4 text-[12px] italic leading-relaxed text-cocoa">
         “{selected.reviewSummary}”
       </p>
 
-      {/* Platform comparison — the heart of the decision engine */}
-      <h2 className="mt-6 text-[14px] font-bold text-ink">Available providers</h2>
-      <div className="mt-2 flex flex-col gap-2">
-        {quotes.map((q) => (
-          <button
-            key={q.platform}
-            onClick={() => setPlatform(q.platform)}
-            className="text-left"
-          >
-            <Card
-              className={cn(
-                "transition-colors",
-                q.platform === platform && "border-accent/70 ring-1 ring-accent/30",
+      {/* The engine's pick. Radiues compared this dish across sources and locked
+          the best deal — users see one price and an anonymous comparison, never
+          which networks were checked. */}
+      <h2 className="mt-6 text-[14px] font-bold text-ink">Radiues price</h2>
+      <Card className="mt-2 border-accent/70 ring-1 ring-accent/30">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="inline-flex items-center rounded-pill bg-accent-soft px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-accent">
+              Best deal found
+            </p>
+            <p className="mt-1.5 text-[12px] text-cocoa">
+              Delivery {rupees(selected.deliveryFeePaise)} · {selected.etaMinutes} min
+            </p>
+            {selected.offers[0] && (
+              <p className="flex items-center gap-1 text-[12px] text-success">
+                <BadgePercent size={12} /> {selected.offers[0].label}
+              </p>
+            )}
+          </div>
+          <p className="text-[22px] font-bold text-ink">
+            {rupees(selected.effectivePaise)}
+          </p>
+        </div>
+      </Card>
+      {quotes.length > 1 &&
+        (() => {
+          const others = quotes.filter((q) => q.platform !== selected.platform);
+          const cheapestOther = Math.min(...others.map((q) => q.effectivePaise));
+          const saving = cheapestOther - selected.effectivePaise;
+          return (
+            <p className="mt-2 text-[12px] text-cocoa">
+              {saving > 0 ? (
+                <>
+                  Compared with {others.length} other app{others.length > 1 ? "s" : ""} (
+                  {others
+                    .map((q) => rupees(q.effectivePaise))
+                    .join(" · ")}
+                  ) — <span className="font-semibold text-success">you save {rupees(saving)} here</span>.
+                </>
+              ) : (
+                <>Compared with {others.length} other app{others.length > 1 ? "s" : ""} — picked for the best overall value.</>
               )}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[14px] font-bold uppercase text-ink">
-                    {q.platform}
-                  </p>
-                  <p className="text-[12px] text-cocoa">
-                    Delivery {rupees(q.deliveryFeePaise)} · {q.etaMinutes} min
-                  </p>
-                  {q.offers[0] && (
-                    <p className="flex items-center gap-1 text-[12px] text-success">
-                      <BadgePercent size={12} /> {q.offers[0].label}
-                    </p>
-                  )}
-                </div>
-                <p className="text-[17px] font-bold text-ink">
-                  {rupees(q.effectivePaise)}
-                </p>
-              </div>
-            </Card>
-          </button>
-        ))}
-      </div>
+            </p>
+          );
+        })()}
 
       {/* Delivery address */}
       <Card className="mt-4 py-3">

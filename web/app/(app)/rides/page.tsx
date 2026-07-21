@@ -128,6 +128,21 @@ function RidesInner() {
   const [selected, setSelected] = useState<RideQuote | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Ride scheduling — pre-filled when chat carried "at 10pm" (?at=ISO), and
+  // adjustable here. null = ride now.
+  const [scheduledAt, setScheduledAt] = useState<string | null>(() => {
+    const at = search.get("at");
+    return at && !Number.isNaN(Date.parse(at)) && Date.parse(at) > Date.now()
+      ? new Date(at).toISOString()
+      : null;
+  });
+  // Earliest schedulable slot (~10 min out), in datetime-local form. Captured
+  // once on mount — the server re-validates the real lead time anyway.
+  const [minSchedule] = useState(() =>
+    new Date(Date.now() + 10 * 60_000 - new Date().getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 16),
+  );
   // Start in "locating" if the browser can geolocate; the async callbacks below
   // resolve it (no synchronous setState inside the effect).
   const [locating, setLocating] = useState(
@@ -285,6 +300,7 @@ function RidesInner() {
           pickupLng: pickup.lng,
           dropLat: drop.lat,
           dropLng: drop.lng,
+          ...(scheduledAt ? { scheduledAt } : {}),
         },
       });
       router.push(`/pay/${d.order.id}`);
@@ -404,7 +420,7 @@ function RidesInner() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-                          {q.productName}
+                          {q.displayName}
                           {q.badge && (
                             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                               {q.badge}
@@ -439,6 +455,47 @@ function RidesInner() {
         {error && <p className="text-[13px] text-danger">{error}</p>}
 
         <div className="sticky bottom-0 mt-auto bg-white pb-1 pt-2">
+          {/* Ride now vs schedule for later */}
+          {pickup && drop && (
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                onClick={() => setScheduledAt(null)}
+                className={cn(
+                  "rounded-pill px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                  !scheduledAt
+                    ? "bg-accent-soft text-accent"
+                    : "bg-beige/50 text-cocoa hover:text-ink",
+                )}
+              >
+                Now
+              </button>
+              <input
+                type="datetime-local"
+                aria-label="Schedule for later"
+                value={
+                  scheduledAt
+                    ? new Date(
+                        Date.parse(scheduledAt) -
+                          new Date().getTimezoneOffset() * 60_000,
+                      )
+                        .toISOString()
+                        .slice(0, 16)
+                    : ""
+                }
+                min={minSchedule}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setScheduledAt(v ? new Date(v).toISOString() : null);
+                }}
+                className={cn(
+                  "flex-1 rounded-pill border px-3 py-1.5 text-[12px] font-medium outline-none transition-colors",
+                  scheduledAt
+                    ? "border-accent bg-accent-soft/50 text-accent"
+                    : "border-line bg-card text-cocoa",
+                )}
+              />
+            </div>
+          )}
           <Button
             onClick={confirmRide}
             disabled={!selected || busy}
@@ -447,7 +504,7 @@ function RidesInner() {
             {busy
               ? "Booking…"
               : selected
-                ? `Confirm ${selected.productName} · ${rupees(selected.effectivePaise)}`
+                ? `${scheduledAt ? "Schedule" : "Confirm"} ${selected.displayName} · ${rupees(selected.effectivePaise)}`
                 : pickup && drop
                   ? "Choose a ride"
                   : "Select Drop"}
