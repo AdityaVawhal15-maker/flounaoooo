@@ -423,6 +423,57 @@ describe("notification outbox", () => {
     ).toBe(1);
   });
 
+  it("claims rows so two concurrent drains can't send the same email twice", async () => {
+    const { email } = await authedAgent();
+    const userId = await userIdFor(email);
+    await enqueueNotification(userId, "security.password_changed");
+
+    // Two drains racing (slow SMTP keeps a row past the next tick, or a second
+    // app instance). Exactly one may deliver.
+    await Promise.all([drainOutbox(), drainOutbox()]);
+
+    const delivered = outboxDelivered.filter(
+      (d) => d.to === email && d.type === "security.password_changed",
+    );
+    expect(delivered).toHaveLength(1);
+    expect(
+      await prisma.notification.count({ where: { userId, status: "sent" } }),
+    ).toBe(1);
+  });
+
+  it("requeues stale claims so a crash mid-send doesn't strand a row", async () => {
+    const { requeueStaleClaims } = await import(
+      "../src/modules/notifications/outbox.service.js"
+    );
+    const { email } = await authedAgent();
+    const userId = await userIdFor(email);
+
+    // A row claimed 20 minutes ago by a worker that died before resolving it.
+    const stale = await prisma.notification.create({
+      data: {
+        userId,
+        type: "security.password_changed",
+        payload: "{}",
+        status: "sending",
+        createdAt: new Date(Date.now() - 20 * 60_000),
+      },
+    });
+
+    const requeued = await requeueStaleClaims();
+    expect(requeued).toBeGreaterThanOrEqual(1);
+    const row = await prisma.notification.findUniqueOrThrow({
+      where: { id: stale.id },
+    });
+    expect(row.status).toBe("queued");
+
+    // And it now delivers normally.
+    await drainOutbox();
+    expect(
+      (await prisma.notification.findUniqueOrThrow({ where: { id: stale.id } }))
+        .status,
+    ).toBe("sent");
+  });
+
   it("preferences API round-trips the new toggles", async () => {
     const { agent } = await authedAgent();
     const res = await agent
