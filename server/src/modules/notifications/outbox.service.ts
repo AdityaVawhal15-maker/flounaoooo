@@ -32,7 +32,11 @@ type RegistryEntry = {
 const SECURITY_FOOTNOTE =
   "If this wasn't you, reset your password immediately and contact support from the Help section.";
 
-export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
+// No `Record<string, …>` annotation here on purpose: it would widen the keys to
+// `string` and lose compile-time safety. `satisfies` validates every entry
+// against RegistryEntry while preserving the literal keys, which then become
+// the NotificationType union below.
+export const NOTIFICATION_TYPES = {
   "security.password_changed": {
     category: "security",
     build: () => ({
@@ -252,7 +256,12 @@ export const NOTIFICATION_TYPES: Record<string, RegistryEntry> = {
       ctaPath: p.ctaPath,
     }),
   },
-};
+} satisfies Record<string, RegistryEntry>;
+
+// Every registered notification type, derived from the registry itself — add an
+// entry above and it becomes callable; typo one at a call site and it fails to
+// compile rather than at runtime.
+export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
 // Lifetime-savings milestones (paise). Crossing one emails once.
 export const SAVINGS_MILESTONES_PAISE = [50_000, 100_000, 500_000];
@@ -291,7 +300,7 @@ export async function checkSavingsMilestone(userId: string): Promise<void> {
 
 export async function enqueueNotification(
   userId: string,
-  type: keyof typeof NOTIFICATION_TYPES | (string & {}),
+  type: NotificationType,
   payload: Payload = {},
   opts: { dedupeKey?: string } = {},
 ) {
@@ -321,10 +330,31 @@ export async function enqueueNotification(
 }
 
 export async function drainOutbox() {
-  const batch = await prisma.notification.findMany({
+  // Claim rows before sending. Without this, a slow SMTP send keeps rows in
+  // `queued` past the next 30s tick — and an overlapping drain (or a second
+  // app instance) would pick the same row up and send the email twice. The
+  // status-scoped updateMany is atomic, so exactly one worker wins each row.
+  const candidates = await prisma.notification.findMany({
     where: { status: "queued", attempts: { lt: MAX_ATTEMPTS } },
     orderBy: { createdAt: "asc" },
     take: BATCH,
+    select: { id: true },
+  });
+  if (candidates.length === 0) return 0;
+
+  const claimed: string[] = [];
+  for (const c of candidates) {
+    const res = await prisma.notification.updateMany({
+      where: { id: c.id, status: "queued" },
+      data: { status: "sending" },
+    });
+    if (res.count === 1) claimed.push(c.id);
+  }
+  if (claimed.length === 0) return 0;
+
+  const batch = await prisma.notification.findMany({
+    where: { id: { in: claimed } },
+    orderBy: { createdAt: "asc" },
     include: {
       user: {
         select: {
@@ -338,7 +368,9 @@ export async function drainOutbox() {
   });
 
   for (const n of batch) {
-    const entry = NOTIFICATION_TYPES[n.type];
+    // `n.type` is a plain string from the DB, so the runtime guard stays: a row
+    // written by an older deploy (type since removed) must fail, not crash.
+    const entry = (NOTIFICATION_TYPES as Record<string, RegistryEntry>)[n.type];
     if (!entry) {
       await mark(n.id, "failed", "unknown type");
       continue;
@@ -491,9 +523,35 @@ export async function runLifecycleSweep(now = new Date()): Promise<{
   return { onboarding, winBack, plusValue };
 }
 
+// Rows claimed (`sending`) but never resolved — the process died mid-send, or
+// an SMTP call hung past its timeout. Return them to the queue so they retry
+// instead of being stranded. Older than 10 min is safely past any send.
+const STALE_CLAIM_MS = 10 * 60_000;
+
+export async function requeueStaleClaims(now = new Date()): Promise<number> {
+  const res = await prisma.notification.updateMany({
+    where: {
+      status: "sending",
+      createdAt: { lt: new Date(now.getTime() - STALE_CLAIM_MS) },
+    },
+    data: { status: "queued" },
+  });
+  return res.count;
+}
+
 export function startOutboxWorker(intervalMs = 30_000) {
+  // Non-reentrant: a drain that outlives the tick (slow SMTP) must not have a
+  // second drain start underneath it.
+  let running = false;
   const timer = setInterval(() => {
-    drainOutbox().catch((err) => console.error("[outbox] drain failed:", err));
+    if (running) return;
+    running = true;
+    void requeueStaleClaims()
+      .then(() => drainOutbox())
+      .catch((err) => console.error("[outbox] drain failed:", err))
+      .finally(() => {
+        running = false;
+      });
   }, intervalMs);
   timer.unref?.();
   return () => clearInterval(timer);
