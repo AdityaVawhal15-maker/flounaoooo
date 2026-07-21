@@ -12,6 +12,12 @@ const transport =
           env.SMTP_USER && env.SMTP_PASS
             ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
             : undefined,
+        // Bounded waits: without these nodemailer can hang for minutes on a
+        // sick provider, stalling the notification outbox behind it. A timeout
+        // surfaces as a send error, so the row simply retries.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
       })
     : null;
 
