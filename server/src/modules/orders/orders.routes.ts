@@ -475,6 +475,7 @@ ordersRouter.get("/:id", async (req, res, next) => {
         payment: {
           select: { status: true, method: true, gatewayOrderId: true },
         },
+        rating: { select: { stars: true, comment: true } },
       },
     });
     if (!order) throw new ApiError(404, "Order not found");
@@ -690,6 +691,59 @@ ordersRouter.post(
         // Lets the UI say "refund on its way" only when one is actually owed.
         refundPending: refundFlagged.count > 0,
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------- rate a completed order ----------
+//
+// Ratings only make sense once the thing actually happened, so this is gated on
+// a completed order the caller owns, and can only be left once. The stars feed
+// back into recommendation scoring via the community-rating blend.
+ordersRouter.post(
+  "/:id/rate",
+  validateBody(
+    z.object({
+      stars: z.number().int().min(1).max(5),
+      comment: z.string().trim().max(300).optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { stars, comment } = req.body as { stars: number; comment?: string };
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.id, userId: req.userId! },
+        include: { rating: true },
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+      if (order.status !== "completed") {
+        throw new ApiError(
+          409,
+          order.domain === "food"
+            ? "You can rate this once it's delivered"
+            : "You can rate this once the trip is finished",
+        );
+      }
+      if (order.rating) throw new ApiError(409, "You've already rated this order");
+
+      // What was rated: the dish for food, the provider for a ride.
+      const details = JSON.parse(order.details) as { dishId?: string };
+      const itemKey =
+        order.domain === "food" ? (details.dishId ?? order.provider) : order.provider;
+
+      const rating = await prisma.orderRating.create({
+        data: {
+          orderId: order.id,
+          userId: req.userId!,
+          domain: order.domain,
+          itemKey,
+          stars,
+          comment: comment || null,
+        },
+      });
+      res.status(201).json({ rating });
     } catch (err) {
       next(err);
     }
