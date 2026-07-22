@@ -26,6 +26,9 @@ import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
 
+type AppliedCoupon = { code: string; description: string; discountPaise: number };
+type OfferedCoupon = { code: string; description: string; minOrderPaise: number };
+
 type AddressLine = {
   label: string;
   line1: string;
@@ -42,12 +45,43 @@ export default function CartPage() {
   const [error, setError] = useState("");
   // undefined = still loading, null = none saved (checkout would be rejected).
   const [address, setAddress] = useState<AddressLine | null | undefined>(undefined);
+  const [codeInput, setCodeInput] = useState("");
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [offers, setOffers] = useState<OfferedCoupon[]>([]);
 
   useEffect(() => {
     api<{ addresses: AddressLine[] }>("/api/users/addresses")
       .then((d) => setAddress(d.addresses.find((a) => a.isDefault) ?? d.addresses[0] ?? null))
       .catch(() => setAddress(null));
+    api<{ coupons: OfferedCoupon[] }>("/api/coupons?domain=food")
+      .then((d) => setOffers(d.coupons))
+      .catch(() => setOffers([]));
   }, []);
+
+  // Preview the discount. The server re-checks the code when the order is
+  // actually created, so this is only for showing the buyer what they'll save.
+  async function applyCoupon() {
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      const d = await api<AppliedCoupon>("/api/coupons/validate", {
+        method: "POST",
+        json: {
+          code: codeInput.trim(),
+          domain: "food",
+          subtotalPaise: itemsTotal,
+        },
+      });
+      setCoupon(d);
+    } catch (e) {
+      setCoupon(null);
+      setCouponError(e instanceof Error ? e.message : "Could not apply that code");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
 
   const itemsTotal = lines.reduce((s, l) => s + l.pricePaise * l.qty, 0);
 
@@ -66,6 +100,7 @@ export default function CartPage() {
             qty: l.qty,
           })),
           ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+          ...(coupon ? { couponCode: coupon.code } : {}),
         },
       });
       clear();
@@ -178,6 +213,71 @@ export default function CartPage() {
             </label>
           </Card>
 
+          {/* Promo code */}
+          <Card className="mt-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <Tag size={15} className="shrink-0 text-accent" />
+              {coupon ? (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-bold text-success">
+                      {coupon.code} applied
+                    </span>
+                    <span className="block truncate text-[11px] text-cocoa">
+                      {coupon.description} · saving {rupees(coupon.discountPaise)}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => {
+                      setCoupon(null);
+                      setCodeInput("");
+                      setCouponError("");
+                    }}
+                    className="shrink-0 text-[12px] font-semibold text-cocoa hover:text-danger"
+                  >
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    value={codeInput}
+                    onChange={(e) => {
+                      setCodeInput(e.target.value.toUpperCase().slice(0, 24));
+                      setCouponError("");
+                    }}
+                    placeholder="Enter promo code"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] uppercase text-ink outline-none placeholder:normal-case placeholder:text-cocoa/50"
+                  />
+                  <button
+                    onClick={applyCoupon}
+                    disabled={couponBusy || codeInput.trim().length < 2}
+                    className="shrink-0 text-[12px] font-semibold text-accent hover:underline disabled:opacity-40"
+                  >
+                    {couponBusy ? "Checking…" : "Apply"}
+                  </button>
+                </>
+              )}
+            </div>
+            {couponError && (
+              <p className="mt-1.5 pl-[26px] text-[11px] text-danger">{couponError}</p>
+            )}
+            {!coupon && offers.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5 pl-[26px]">
+                {offers.map((o) => (
+                  <button
+                    key={o.code}
+                    onClick={() => setCodeInput(o.code)}
+                    title={o.description}
+                    className="rounded-pill border border-dashed border-accent/50 px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-accent-soft"
+                  >
+                    {o.code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Delivery address — required, so it's shown before the bill */}
           <Card className="mt-4 py-3">
             <div className="flex items-center gap-2.5">
@@ -217,10 +317,16 @@ export default function CartPage() {
                 <span>{t("cart.deliveryFees")}</span>
                 <span className="text-ink">{t("cart.shownAtPay")}</span>
               </div>
+              {coupon && (
+                <div className="flex justify-between text-success">
+                  <span>Promo {coupon.code}</span>
+                  <span>− {rupees(coupon.discountPaise)}</span>
+                </div>
+              )}
               <div className="my-1 h-px bg-line" />
               <div className="flex justify-between font-bold text-ink">
                 <span>{t("cart.toPay")}</span>
-                <span>{rupees(itemsTotal)}</span>
+                <span>{rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}</span>
               </div>
             </div>
           </Card>
@@ -250,7 +356,7 @@ export default function CartPage() {
               >
                 {busy
                   ? t("foodOrder.placing")
-                  : `${t("cart.checkout")} · ${rupees(itemsTotal)}`}
+                  : `${t("cart.checkout")} · ${rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}`}
               </Button>
             )}
           </div>
