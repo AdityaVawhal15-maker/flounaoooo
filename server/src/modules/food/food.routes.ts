@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { recommendFood, searchFood, quotesForDish, allQuotes } from "./food.service.js";
+import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { dishes } from "../../data/restaurants.js";
 import { adviseFood } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
@@ -29,7 +30,8 @@ foodRouter.get("/feed", async (_req, res) => {
 
   res.json({
     categories: CATEGORIES,
-    picks,
+    // Real diner ratings blended over the catalog baseline.
+    picks: await withCommunityRatings("food", picks, (q) => q.dishId),
     suggestions: {
       fastestDeliveryMinutes: fastest,
       nearestKm: 1.5,
@@ -45,7 +47,7 @@ const searchQuery = z.object({
   dietary: z.enum(["veg", "nonveg", "any"]).default("any"),
 });
 
-foodRouter.get("/search", (req, res, next) => {
+foodRouter.get("/search", async (req, res, next) => {
   try {
     const parsed = searchQuery.parse(req.query);
     const quotes = searchFood({
@@ -53,7 +55,13 @@ foodRouter.get("/search", (req, res, next) => {
       budgetPaise: parsed.budget ? parsed.budget * 100 : null,
       dietary: parsed.dietary,
     });
-    res.json({ quotes: quotes.slice(0, 24) });
+    res.json({
+      quotes: await withCommunityRatings(
+        "food",
+        quotes.slice(0, 24),
+        (q) => q.dishId,
+      ),
+    });
   } catch (err) {
     next(err);
   }
@@ -74,12 +82,14 @@ foodRouter.get("/recommend", (req, res, next) => {
 });
 
 // Quote detail for the order screen — dish + chosen platform listing.
-foodRouter.get("/dishes/:dishId", (req, res) => {
+foodRouter.get("/dishes/:dishId", async (req, res) => {
   const quotes = quotesForDish(req.params.dishId);
   if (quotes.length === 0) {
     return res.status(404).json({ error: "Dish not found" });
   }
-  res.json({ quotes });
+  res.json({
+    quotes: await withCommunityRatings("food", quotes, (q) => q.dishId),
+  });
 });
 
 // Daily price history for a dish, from observed quotes. Returns one point per
