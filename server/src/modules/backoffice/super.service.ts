@@ -10,8 +10,13 @@
 //     and forces a second super_admin to make that change deliberately.
 
 import { prisma } from "../../lib/prisma.js";
-import { env } from "../../config/env.js";
+import { env, isProd } from "../../config/env.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 import { ROLES, type Role } from "../../lib/rbac.js";
+import {
+  cashfreeConfigured,
+  createCashfreeRefund,
+} from "../payments/cashfree.js";
 
 // --- Staff / operators ---------------------------------------------------
 
@@ -302,7 +307,10 @@ export async function listRefundQueue() {
   }));
 }
 
-type RefundResult = { ok: true } | { ok: false; reason: "not_found" | "not_pending" };
+type RefundResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "not_pending" }
+  | { ok: false; reason: "gateway_failed"; message: string };
 
 async function settleRefund(
   paymentId: string,
@@ -321,10 +329,84 @@ async function settleRefund(
   return { ok: true };
 }
 
+// The customer hears about their approved refund by email (outbox-gated).
+async function notifyRefundApproved(payment: {
+  id: string;
+  orderId: string;
+  userId: string;
+  amount: number;
+}) {
+  const order = await prisma.order.findUnique({
+    where: { id: payment.orderId },
+    select: { title: true },
+  });
+  await enqueueNotification(
+    payment.userId,
+    "orders.refund_approved",
+    {
+      title: order?.title ?? "your order",
+      amount: `₹${Math.round(payment.amount / 100)}`,
+      orderId: payment.orderId,
+    },
+    { dedupeKey: `refund_approved:${payment.id}` },
+  ).catch(() => {});
+}
+
 export async function approveRefund(paymentId: string): Promise<RefundResult> {
-  // TODO(cashfree): call the gateway refund API here once live keys exist; only
-  // flip to "refunded" after the gateway confirms.
-  return settleRefund(paymentId, "refunded");
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment) return { ok: false, reason: "not_found" };
+  if (payment.status !== "refund_pending") return { ok: false, reason: "not_pending" };
+
+  if (cashfreeConfigured) {
+    // Real money: the gateway moves it first; we mark refunded only after it
+    // accepts. refund_id = our payment id, so Cashfree rejects a duplicate —
+    // two racing approvals can never refund twice.
+    try {
+      const refund = await createCashfreeRefund({
+        orderId: payment.orderId,
+        refundId: payment.id,
+        amountRupees: payment.amount / 100,
+      });
+      const settled = await settleRefund(paymentId, "refunded");
+      if (settled.ok) {
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: {
+            gatewayResponse: JSON.stringify({
+              refund: {
+                cf_refund_id: refund.cf_refund_id,
+                refund_status: refund.refund_status,
+                refund_amount: refund.refund_amount,
+              },
+            }),
+          },
+        });
+        void notifyRefundApproved(payment);
+      }
+      return settled;
+    } catch (err) {
+      // Surface the gateway error to the console instead of settling — ops
+      // must never believe money moved when it didn't.
+      return {
+        ok: false,
+        reason: "gateway_failed",
+        message: err instanceof Error ? err.message : "Gateway refund failed",
+      };
+    }
+  }
+
+  // No gateway configured: DB-only settlement is a dev/demo convenience and
+  // must never masquerade as a real refund in production.
+  if (isProd) {
+    return {
+      ok: false,
+      reason: "gateway_failed",
+      message: "Refunds require the payment gateway to be configured in production",
+    };
+  }
+  const settled = await settleRefund(paymentId, "refunded");
+  if (settled.ok) void notifyRefundApproved(payment);
+  return settled;
 }
 
 export async function rejectRefund(paymentId: string): Promise<RefundResult> {

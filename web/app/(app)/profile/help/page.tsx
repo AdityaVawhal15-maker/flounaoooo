@@ -2,39 +2,32 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown, Mail, LifeBuoy, CheckCircle2, Send } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
-const FAQS = [
-  {
-    q: "How does Radiues pick the best option?",
-    a: "We compare the final effective price (item + delivery − offers), delivery or pickup time, and ratings across platforms, then recommend the single best choice — with alternatives if you'd rather optimise for speed.",
-  },
-  {
-    q: "Where do my orders actually get placed?",
-    a: "Right inside Radiues — you order and pay here, and we route it to the restaurant or mobility partner fulfilling it. You never leave the app.",
-  },
-  {
-    q: "How do refunds work?",
-    a: "Payments are processed securely via Cashfree. Refunds for cancelled orders return to your original payment method within 5–7 business days.",
-  },
-  {
-    q: "Is my data safe?",
-    a: "Yes — your password is stored hashed, sessions use secure cookies, and we never sell your personal data.",
-  },
+// Question/answer and label copy lives in the dictionaries; these tables hold
+// only the keys so the component resolves them through t().
+const FAQS: { q: TranslationKey; a: TranslationKey }[] = [
+  { q: "pp.help.q1", a: "pp.help.a1" },
+  { q: "pp.help.q2", a: "pp.help.a2" },
+  { q: "pp.help.q3", a: "pp.help.a3" },
+  { q: "pp.help.q4", a: "pp.help.a4" },
 ];
 
-const CATEGORIES = [
-  { key: "order", label: "Order issue" },
-  { key: "payment", label: "Payment" },
-  { key: "refund", label: "Refund" },
-  { key: "account", label: "Account" },
-  { key: "other", label: "Other" },
-] as const;
+const CATEGORIES: { key: string; label: TranslationKey }[] = [
+  { key: "order", label: "pp.help.catOrder" },
+  { key: "payment", label: "pp.help.catPayment" },
+  { key: "refund", label: "pp.help.catRefund" },
+  { key: "account", label: "pp.help.catAccount" },
+  { key: "other", label: "pp.help.catOther" },
+];
 
 type Ticket = {
   id: string;
@@ -47,13 +40,13 @@ type Ticket = {
   updatedAt: string;
 };
 
-type OrderSummary = { id: string; title: string; createdAt: string };
+type OrderSummary = { id: string; title: string; status?: string; createdAt: string };
 
-const STATUS_BADGE: Record<Ticket["status"], { label: string; cls: string }> = {
-  open: { label: "Open", cls: "bg-accent-soft text-accent" },
-  in_progress: { label: "In progress", cls: "bg-beige text-cocoa" },
-  resolved: { label: "Resolved", cls: "bg-success/10 text-success" },
-  closed: { label: "Closed", cls: "bg-line text-muted" },
+const STATUS_BADGE: Record<Ticket["status"], { label: TranslationKey; cls: string }> = {
+  open: { label: "pp.help.stOpen", cls: "bg-accent-soft text-accent" },
+  in_progress: { label: "pp.help.stInProgress", cls: "bg-beige text-cocoa" },
+  resolved: { label: "pp.help.stResolved", cls: "bg-success/10 text-success" },
+  closed: { label: "pp.help.stClosed", cls: "bg-line text-muted" },
 };
 
 export default function HelpPage() {
@@ -65,6 +58,8 @@ export default function HelpPage() {
 }
 
 function HelpInner() {
+  // Bound as `tr` because ticket rows below use `t` as their loop variable.
+  const { t: tr } = useI18n();
   const prefillOrder = useSearchParams().get("order") ?? "";
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -137,16 +132,96 @@ function HelpInner() {
     }
   }
 
+  // Latest live order for the "current order help" card (Figma).
+  const liveOrder = orders.find((o) =>
+    ["confirmed", "in_progress"].includes((o as { status?: string }).status ?? ""),
+  ) as (OrderSummary & { status?: string }) | undefined;
+
+  // One-tap intents: pre-fill the ticket form and link the live order.
+  function prefill(cat: string, subj: string, linkOrder = true) {
+    setCategory(cat);
+    setSubject(subj);
+    if (linkOrder && liveOrder) setOrderId(liveOrder.id);
+  }
+
   return (
-    <SubPage title="Help & support">
+    <SubPage title={tr("pp.help.title")}>
+      {/* Current order help — Figma: live order + one-tap intents */}
+      {liveOrder && (
+        <Card className="mb-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[14px] font-bold text-ink">Current order help</p>
+            <span className="flex items-center gap-1 rounded-pill bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
+              <span className="size-1.5 animate-pulse rounded-full bg-accent" /> LIVE
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-center gap-3 rounded-card bg-beige/40 px-3 py-2.5">
+            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+              {liveOrder.title}
+            </p>
+            <Link
+              href={`/orders/${liveOrder.id}`}
+              className="shrink-0 rounded-pill bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f]"
+            >
+              Track
+            </Link>
+          </div>
+          <div className="mt-2 flex flex-col divide-y divide-line/70">
+            <Link
+              href={`/orders/${liveOrder.id}`}
+              className="py-2.5 text-[13px] text-ink hover:text-accent"
+            >
+              I want to cancel my order
+              <span className="block text-[11px] text-cocoa">
+                Cancel from the order screen before pickup
+              </span>
+            </Link>
+            <button
+              onClick={() => prefill("order", "Order is taking too long")}
+              className="py-2.5 text-left text-[13px] text-ink hover:text-accent"
+            >
+              Order is taking too long
+              <span className="block text-[11px] text-cocoa">
+                Raise it below — we chase the delivery partner
+              </span>
+            </button>
+            <button
+              onClick={() => prefill("order", "Wrong delivery address")}
+              className="py-2.5 text-left text-[13px] text-ink hover:text-accent"
+            >
+              Wrong delivery address
+              <span className="block text-[11px] text-cocoa">
+                Tell us before pickup and we update it
+              </span>
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {/* Quick actions — Figma grid */}
+      <div className="mb-4 grid grid-cols-4 gap-2">
+        <QuickAction
+          label="Refund status"
+          onClick={() => prefill("refund", "Where is my refund?", false)}
+        />
+        <QuickAction
+          label="Payment issue"
+          onClick={() => prefill("payment", "Payment problem", false)}
+        />
+        <QuickAction label="Rate order" href="/history" />
+        <QuickAction
+          label="Missing item"
+          onClick={() => prefill("order", "Item missing from my order")}
+        />
+      </div>
+
       {/* Raise a ticket */}
       <Card>
         <h2 className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
-          <LifeBuoy size={15} className="text-accent" /> Raise a ticket
+          <LifeBuoy size={15} className="text-accent" /> {tr("pp.help.raise")}
         </h2>
         <p className="mt-1 text-[12px] leading-relaxed text-cocoa">
-          Tell us what went wrong — refund and payment issues are treated as high
-          priority. You&apos;ll see replies here.
+          {tr("pp.help.intro")}
         </p>
 
         <form onSubmit={submit} className="mt-4 flex flex-col gap-3.5">
@@ -164,7 +239,7 @@ function HelpInner() {
                     : "border border-line bg-card text-cocoa hover:bg-beige/40",
                 )}
               >
-                {c.label}
+                {tr(c.label)}
               </button>
             ))}
           </div>
@@ -173,14 +248,14 @@ function HelpInner() {
           {orders.length > 0 && (
             <label className="block">
               <span className="mb-1.5 block text-[12px] font-semibold text-cocoa">
-                About an order (optional)
+                {tr("pp.help.aboutOrder")}
               </span>
               <select
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
                 className="h-12 w-full rounded-pill border border-line bg-card px-4 text-[14px] text-ink outline-none focus:border-accent"
               >
-                <option value="">Not about a specific order</option>
+                <option value="">{tr("pp.help.notAboutOrder")}</option>
                 {orders.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.title} · {new Date(o.createdAt).toLocaleDateString("en-IN")}
@@ -191,8 +266,8 @@ function HelpInner() {
           )}
 
           <Input
-            label="Subject"
-            placeholder="Short summary, e.g. Wrong item delivered"
+            label={tr("pp.help.subject")}
+            placeholder={tr("pp.help.subjectPh")}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             minLength={3}
@@ -202,7 +277,7 @@ function HelpInner() {
 
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-semibold text-cocoa">
-              What happened?
+              {tr("pp.help.whatHappened")}
             </span>
             <textarea
               required
@@ -211,7 +286,7 @@ function HelpInner() {
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Give us the details so we can fix it fast."
+              placeholder={tr("pp.help.detailsPh")}
               className="w-full resize-none rounded-card border border-line bg-card px-4 py-3 text-[14px] leading-relaxed text-ink outline-none placeholder:text-muted focus:border-accent"
             />
           </label>
@@ -219,7 +294,7 @@ function HelpInner() {
           {error && <p className="text-[13px] text-danger">{error}</p>}
           {sent && (
             <p className="flex items-center gap-1.5 text-[13px] font-medium text-success">
-              <CheckCircle2 size={15} /> Ticket raised — we&apos;ll get back to you here.
+              <CheckCircle2 size={15} /> {tr("pp.help.raised")}
             </p>
           )}
 
@@ -228,7 +303,7 @@ function HelpInner() {
             disabled={busy || subject.trim().length < 3 || body.trim().length < 5}
             className="flex h-12 items-center justify-center gap-2 rounded-pill bg-cocoa text-[14px] font-semibold text-white transition-colors hover:bg-ink disabled:opacity-50"
           >
-            <Send size={15} /> {busy ? "Sending…" : "Submit ticket"}
+            <Send size={15} /> {busy ? tr("pp.help.sending") : tr("pp.help.submit")}
           </button>
         </form>
       </Card>
@@ -236,7 +311,7 @@ function HelpInner() {
       {/* My tickets */}
       {tickets.length > 0 && (
         <div className="mt-5">
-          <h2 className="mb-2.5 text-[14px] font-bold text-ink">My tickets</h2>
+          <h2 className="mb-2.5 text-[14px] font-bold text-ink">{tr("pp.help.myTickets")}</h2>
           <div className="flex flex-col gap-2.5">
             {tickets.map((t) => {
               const badge = STATUS_BADGE[t.status] ?? STATUS_BADGE.open;
@@ -265,7 +340,7 @@ function HelpInner() {
                         badge.cls,
                       )}
                     >
-                      {badge.label}
+                      {tr(badge.label)}
                     </span>
                     <ChevronDown
                       size={15}
@@ -301,7 +376,7 @@ function HelpInner() {
       )}
 
       {/* FAQs */}
-      <h2 className="mb-2.5 mt-6 text-[14px] font-bold text-ink">FAQs</h2>
+      <h2 className="mb-2.5 mt-6 text-[14px] font-bold text-ink">{tr("pp.help.faqs")}</h2>
       <div className="flex flex-col gap-2.5">
         {FAQS.map((f, i) => (
           <Card key={i} className="p-0">
@@ -309,7 +384,7 @@ function HelpInner() {
               onClick={() => setOpenFaq(openFaq === i ? null : i)}
               className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
             >
-              <span className="flex-1 text-[14px] font-semibold text-ink">{f.q}</span>
+              <span className="flex-1 text-[14px] font-semibold text-ink">{tr(f.q)}</span>
               <ChevronDown
                 size={16}
                 className={cn(
@@ -319,7 +394,7 @@ function HelpInner() {
               />
             </button>
             {openFaq === i && (
-              <p className="px-4 pb-4 text-[13px] leading-relaxed text-cocoa">{f.a}</p>
+              <p className="px-4 pb-4 text-[13px] leading-relaxed text-cocoa">{tr(f.a)}</p>
             )}
           </Card>
         ))}
@@ -332,5 +407,35 @@ function HelpInner() {
         <Mail size={16} className="text-accent" /> Contact support
       </a>
     </SubPage>
+  );
+}
+
+// Small quick-action tile (Figma "Quick Actions" grid).
+function QuickAction({
+  label,
+  onClick,
+  href,
+}: {
+  label: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const cls =
+    "flex flex-col items-center gap-1.5 rounded-card border border-line bg-card px-2 py-3 text-center text-[11px] font-semibold text-ink transition-colors hover:bg-beige/40";
+  const icon = (
+    <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft">
+      <LifeBuoy size={15} className="text-accent" />
+    </span>
+  );
+  return href ? (
+    <Link href={href} className={cls}>
+      {icon}
+      {label}
+    </Link>
+  ) : (
+    <button onClick={onClick} className={cls}>
+      {icon}
+      {label}
+    </button>
   );
 }

@@ -12,6 +12,12 @@ const transport =
           env.SMTP_USER && env.SMTP_PASS
             ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
             : undefined,
+        // Bounded waits: without these nodemailer can hang for minutes on a
+        // sick provider, stalling the notification outbox behind it. A timeout
+        // surfaces as a send error, so the row simply retries.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
       })
     : null;
 
@@ -47,6 +53,21 @@ export async function sendWelcomeEmail(to: string, name: string) {
   } catch (err) {
     console.error(`[mailer] welcome email to ${to} failed:`, err);
   }
+}
+
+// Used by the notification outbox — the worker builds the mail from its
+// registry and this just puts it on the wire. Test env is a no-op (the outbox
+// records delivery itself for assertions).
+export async function sendPrebuiltEmail(
+  to: string,
+  mail: { subject: string; html: string; text: string },
+) {
+  if (env.NODE_ENV === "test") return;
+  if (!transport) {
+    console.log(`[mailer] (no SMTP) would send "${mail.subject}" to ${to}`);
+    return;
+  }
+  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
 }
 
 export async function sendReceiptEmail(

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
 import type { RideQuote } from "@/components/chat/types";
 
 const RideMap = dynamic(
@@ -26,6 +27,21 @@ type RouteInfo = {
 };
 
 const VEHICLES = ["any", "bike", "auto", "cab"] as const;
+
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
 
 function PlaceSearch({
   label,
@@ -113,6 +129,7 @@ export default function RidesPage() {
 function RidesInner() {
   const router = useRouter();
   const search = useSearchParams();
+  const { t } = useI18n();
   const [pickup, setPickup] = useState<Place | null>(null);
   const [drop, setDrop] = useState<Place | null>(null);
   const [route, setRoute] = useState<RouteInfo | null>(null);
@@ -148,6 +165,33 @@ function RidesInner() {
   const [locating, setLocating] = useState(
     () => typeof navigator !== "undefined" && !!navigator.geolocation,
   );
+  // "Suggested locations" (Figma) — the user's saved places with coordinates.
+  const [saved, setSaved] = useState<Place[]>([]);
+
+  useEffect(() => {
+    api<{
+      addresses: {
+        label: string;
+        line1: string;
+        city: string;
+        lat: number | null;
+        lng: number | null;
+      }[];
+    }>("/api/users/addresses")
+      .then((d) =>
+        setSaved(
+          d.addresses
+            .filter((a) => a.lat != null && a.lng != null)
+            .map((a) => ({
+              name: a.label,
+              area: `${a.line1}, ${a.city}`,
+              lat: a.lat as number,
+              lng: a.lng as number,
+            })),
+        ),
+      )
+      .catch(() => setSaved([]));
+  }, []);
 
   // Auto-fill pickup from the device's live location on first load. Falls back
   // silently to manual entry if permission is denied or GPS is unavailable.
@@ -281,6 +325,36 @@ function RidesInner() {
     [pickup, drop],
   );
 
+  // Shared ride: create the group cart for the selected trip and open the
+  // invite screen. Only autos/cabs can be shared (server enforces seats too).
+  async function splitWithFriends() {
+    if (!selected || !pickup || !drop) return;
+    setBusy(true);
+    setError("");
+    try {
+      const cart = await api<{ id: string }>("/api/groups", {
+        method: "POST",
+        json: {
+          domain: "ride",
+          ride: {
+            provider: selected.provider,
+            productName: selected.productName,
+            pickup: pickup.name,
+            drop: drop.name,
+            pickupLat: pickup.lat,
+            pickupLng: pickup.lng,
+            dropLat: drop.lat,
+            dropLng: drop.lng,
+          },
+        },
+      });
+      router.push(`/rides/group/${cart.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start a shared ride");
+      setBusy(false);
+    }
+  }
+
   async function confirmRide() {
     if (!selected || !pickup || !drop || !route) return;
     setBusy(true);
@@ -311,19 +385,18 @@ function RidesInner() {
   }
 
   return (
-    <div className="relative flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh lg:flex-row">
-      {/* Map — fills the screen (Figma: ~70%); the sheet floats over the bottom.
-          On desktop it's the left panel. */}
-      <div className="absolute inset-0 lg:static lg:h-full lg:flex-1">
-        <RideMap
-          pickup={mapPoints.pickup}
-          drop={mapPoints.drop}
-          routeGeometry={route?.geometry ?? null}
-        />
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh">
+      {/* Desktop header — brand mark above the panel+map split (Figma) */}
+      <div className="hidden items-center gap-2 px-8 py-4 lg:flex">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon.png" alt="" className="size-8 rounded-[8px]" />
+        <span className="text-[22px] font-bold text-accent">Radiues</span>
       </div>
 
-      {/* Booking panel — floating bottom sheet over the map (Figma) */}
-      <div className="absolute inset-x-0 bottom-0 z-10 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-white px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-none lg:border-l lg:border-line lg:px-5 lg:shadow-none">
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-0 lg:px-8 lg:pb-6">
+        {/* Booking panel — mobile: floating bottom sheet; desktop: LEFT panel
+            (Figma desktop places the location panel left of the map) */}
+        <div className="absolute inset-x-0 bottom-0 z-10 order-2 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-white px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:order-1 lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-l-[18px] lg:rounded-tr-none lg:border lg:border-line lg:px-5 lg:shadow-card">
         <FadeIn y={8}>
           <div className="flex items-center justify-between">
             <h1 className="text-[17px] font-bold text-[#1a1a2e]">Select your location</h1>
@@ -377,6 +450,35 @@ function RidesInner() {
             <Plus size={15} /> Add stops
           </button>
         </div>
+
+        {/* Suggested locations — saved places, one tap to set as drop (Figma) */}
+        {!drop && saved.length > 0 && (
+          <div>
+            <p className="text-[13px] font-bold text-ink">Suggested locations</p>
+            <div className="mt-0.5 flex flex-col divide-y divide-line/70">
+              {saved.slice(0, 5).map((p) => (
+                <button
+                  key={`${p.lat}-${p.lng}`}
+                  onClick={() => setDrop(p)}
+                  className="flex items-center gap-2.5 py-2.5 text-left transition-colors hover:bg-beige/30"
+                >
+                  <MapPin size={15} className="shrink-0 text-cocoa/60" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium capitalize text-ink">
+                      {p.name}
+                    </span>
+                    <span className="block truncate text-[11px] text-cocoa">{p.area}</span>
+                  </span>
+                  {pickup && (
+                    <span className="shrink-0 text-[12px] text-cocoa">
+                      {Math.max(1, Math.round(haversineKm(pickup, p)))} km
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {route && (
           <p className="text-[12px] text-cocoa">
@@ -467,7 +569,7 @@ function RidesInner() {
                     : "bg-beige/50 text-cocoa hover:text-ink",
                 )}
               >
-                Now
+                {t("rides.now")}
               </button>
               <input
                 type="datetime-local"
@@ -502,13 +604,33 @@ function RidesInner() {
             className="h-[59px] w-full rounded-[25px] text-[15px]"
           >
             {busy
-              ? "Booking…"
+              ? t("rides.booking")
               : selected
-                ? `${scheduledAt ? "Schedule" : "Confirm"} ${selected.displayName} · ${rupees(selected.effectivePaise)}`
+                ? `${scheduledAt ? t("rides.schedule") : t("rides.confirm")} ${selected.displayName} · ${rupees(selected.effectivePaise)}`
                 : pickup && drop
-                  ? "Choose a ride"
-                  : "Select Drop"}
+                  ? t("rides.chooseRide")
+                  : t("rides.selectDrop")}
           </Button>
+          {/* Fare-splitting: autos/cabs only, and a scheduled group is booked now */}
+          {selected && !scheduledAt && selected.vehicle !== "bike" && (
+            <button
+              onClick={splitWithFriends}
+              disabled={busy}
+              className="mt-2 w-full text-center text-[13px] font-semibold text-accent hover:underline disabled:opacity-50"
+            >
+              {t("rides.splitFare")}
+            </button>
+          )}
+          </div>
+        </div>
+
+        {/* Map — mobile: fills the screen behind the sheet; desktop: right pane */}
+        <div className="absolute inset-0 order-1 lg:static lg:order-2 lg:h-full lg:flex-1 lg:overflow-hidden lg:rounded-r-[18px] lg:border lg:border-l-0 lg:border-line">
+          <RideMap
+            pickup={mapPoints.pickup}
+            drop={mapPoints.drop}
+            routeGeometry={route?.geometry ?? null}
+          />
         </div>
       </div>
     </div>

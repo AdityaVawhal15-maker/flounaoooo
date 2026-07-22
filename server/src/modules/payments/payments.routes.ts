@@ -12,6 +12,7 @@ import {
   verifyCashfreeWebhook,
 } from "./cashfree.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { checkSavingsMilestone } from "../notifications/outbox.service.js";
 import { sendReceiptEmail } from "../../lib/mailer.js";
 import { emitOrderConfirmation } from "../backoffice/ondc.service.js";
 
@@ -127,6 +128,9 @@ async function markPaid(
       }
     })
     .catch((err) => console.error("[payments] receipt email failed:", err));
+
+  // Savings milestone — emails once when the lifetime total crosses ₹500/1k/5k.
+  void checkSavingsMilestone(order.userId).catch(() => {});
 
   // Fire-and-forget confirmation push (no-op if push isn't configured).
   void sendPushToUser(order.userId, {

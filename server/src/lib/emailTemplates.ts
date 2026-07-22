@@ -141,3 +141,41 @@ ${savedRow}
   const text = `Payment received ✓\n\n${kind}: ${order.title}\nTotal paid: ${rupees(order.amount)}${order.savedPaise > 0 ? `\nYou saved: ${rupees(order.savedPaise)}` : ""}\n\nTrack: ${env.WEB_ORIGIN}/orders/${order.id}`;
   return { subject: `Payment received — ${order.title}`, html, text };
 }
+
+// Generic branded notification — the outbox worker renders every registry
+// email through this one card so new notification types are copy-only.
+export function notificationEmail(n: {
+  subject: string;
+  heading: string;
+  lines: string[];
+  ctaLabel?: string;
+  ctaPath?: string; // app path, e.g. "/profile/settings"
+  footnote?: string;
+}) {
+  const paragraphs = n.lines
+    .map(
+      (l) =>
+        `<p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:${COLORS.cocoa};">${escapeHtml(l)}</p>`,
+    )
+    .join("\n");
+  const cta =
+    n.ctaLabel && n.ctaPath
+      ? `<table role="presentation" cellpadding="0" cellspacing="0">
+<tr><td style="background-color:${COLORS.accent};border-radius:999px;">
+  <a href="${env.WEB_ORIGIN}${n.ctaPath}" style="display:inline-block;padding:12px 28px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">${escapeHtml(n.ctaLabel)}</a>
+</td></tr>
+</table>`
+      : "";
+  const footnote = n.footnote
+    ? `<p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:${COLORS.cocoa};">${escapeHtml(n.footnote)}</p>`
+    : "";
+  const html = layout(
+    `<h1 style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:19px;color:${COLORS.ink};">${escapeHtml(n.heading)}</h1>
+${paragraphs}
+${cta}
+${footnote}`,
+    n.lines[0] ?? n.heading,
+  );
+  const text = `${n.heading}\n\n${n.lines.join("\n\n")}${n.ctaPath ? `\n\n${n.ctaLabel}: ${env.WEB_ORIGIN}${n.ctaPath}` : ""}${n.footnote ? `\n\n${n.footnote}` : ""}`;
+  return { subject: n.subject, html, text };
+}

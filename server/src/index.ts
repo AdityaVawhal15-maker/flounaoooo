@@ -3,6 +3,11 @@ import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
+import {
+  startOutboxWorker,
+  runLifecycleSweep,
+} from "./modules/notifications/outbox.service.js";
+import { sweepPlusMemberships } from "./modules/subscription/subscription.service.js";
 import { initMonitoring } from "./lib/monitoring.js";
 
 initMonitoring();
@@ -24,6 +29,36 @@ const alertLoop = setInterval(async () => {
     console.error("[alerts] check failed:", err);
   }
 }, 60_000);
+
+// Drain the email-notification outbox every 30s.
+const stopOutbox = startOutboxWorker();
+
+// Daily sweep: Plus renewal reminders (~3 days out) and expiry emails. Runs
+// once on boot (catches anything missed while down) then every 24h. Idempotent.
+async function runPlusSweep() {
+  try {
+    const { reminded, expired } = await sweepPlusMemberships();
+    if (reminded || expired)
+      console.log(`[plus] reminded ${reminded}, expired ${expired}`);
+  } catch (err) {
+    console.error("[plus] sweep failed:", err);
+  }
+}
+async function runLifecycle() {
+  try {
+    const { onboarding, winBack, plusValue } = await runLifecycleSweep();
+    if (onboarding || winBack || plusValue)
+      console.log(
+        `[lifecycle] onboarding ${onboarding}, win-back ${winBack}, plus-value ${plusValue}`,
+      );
+  } catch (err) {
+    console.error("[lifecycle] sweep failed:", err);
+  }
+}
+void runPlusSweep();
+void runLifecycle();
+const plusSweep = setInterval(runPlusSweep, 24 * 60 * 60_000);
+const lifecycleSweep = setInterval(runLifecycle, 24 * 60 * 60_000);
 
 // Hourly housekeeping: expired OTP codes and dead refresh tokens never pile up.
 const cleanup = setInterval(
@@ -50,6 +85,9 @@ async function shutdown(signal: string) {
   console.log(`[shutdown] ${signal} received`);
   clearInterval(cleanup);
   clearInterval(alertLoop);
+  clearInterval(plusSweep);
+  clearInterval(lifecycleSweep);
+  stopOutbox();
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);
