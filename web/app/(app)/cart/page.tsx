@@ -112,7 +112,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:px-6">
+    <div className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:max-w-5xl lg:px-6 lg:pb-10">
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.push("/food")}
@@ -139,6 +139,8 @@ export default function CartPage() {
         </div>
       ) : (
         <>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
+          <div className="min-w-0">
           {/* Reassurance banner (Figma: "Yay! Your items are added…") */}
           <p className="mt-4 rounded-card border border-success/30 bg-success/5 px-3.5 py-2.5 text-[12px] text-success">
             {t("cart.banner")}
@@ -213,6 +215,10 @@ export default function CartPage() {
             </label>
           </Card>
 
+          </div>
+
+          {/* Checkout panel — sticky beside the items on desktop */}
+          <div className="lg:sticky lg:top-6">
           {/* Promo code */}
           <Card className="mt-4 py-3">
             <div className="flex items-center gap-2.5">
@@ -337,8 +343,9 @@ export default function CartPage() {
             <ShieldCheck size={12} /> {t("cart.secure")}
           </p>
 
-          {/* Sticky checkout bar */}
-          <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:bottom-4 lg:px-6">
+          {/* Checkout action — fixed bottom bar on mobile, inside the
+              summary panel on desktop */}
+          <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:static lg:mt-4 lg:max-w-none lg:px-0">
             {address === null ? (
               // Checkout would be rejected server-side without an address —
               // send the buyer to add one instead of failing at the last step.
@@ -359,6 +366,8 @@ export default function CartPage() {
                   : `${t("cart.checkout")} · ${rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}`}
               </Button>
             )}
+          </div>
+          </div>
           </div>
         </>
       )}

@@ -52,7 +52,7 @@ export default function GroupStartPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 lg:px-6">
+    <div className="mx-auto w-full max-w-xl px-4 py-6 lg:max-w-3xl lg:px-6 lg:py-10">
       <button
         onClick={() => router.push("/food")}
         className="flex items-center gap-1 text-[13px] font-medium text-cocoa hover:text-ink"
@@ -67,8 +67,9 @@ export default function GroupStartPage() {
         {t("grp.groupOrderSub")}
       </p>
 
+      <div className="lg:mt-2 lg:grid lg:grid-cols-2 lg:gap-4">
       {/* Start new */}
-      <Card className="mt-5">
+      <Card className="mt-5 lg:mt-0">
         <p className="text-[14px] font-bold text-ink">{t("grp.startNew")}</p>
         <p className="mt-1 text-[12px] text-cocoa">
           {t("grp.startNewSub")}
@@ -79,7 +80,7 @@ export default function GroupStartPage() {
       </Card>
 
       {/* Join existing */}
-      <Card className="mt-4">
+      <Card className="mt-4 lg:mt-0">
         <p className="text-[14px] font-bold text-ink">{t("grp.joinWithCode")}</p>
         <div className="mt-3 flex items-end gap-2">
           <Input
@@ -100,6 +101,8 @@ export default function GroupStartPage() {
           </Button>
         </div>
       </Card>
+
+      </div>
 
       {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
     </div>
