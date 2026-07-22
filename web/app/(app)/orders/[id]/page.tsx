@@ -3,11 +3,12 @@
 import { use, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Circle, Receipt, ChevronLeft, LifeBuoy } from "lucide-react";
+import { Receipt, ChevronLeft, LifeBuoy } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { RateOrder } from "@/components/orders/RateOrder";
+import { TrackingTimeline } from "@/components/orders/TrackingTimeline";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { RideTracker } from "@/components/orders/RideTracker";
 import { LoadingView, ErrorView } from "@/components/ui/StatusView";
@@ -155,54 +156,21 @@ export default function OrderDetailPage({
         />
       )}
 
-      {/* Tracking timeline */}
-      {order.trackingEvents.length > 0 && (
-        <Card className="mt-5">
-          <h2 className="text-[14px] font-bold text-ink">
-            {allDone
-              ? order.domain === "food"
-                ? t("order.delivered")
-                : t("order.tripCompleted")
-              : order.domain === "food"
-                ? t("order.trackingOrder")
-                : t("order.trackingRide")}
-          </h2>
-          <div className="mt-3 flex flex-col">
-            {order.trackingEvents.map((e, i) => {
-              const isReached = new Date(e.createdAt).getTime() <= now;
-              const isLast = i === order.trackingEvents.length - 1;
-              return (
-                <div key={e.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    {isReached ? (
-                      <CheckCircle2 size={18} className="shrink-0 text-success" />
-                    ) : (
-                      <Circle size={18} className="shrink-0 text-line" />
-                    )}
-                    {!isLast && (
-                      <span
-                        className={cn(
-                          "w-px flex-1",
-                          isReached ? "bg-success/50" : "bg-line",
-                        )}
-                      />
-                    )}
-                  </div>
-                  <div className={cn("pb-5", !isReached && "opacity-50")}>
-                    <p className="text-[13px] font-semibold text-ink">{e.message}</p>
-                    <p className="text-[11px] text-cocoa">
-                      {new Date(e.createdAt).toLocaleTimeString("en-IN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
+      {/* Tracking timeline — live ETA, active step and progress */}
+      <TrackingTimeline
+        events={order.trackingEvents}
+        domain={order.domain}
+        now={now}
+        title={
+          allDone
+            ? order.domain === "food"
+              ? t("order.delivered")
+              : t("order.tripCompleted")
+            : order.domain === "food"
+              ? t("order.trackingOrder")
+              : t("order.trackingRide")
+        }
+      />
 
       {order.details.comparedOptions !== undefined && (
         <div className="mt-4">
