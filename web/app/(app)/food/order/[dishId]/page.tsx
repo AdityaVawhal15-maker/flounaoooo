@@ -229,9 +229,24 @@ export default function FoodOrderPage({
 
       {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
 
-      <Button onClick={placeOrder} disabled={busy} className="mt-5 w-full">
-        {busy ? t("foodOrder.placing") : `${t("foodOrder.pay")} ${rupees(selected.effectivePaise)}`}
-      </Button>
+      {/* No saved address = the server will reject the order, so say so here
+          rather than letting the buyer hit an API error at the last step. */}
+      {address === null ? (
+        <Link
+          href="/profile/addresses"
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-pill bg-accent text-[15px] font-semibold text-white transition-colors hover:bg-[#d4570f]"
+        >
+          <MapPin size={16} /> {t("foodOrder.add")} delivery address
+        </Link>
+      ) : (
+        <Button
+          onClick={placeOrder}
+          disabled={busy || address === undefined}
+          className="mt-5 w-full"
+        >
+          {busy ? t("foodOrder.placing") : `${t("foodOrder.pay")} ${rupees(selected.effectivePaise)}`}
+        </Button>
+      )}
       <Button
         variant="secondary"
         onClick={() => {

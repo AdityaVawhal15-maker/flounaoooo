@@ -5,7 +5,8 @@
 // checkout. Quantities, optional cooking instructions, price details, and a
 // sticky checkout bar.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -15,6 +16,7 @@ import {
   Tag,
   ShieldCheck,
   ShoppingBag,
+  MapPin,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -24,6 +26,13 @@ import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
 
+type AddressLine = {
+  label: string;
+  line1: string;
+  city: string;
+  isDefault: boolean;
+};
+
 export default function CartPage() {
   const router = useRouter();
   const { lines, setQty, remove, clear } = useCart();
@@ -31,6 +40,14 @@ export default function CartPage() {
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // undefined = still loading, null = none saved (checkout would be rejected).
+  const [address, setAddress] = useState<AddressLine | null | undefined>(undefined);
+
+  useEffect(() => {
+    api<{ addresses: AddressLine[] }>("/api/users/addresses")
+      .then((d) => setAddress(d.addresses.find((a) => a.isDefault) ?? d.addresses[0] ?? null))
+      .catch(() => setAddress(null));
+  }, []);
 
   const itemsTotal = lines.reduce((s, l) => s + l.pricePaise * l.qty, 0);
 
@@ -161,6 +178,31 @@ export default function CartPage() {
             </label>
           </Card>
 
+          {/* Delivery address — required, so it's shown before the bill */}
+          <Card className="mt-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <MapPin size={16} className="shrink-0 text-accent" />
+              {address === undefined ? (
+                <p className="text-[13px] text-cocoa">Loading address…</p>
+              ) : address ? (
+                <p className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                  <span className="font-semibold">{address.label}</span> —{" "}
+                  {address.line1}, {address.city}
+                </p>
+              ) : (
+                <p className="min-w-0 flex-1 text-[13px] text-cocoa">
+                  No delivery address saved
+                </p>
+              )}
+              <Link
+                href="/profile/addresses"
+                className="shrink-0 text-[12px] font-semibold text-accent hover:underline"
+              >
+                {address ? "Change" : "Add"}
+              </Link>
+            </div>
+          </Card>
+
           {/* Price details — estimates; the server recomputes at checkout */}
           <Card className="mt-4">
             <p className="text-[14px] font-bold text-ink">{t("cart.priceDetails")}</p>
@@ -191,15 +233,26 @@ export default function CartPage() {
 
           {/* Sticky checkout bar */}
           <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:bottom-4 lg:px-6">
-            <Button
-              onClick={checkout}
-              disabled={busy}
-              className="h-[56px] w-full rounded-[22px] text-[15px] shadow-card"
-            >
-              {busy
-                ? t("foodOrder.placing")
-                : `${t("cart.checkout")} · ${rupees(itemsTotal)}`}
-            </Button>
+            {address === null ? (
+              // Checkout would be rejected server-side without an address —
+              // send the buyer to add one instead of failing at the last step.
+              <Link
+                href="/profile/addresses"
+                className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[22px] bg-accent text-[15px] font-semibold text-white shadow-card transition-colors hover:bg-[#d4570f]"
+              >
+                <MapPin size={17} /> Add a delivery address
+              </Link>
+            ) : (
+              <Button
+                onClick={checkout}
+                disabled={busy || address === undefined}
+                className="h-[56px] w-full rounded-[22px] text-[15px] shadow-card"
+              >
+                {busy
+                  ? t("foodOrder.placing")
+                  : `${t("cart.checkout")} · ${rupees(itemsTotal)}`}
+              </Button>
+            )}
           </div>
         </>
       )}
