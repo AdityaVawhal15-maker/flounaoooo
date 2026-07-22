@@ -100,18 +100,42 @@ export default function PayPage({
     setStage("processing");
     try {
       const d = await api<{
-        mode: "cashfree" | "simulated";
+        mode: "cashfree" | "simulated" | "cash";
         paymentSessionId?: string;
         cfEnv?: string;
-      }>("/api/payments/checkout", { method: "POST", json: { orderId } });
+      }>("/api/payments/checkout", {
+        method: "POST",
+        json: { orderId, method },
+      });
+
+      // Cash on delivery — confirmed straight away, money collected in person.
+      if (d.mode === "cash") {
+        setStage("done");
+        return;
+      }
 
       if (d.mode === "cashfree" && d.paymentSessionId) {
         await loadCashfreeSdk();
-        window.Cashfree?.({ mode: d.cfEnv === "production" ? "production" : "sandbox" }).checkout({
+        const cashfree = window.Cashfree?.({
+          mode: d.cfEnv === "production" ? "production" : "sandbox",
+        });
+        // If the SDK failed to load we must not sit on "Processing" forever —
+        // hand the screen back so the buyer can retry or switch method.
+        if (!cashfree) {
+          throw new Error("Could not open the payment page. Please try again.");
+        }
+        // With redirectTarget "_self" the browser navigates away, so nothing
+        // below runs on the happy path. If we're still here afterwards the
+        // gateway never took over (cancelled/blocked/invalid session) — fall
+        // back to the picker instead of spinning on "Processing" forever.
+        const result = (await cashfree.checkout({
           paymentSessionId: d.paymentSessionId,
           redirectTarget: "_self",
-        });
-        return;
+        })) as { error?: { message?: string } } | undefined;
+        throw new Error(
+          result?.error?.message ??
+            "Payment was not completed. You can try again or pick another method.",
+        );
       }
 
       await new Promise((r) => setTimeout(r, 2400));
@@ -158,6 +182,44 @@ export default function PayPage({
         </Card>
       </FadeIn>
 
+        {/* Order summary breakdown */}
+        {showSummary && (
+          <Card className="mt-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-bold text-ink">{t("pay.summary")}</p>
+              <Link
+                href={`/orders/${orderId}?invoice=1`}
+                className="text-[12px] font-semibold text-accent hover:underline"
+              >
+                {t("pay.viewDetails")}
+              </Link>
+            </div>
+            <p className="mt-0.5 truncate text-[11px] text-cocoa">{status.title}</p>
+            <div className="mt-3 flex flex-col gap-1.5 text-[13px]">
+              {isFood ? (
+                <>
+                  {d.basePaise !== undefined && (
+                    <Row label={t("bill.itemTotal")} value={rupees(d.basePaise)} />
+                  )}
+                  {d.deliveryFeePaise !== undefined && (
+                    <Row label={t("bill.deliveryFee")} value={rupees(d.deliveryFeePaise)} />
+                  )}
+                  {d.convenienceFeePaise ? (
+                    <Row label={t("bill.packagingFee")} value={rupees(d.convenienceFeePaise)} />
+                  ) : null}
+                </>
+              ) : (
+                <Row label={t("bill.baseFare")} value={rupees(d.farePaise ?? status.amount)} />
+              )}
+              {discount > 0 && (
+                <Row label={t("bill.discount")} value={`− ${rupees(discount)}`} accent />
+              )}
+              <div className="my-1 h-px bg-line" />
+              <Row label={fareLabel} value={rupees(status.amount)} bold />
+            </div>
+          </Card>
+        )}
+
       {stage === "select" && (
         <>
           {/* Payment pending */}
@@ -165,44 +227,6 @@ export default function PayPage({
           <p className="mt-0.5 text-[12px] text-cocoa">
             {isFood ? t("pay.pendingFoodSub") : t("pay.pendingRideSub")}
           </p>
-
-          {/* Order summary breakdown */}
-          {showSummary && (
-            <Card className="mt-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-ink">{t("pay.summary")}</p>
-                <Link
-                  href={`/orders/${orderId}?invoice=1`}
-                  className="text-[12px] font-semibold text-accent hover:underline"
-                >
-                  {t("pay.viewDetails")}
-                </Link>
-              </div>
-              <p className="mt-0.5 truncate text-[11px] text-cocoa">{status.title}</p>
-              <div className="mt-3 flex flex-col gap-1.5 text-[13px]">
-                {isFood ? (
-                  <>
-                    {d.basePaise !== undefined && (
-                      <Row label={t("bill.itemTotal")} value={rupees(d.basePaise)} />
-                    )}
-                    {d.deliveryFeePaise !== undefined && (
-                      <Row label={t("bill.deliveryFee")} value={rupees(d.deliveryFeePaise)} />
-                    )}
-                    {d.convenienceFeePaise ? (
-                      <Row label={t("bill.packagingFee")} value={rupees(d.convenienceFeePaise)} />
-                    ) : null}
-                  </>
-                ) : (
-                  <Row label={t("bill.baseFare")} value={rupees(d.farePaise ?? status.amount)} />
-                )}
-                {discount > 0 && (
-                  <Row label={t("bill.discount")} value={`− ${rupees(discount)}`} accent />
-                )}
-                <div className="my-1 h-px bg-line" />
-                <Row label={fareLabel} value={rupees(status.amount)} bold />
-              </div>
-            </Card>
-          )}
 
           {/* Choose payment method */}
           <h2 className="mt-6 text-[14px] font-bold text-ink">{t("pay.chooseMethod")}</h2>
@@ -254,6 +278,14 @@ export default function PayPage({
           <p className="mt-4 flex items-center gap-1.5 text-[12px] text-cocoa/70">
             <CheckCircle2 size={13} className="text-success" /> {t("pay.dontClose")}
           </p>
+          {/* Never trap the buyer on this screen — if the gateway didn't take
+              over, this returns them to the method picker. */}
+          <button
+            onClick={() => setStage("select")}
+            className="mt-6 text-[12px] font-semibold text-cocoa underline hover:text-ink"
+          >
+            Taking too long? Go back to payment options
+          </button>
         </FadeIn>
       )}
 
