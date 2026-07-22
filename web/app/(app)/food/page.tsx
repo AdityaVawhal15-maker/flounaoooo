@@ -123,12 +123,13 @@ export default function FoodLandingPage() {
             <span className="text-[22px] font-bold text-accent">Radiues</span>
           </span>
           <span className="flex items-center gap-2">
-            <button
+            <Link
+              href="/profile/alerts"
               aria-label="Notifications"
               className="flex size-10 items-center justify-center rounded-full text-cocoa transition-colors hover:bg-beige/50"
             >
               <Bell size={20} />
-            </button>
+            </Link>
             <Link
               href="/cart"
               aria-label="Cart"
@@ -158,12 +159,13 @@ export default function FoodLandingPage() {
               className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
             />
           </div>
-          <button
+          <Link
+            href="/profile/alerts"
             aria-label="Notifications"
             className="flex size-10 shrink-0 items-center justify-center rounded-full text-cocoa transition-colors hover:bg-beige/50"
           >
             <Bell size={20} />
-          </button>
+          </Link>
           <Link
             href="/cart"
             aria-label="Cart"
