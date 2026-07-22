@@ -37,8 +37,11 @@ export async function stepUp(
 
 let counter = 0;
 
-// Signs up + verifies a fresh user; returns the auth cookies.
-export async function authedAgent() {
+// Signs up + verifies a fresh user; returns the auth cookies. A default
+// delivery address is seeded because food orders require one — this mirrors a
+// real user who has completed setup. Pass `withAddress: false` to test the
+// no-address path.
+export async function authedAgent({ withAddress = true } = {}) {
   const email = `user${Date.now()}-${counter++}@test.dev`;
   const agent = request.agent(app);
   await agent
@@ -49,5 +52,19 @@ export async function authedAgent() {
     .post("/api/auth/verify-email")
     .send({ email, code: lastOtpFor(email) })
     .expect(200);
+  if (withAddress) {
+    await agent
+      .post("/api/users/addresses")
+      .send({
+        label: "Home",
+        line1: "Flat 12",
+        line2: "MG Road",
+        city: "Hyderabad",
+        state: "Telangana",
+        pincode: "500081",
+        isDefault: true,
+      })
+      .expect(201);
+  }
   return { agent, email };
 }

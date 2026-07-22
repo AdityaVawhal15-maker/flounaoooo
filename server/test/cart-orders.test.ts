@@ -120,3 +120,64 @@ describe("cart orders", () => {
     expect(res.body.order.amount).toBe(13600);
   });
 });
+
+// Food is delivered somewhere — an order with no saved address is invalid.
+describe("delivery address is required for food orders", () => {
+  it("rejects a single-dish order when the user has no address", async () => {
+    const { agent } = await authedAgent({ withAddress: false });
+    const res = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(400);
+    expect(res.body.error).toMatch(/delivery address/i);
+  });
+
+  it("rejects a cart order when the user has no address", async () => {
+    const { agent } = await authedAgent({ withAddress: false });
+    const res = await agent
+      .post("/api/orders")
+      .send({
+        domain: "food",
+        items: [{ dishId: "masala-dosa", platform: "ondc", qty: 1 }],
+      })
+      .expect(400);
+    expect(res.body.error).toMatch(/delivery address/i);
+  });
+
+  it("succeeds once an address exists, and links it to the order", async () => {
+    const { agent } = await authedAgent({ withAddress: false });
+    await agent
+      .post("/api/users/addresses")
+      .send({
+        label: "Home",
+        line1: "Flat 9",
+        city: "Hyderabad",
+        state: "Telangana",
+        pincode: "500081",
+      })
+      .expect(201);
+    const res = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(201);
+    expect(res.body.order.addressId).toBeTruthy();
+  });
+
+  it("still allows rides without a saved address (pickup/drop are coordinates)", async () => {
+    const { agent } = await authedAgent({ withAddress: false });
+    await agent
+      .post("/api/orders")
+      .send({
+        domain: "ride",
+        provider: "ondc",
+        productName: "ONDC Auto",
+        pickup: "Hitech City",
+        drop: "Airport",
+        pickupLat: 17.4435,
+        pickupLng: 78.3772,
+        dropLat: 17.2403,
+        dropLng: 78.4294,
+      })
+      .expect(201);
+  });
+});

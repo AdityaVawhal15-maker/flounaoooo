@@ -18,7 +18,7 @@ describe("notification outbox", () => {
   });
 
   it("enqueues and delivers a security email regardless of preferences", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     // All email preferences off — security must still send.
     await agent
@@ -27,7 +27,7 @@ describe("notification outbox", () => {
       .expect(200);
 
     await enqueueNotification(userId, "security.password_changed");
-    await drainOutbox();
+    await drainOutbox({ userId });
 
     const sent = outboxDelivered.filter((d) => d.to === email);
     expect(sent).toHaveLength(1);
@@ -39,7 +39,7 @@ describe("notification outbox", () => {
   });
 
   it("skips money email when the category toggle is off", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     await agent
       .put("/api/users/preferences")
@@ -49,7 +49,7 @@ describe("notification outbox", () => {
     await enqueueNotification(userId, "money.savings_milestone", {
       amount: "₹500",
     });
-    await drainOutbox();
+    await drainOutbox({ userId });
 
     expect(outboxDelivered.filter((d) => d.to === email)).toHaveLength(0);
     const row = await prisma.notification.findFirst({ where: { userId } });
@@ -58,7 +58,7 @@ describe("notification outbox", () => {
   });
 
   it("dedupes on dedupeKey — second enqueue is a no-op", async () => {
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
 
     const first = await enqueueNotification(
@@ -81,7 +81,7 @@ describe("notification outbox", () => {
   });
 
   it("rejects unknown types loudly outside production", async () => {
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     await expect(
       enqueueNotification(userId, "nope.not_a_type"),
@@ -89,7 +89,7 @@ describe("notification outbox", () => {
   });
 
   it("enforces the per-user daily cap for non-security mail", async () => {
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
 
     // 8 already sent today…
@@ -107,7 +107,7 @@ describe("notification outbox", () => {
     // …so the 9th money email is skipped, but a security one still goes out.
     await enqueueNotification(userId, "money.savings_milestone", { amount: "₹1000" });
     await enqueueNotification(userId, "security.password_changed");
-    await drainOutbox();
+    await drainOutbox({ userId });
 
     const rows = await prisma.notification.findMany({
       where: { userId, status: { in: ["skipped", "sent"] }, sentAt: null },
@@ -121,7 +121,7 @@ describe("notification outbox", () => {
   });
 
   it("password reset enqueues the security notification", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     const { lastOtpFor } = await import("./helpers.js");
 
@@ -138,7 +138,7 @@ describe("notification outbox", () => {
   });
 
   it("adding an address enqueues the security notification", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
 
     await agent
@@ -160,6 +160,7 @@ describe("notification outbox", () => {
   });
 
   it("cancelling a paid order enqueues the cancellation email", async () => {
+    // Placing a food order requires a delivery address.
     const { agent, email } = await authedAgent();
     const userId = await userIdFor(email);
     // Place a food order so there's something cancellable before dispatch.
@@ -187,7 +188,7 @@ describe("notification outbox", () => {
   });
 
   it("a login after failed attempts enqueues a suspicious-login alert", async () => {
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     const { default: request } = await import("supertest");
     const { app } = await import("./helpers.js");
@@ -213,7 +214,7 @@ describe("notification outbox", () => {
   });
 
   it("activating Plus enqueues a welcome/receipt email", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     await agent.post("/api/subscription/subscribe").expect(200);
 
@@ -229,7 +230,7 @@ describe("notification outbox", () => {
     );
 
     // A member renewing in ~3 days.
-    const { email: soon } = await authedAgent();
+    const { email: soon } = await authedAgent({ withAddress: false });
     const soonId = await userIdFor(soon);
     await prisma.user.update({
       where: { id: soonId },
@@ -241,7 +242,7 @@ describe("notification outbox", () => {
     });
 
     // A member whose period already lapsed.
-    const { email: gone } = await authedAgent();
+    const { email: gone } = await authedAgent({ withAddress: false });
     const goneId = await userIdFor(gone);
     await prisma.user.update({
       where: { id: goneId },
@@ -284,7 +285,7 @@ describe("notification outbox", () => {
     const { checkSavingsMilestone } = await import(
       "../src/modules/notifications/outbox.service.js"
     );
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
 
     // Book ₹520 of lifetime savings across two orders → crosses ₹500.
@@ -326,7 +327,7 @@ describe("notification outbox", () => {
   });
 
   it("a triggered price alert enqueues a price-drop email", async () => {
-    const { agent, email } = await authedAgent();
+    const { agent, email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     const { checkPriceAlerts } = await import(
       "../src/modules/alerts/alerts.service.js"
@@ -356,7 +357,7 @@ describe("notification outbox", () => {
     const day = 24 * 60 * 60 * 1000;
 
     // Newbie: joined ~3.5 days ago, no orders.
-    const { email: newbie } = await authedAgent();
+    const { email: newbie } = await authedAgent({ withAddress: false });
     const newbieId = await userIdFor(newbie);
     await prisma.user.update({
       where: { id: newbieId },
@@ -364,7 +365,7 @@ describe("notification outbox", () => {
     });
 
     // Lapsed: last (only) order ~30.5 days ago.
-    const { email: lapsed } = await authedAgent();
+    const { email: lapsed } = await authedAgent({ withAddress: false });
     const lapsedId = await userIdFor(lapsed);
     await prisma.order.create({
       data: {
@@ -382,7 +383,7 @@ describe("notification outbox", () => {
     });
 
     // Plus member: active.
-    const { email: plusMember } = await authedAgent();
+    const { email: plusMember } = await authedAgent({ withAddress: false });
     const plusId = await userIdFor(plusMember);
     await prisma.user.update({
       where: { id: plusId },
@@ -424,13 +425,13 @@ describe("notification outbox", () => {
   });
 
   it("claims rows so two concurrent drains can't send the same email twice", async () => {
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
     await enqueueNotification(userId, "security.password_changed");
 
     // Two drains racing (slow SMTP keeps a row past the next tick, or a second
     // app instance). Exactly one may deliver.
-    await Promise.all([drainOutbox(), drainOutbox()]);
+    await Promise.all([drainOutbox({ userId }), drainOutbox({ userId })]);
 
     const delivered = outboxDelivered.filter(
       (d) => d.to === email && d.type === "security.password_changed",
@@ -445,7 +446,7 @@ describe("notification outbox", () => {
     const { requeueStaleClaims } = await import(
       "../src/modules/notifications/outbox.service.js"
     );
-    const { email } = await authedAgent();
+    const { email } = await authedAgent({ withAddress: false });
     const userId = await userIdFor(email);
 
     // A row claimed 20 minutes ago by a worker that died before resolving it.
@@ -467,7 +468,7 @@ describe("notification outbox", () => {
     expect(row.status).toBe("queued");
 
     // And it now delivers normally.
-    await drainOutbox();
+    await drainOutbox({ userId });
     expect(
       (await prisma.notification.findUniqueOrThrow({ where: { id: stale.id } }))
         .status,
@@ -475,7 +476,7 @@ describe("notification outbox", () => {
   });
 
   it("preferences API round-trips the new toggles", async () => {
-    const { agent } = await authedAgent();
+    const { agent } = await authedAgent({ withAddress: false });
     const res = await agent
       .put("/api/users/preferences")
       .send({ emailMoneyUpdates: false, emailTips: false })
