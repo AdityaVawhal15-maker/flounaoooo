@@ -276,16 +276,42 @@ chatRouter.post(
     z.object({
       message: z.string().max(2000),
       sessionId: z.string().cuid().optional(),
+      // Temporary chat: answer normally but persist nothing — no session, no
+      // messages. It never appears in Recent Chats and never feeds the
+      // personalisation that reads chat history.
+      temporary: z.boolean().optional(),
     }),
   ),
   async (req, res, next) => {
     try {
-      const { message, sessionId } = req.body as {
+      const { message, sessionId, temporary } = req.body as {
         message: string;
         sessionId?: string;
+        temporary?: boolean;
       };
 
       const verdict = checkMessage(message);
+
+      // ---- temporary chat: compute the answer, write nothing to the DB ----
+      if (temporary) {
+        const payload: AssistantPayload = verdict.ok
+          ? await buildAssistantPayload(message.trim(), req.userId!)
+          : {
+              reply: FIREWALL_REPLIES[verdict.reason],
+              intent: { domain: "out_of_scope", reply: FIREWALL_REPLIES[verdict.reason] },
+            };
+        return res.json({
+          sessionId: null,
+          temporary: true,
+          message: {
+            id: `tmp-${Date.now()}`,
+            role: "assistant",
+            content: payload.reply,
+            domain: payload.intent.domain,
+            recommendation: payload.recommendation ?? null,
+          },
+        });
+      }
 
       let session =
         sessionId &&

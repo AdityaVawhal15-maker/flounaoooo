@@ -15,6 +15,8 @@ import {
   Moon,
   Plus,
   Search as SearchIcon,
+  Eye,
+  EyeOff,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -63,6 +65,17 @@ const FALLBACK_SUGGESTIONS: Suggestion[] = [
   { label: "Shop a laptop", prompt: "Find me a gaming laptop under ₹70000", icon: "shoppingBag", theme: "purple" },
 ];
 
+// Does this ask actually involve comparing options? Greetings, thanks and
+// small talk don't — claiming to "compare across providers" for "hello" is
+// theatre. Deliberately broad: anything that isn't obviously small talk gets
+// the full trace, so a real request never under-reports the work.
+const SMALL_TALK =
+  /^(hi|hey|hello|yo|hola|namaste|thanks|thank you|thx|ok|okay|cool|nice|good (morning|afternoon|evening|night)|bye|who are you|what can you do|help)\b[\s!.?]*$/i;
+
+function needsComparison(message: string): boolean {
+  return message.trim() !== "" && !SMALL_TALK.test(message.trim());
+}
+
 export default function ChatHomePage() {
   return (
     <Suspense fallback={null}>
@@ -79,6 +92,12 @@ function ChatHome() {
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [thinking, setThinking] = useState(false);
+  // The message currently being answered — decides whether the thinking trace
+  // shows the full comparison steps or a plain "Thinking…".
+  const [lastAsk, setLastAsk] = useState("");
+  // Temporary chat: nothing is persisted server-side and the thread lives only
+  // in this component's state.
+  const [temporary, setTemporary] = useState(false);
   const [usual, setUsual] = useState<Usual | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -129,19 +148,30 @@ function ChatHome() {
       ...m,
       { id: `u-${Date.now()}`, role: "user", content: message },
     ]);
+    setLastAsk(message);
     setThinking(true);
     try {
-      const d = await api<{ sessionId: string; message: ChatMessage }>(
+      const d = await api<{ sessionId: string | null; message: ChatMessage }>(
         "/api/chat/message",
-        { method: "POST", json: { message, sessionId } },
+        {
+          method: "POST",
+          json: temporary
+            ? { message, temporary: true }
+            : { message, sessionId },
+        },
       );
-      setSessionId(d.sessionId);
       setMessages((m) => [...m, d.message]);
-      if (!sessionId) {
-        // Keep the URL in sync so the sidebar highlights this chat and
-        // refresh/share restores the conversation.
-        setPrevChat(d.sessionId);
-        router.replace(`/home?chat=${d.sessionId}`, { scroll: false });
+      // A temporary chat has no server session and must never touch the URL —
+      // a ?chat= param would make it restorable, which is the whole point of
+      // temporary.
+      if (!temporary && d.sessionId) {
+        setSessionId(d.sessionId);
+        if (!sessionId) {
+          // Keep the URL in sync so the sidebar highlights this chat and
+          // refresh/share restores the conversation.
+          setPrevChat(d.sessionId);
+          router.replace(`/home?chat=${d.sessionId}`, { scroll: false });
+        }
       }
     } catch (err) {
       setMessages((m) => [
@@ -167,6 +197,48 @@ function ChatHome() {
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
       )}
     >
+      {/* Temporary chat toggle — top right, like the incognito switch in
+          ChatGPT. On = nothing about this conversation is stored. */}
+      {/* Mobile: sits inside the sticky app header row (right of the
+          hamburger). Desktop: top-right of the chat column. */}
+      <div className="fixed right-3 top-0 z-30 flex h-14 items-center lg:static lg:h-auto lg:w-full lg:justify-end lg:pt-3">
+        <button
+          onClick={() => {
+            setTemporary((v) => {
+              const next = !v;
+              // Switching modes starts a clean thread either way.
+              setMessages([]);
+              setSessionId(undefined);
+              if (next) router.replace("/home", { scroll: false });
+              return next;
+            });
+          }}
+          aria-pressed={temporary}
+          title={
+            temporary
+              ? "Temporary chat is on — this conversation isn't being saved"
+              : "Start a temporary chat that isn't saved"
+          }
+          className={cn(
+            "flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+            temporary
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-line bg-card text-cocoa hover:bg-beige/50",
+          )}
+        >
+          {temporary ? <EyeOff size={14} /> : <Eye size={14} />}
+          {temporary ? "Temporary chat on" : "Temporary chat"}
+        </button>
+      </div>
+
+      {temporary && empty && (
+        <p className="mx-auto mt-2 max-w-md text-center text-[12px] leading-relaxed text-cocoa lg:mt-1">
+          This chat won&apos;t appear in your history and won&apos;t be used to
+          personalise your recommendations. Radiues never trains AI models on
+          your conversations.
+        </p>
+      )}
+
       {empty ? (
         <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
           {/* Proactive heads-up — the engine getting ahead of the user (rain
@@ -260,7 +332,7 @@ function ChatHome() {
               )}
             </div>
           ))}
-          {thinking && <ThinkingSteps />}
+          {thinking && <ThinkingSteps simple={!needsComparison(lastAsk)} />}
           <div ref={bottomRef} />
         </div>
       )}
