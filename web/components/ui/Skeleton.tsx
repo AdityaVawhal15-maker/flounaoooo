@@ -25,3 +25,15 @@ export function CardSkeleton() {
     </div>
   );
 }
+
+// A stack of card placeholders — the shape a list takes while it loads, so the
+// screen doesn't jump when real rows replace it.
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {Array.from({ length: rows }).map((_, i) => (
+        <CardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}

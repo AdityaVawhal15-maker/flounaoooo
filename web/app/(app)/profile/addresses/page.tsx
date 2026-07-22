@@ -5,9 +5,11 @@
 // capture, and full edit + delete on saved addresses.
 
 import { useEffect, useState } from "react";
-import { MapPin, Trash2, Plus, Pencil, LocateFixed, Check } from "lucide-react";
+import { MapPin, MapPinOff, Trash2, Plus, Pencil, LocateFixed, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
+import { EmptyView } from "@/components/ui/StatusView";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -60,7 +62,8 @@ const LABELS = ["Home", "Work", "Other"];
 
 export default function AddressesPage() {
   const { t } = useI18n();
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  // null = not loaded yet; keeps the empty state from flashing on load.
+  const [addresses, setAddresses] = useState<Address[] | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null); // null = closed, "" = adding
   const [error, setError] = useState("");
@@ -133,8 +136,8 @@ export default function AddressesPage() {
         ? { lat: form.lat, lng: form.lng }
         : {}),
       isDefault: editingId
-        ? (addresses.find((a) => a.id === editingId)?.isDefault ?? false)
-        : addresses.length === 0,
+        ? ((addresses ?? []).find((a) => a.id === editingId)?.isDefault ?? false)
+        : (addresses ?? []).length === 0,
     };
     try {
       if (editingId) {
@@ -161,7 +164,7 @@ export default function AddressesPage() {
   return (
     <SubPage title={t("profile.address")}>
       <div className="flex flex-col gap-2.5">
-        {addresses.map((a) => (
+        {(addresses ?? []).map((a) => (
           <Card key={a.id}>
             <div className="flex items-start gap-3">
               <MapPin size={16} className="mt-0.5 shrink-0 text-accent" />
@@ -201,8 +204,14 @@ export default function AddressesPage() {
             </div>
           </Card>
         ))}
-        {addresses.length === 0 && !formOpen && (
-          <p className="py-6 text-center text-[13px] text-cocoa">{t("pp.addr.empty")}</p>
+        {addresses === null && !formOpen && <ListSkeleton rows={2} />}
+
+        {addresses !== null && addresses.length === 0 && !formOpen && (
+          <EmptyView
+            icon={MapPinOff}
+            title={t("pp.addr.empty")}
+            message="Add where you'd like food delivered — you'll need one to place an order."
+          />
         )}
       </div>
 
