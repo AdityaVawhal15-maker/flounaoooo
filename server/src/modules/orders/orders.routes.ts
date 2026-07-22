@@ -13,6 +13,7 @@ import {
   CONVENIENCE_FEE_PAISE,
 } from "../subscription/subscription.service.js";
 import { sendPushToUser } from "../notifications/push.service.js";
+import { evaluateCoupon, redeemCoupon } from "../coupons/coupons.service.js";
 import { enqueueNotification } from "../notifications/outbox.service.js";
 import { emitOrderDiscovery } from "../backoffice/ondc.service.js";
 
@@ -63,6 +64,7 @@ const createFoodOrder = z.object({
   domain: z.literal("food"),
   dishId: z.string().max(60),
   platform: z.enum(["ondc", "swiggy", "zomato"]),
+  couponCode: z.string().trim().max(24).optional(),
 });
 
 // Multi-item cart checkout: one order with line items. Every price is
@@ -80,6 +82,7 @@ const createFoodCartOrder = z.object({
     .min(1)
     .max(30),
   instructions: z.string().trim().max(300).optional(),
+  couponCode: z.string().trim().max(24).optional(),
 });
 
 // The client sends pickup/drop COORDINATES, not a distance. The server
@@ -172,9 +175,34 @@ ordersRouter.post(
           select: { plusActive: true, plusUntil: true },
         });
         const convenienceFeePaise = !isPlusActive(me) ? CONVENIENCE_FEE_PAISE : 0;
+
+        // Promo code — re-evaluated here (never trusted from the client) and
+        // applied to the item subtotal, on top of any per-line offers.
+        let couponDiscount = 0;
+        let coupon: { couponId: string; code: string; description: string } | null = null;
+        if (body.couponCode) {
+          const check = await evaluateCoupon({
+            code: body.couponCode,
+            userId: req.userId!,
+            domain: "food",
+            subtotalPaise: itemsTotal,
+          });
+          if (!check.ok) throw new ApiError(400, check.reason);
+          couponDiscount = check.discountPaise;
+          coupon = {
+            couponId: check.couponId,
+            code: check.code,
+            description: check.description,
+          };
+        }
+
         const amount = Math.max(
           0,
-          itemsTotal + deliveryFeePaise + convenienceFeePaise - discount,
+          itemsTotal +
+            deliveryFeePaise +
+            convenienceFeePaise -
+            discount -
+            couponDiscount,
         );
 
         const first = lines[0]!;
@@ -205,6 +233,9 @@ ordersRouter.post(
               deliveryFeePaise,
               convenienceFeePaise,
               offers,
+              coupon: coupon
+                ? { code: coupon.code, discountPaise: couponDiscount }
+                : undefined,
               instructions: body.instructions || undefined,
               pickupLat: restaurantLat,
               pickupLng: restaurantLng,
@@ -215,10 +246,19 @@ ordersRouter.post(
               comparedPlatforms: 3,
             }),
             amount,
-            savedPaise,
+            // A promo code is money the buyer kept, so it counts as savings.
+            savedPaise: savedPaise + couponDiscount,
             addressId: defaultAddress?.id ?? null,
           },
         });
+        if (coupon) {
+          await redeemCoupon({
+            couponId: coupon.couponId,
+            userId: req.userId!,
+            orderId: order.id,
+            discountPaise: couponDiscount,
+          });
+        }
         void emitOrderDiscovery(order);
         return res.status(201).json({ order });
       }
@@ -251,6 +291,25 @@ ordersRouter.post(
             ? CONVENIENCE_FEE_PAISE
             : 0;
 
+        // Promo code — re-evaluated server-side against the dish price.
+        let couponDiscount = 0;
+        let coupon: { couponId: string; code: string; description: string } | null = null;
+        if (body.couponCode) {
+          const check = await evaluateCoupon({
+            code: body.couponCode,
+            userId: req.userId!,
+            domain: "food",
+            subtotalPaise: quote.effectivePaise,
+          });
+          if (!check.ok) throw new ApiError(400, check.reason);
+          couponDiscount = check.discountPaise;
+          coupon = {
+            couponId: check.couponId,
+            code: check.code,
+            description: check.description,
+          };
+        }
+
         // Restaurant → delivery coordinates power the live delivery map on the
         // order screen. Simulated near a city centre for now (a short, realistic
         // route); real ONDC restaurant + address coordinates replace these.
@@ -277,12 +336,26 @@ ordersRouter.post(
               // decision-receipt stats, frozen at decision time
               comparedOptions: allQuotes.length,
               comparedPlatforms: new Set(allQuotes.map((q) => q.platform)).size,
+              coupon: coupon
+                ? { code: coupon.code, discountPaise: couponDiscount }
+                : undefined,
             }),
-            amount: quote.effectivePaise + convenienceFeePaise,
-            savedPaise,
+            amount: Math.max(
+              0,
+              quote.effectivePaise + convenienceFeePaise - couponDiscount,
+            ),
+            savedPaise: savedPaise + couponDiscount,
             addressId: defaultAddress?.id ?? null,
           },
         });
+        if (coupon) {
+          await redeemCoupon({
+            couponId: coupon.couponId,
+            userId: req.userId!,
+            orderId: order.id,
+            discountPaise: couponDiscount,
+          });
+        }
         // Record the simulated ONDC discovery flow (search/select) for the
         // developer transaction viewer. Fire-and-forget — never blocks the order.
         void emitOrderDiscovery(order);
