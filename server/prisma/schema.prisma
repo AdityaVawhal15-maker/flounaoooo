@@ -290,6 +290,7 @@ model Order {
 
   payment        Payment?
   trackingEvents TrackingEvent[]
+  rating         OrderRating?
 
   @@index([userId, domain])
 }
@@ -507,4 +508,23 @@ model CouponRedemption {
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
   @@index([couponId, userId])
+}
+
+// Post-delivery rating. One per order; the dish/provider it refers to is
+// denormalised so community averages can be computed without re-parsing order
+// JSON. These averages feed back into the recommendation scoring.
+model OrderRating {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  userId      String
+  domain      String // "food" | "ride"
+  itemKey     String // dishId for food, provider for rides
+  stars       Int // 1–5
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([domain, itemKey])
+  @@index([userId])
 }
