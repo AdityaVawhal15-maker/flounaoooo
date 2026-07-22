@@ -19,6 +19,7 @@ import { groupsRouter } from "./modules/groups/groups.routes.js";
 import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
+import { couponsRouter } from "./modules/coupons/coupons.routes.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
 import { superRouter } from "./modules/backoffice/super.routes.js";
@@ -111,6 +112,7 @@ export function createApp() {
   app.use("/api/alerts", alertsRouter);
   app.use("/api/shop", shopRouter);
   app.use("/api/subscription", subscriptionRouter);
+  app.use("/api/coupons", couponsRouter);
 
   // Back-office consoles (developer / admin / super-admin) under one namespace,
   // behind a tighter rate limit than the consumer API. The routers themselves
