@@ -41,6 +41,24 @@ function simulateDeliveryCoords(seed: string): {
   };
 }
 
+// Food is delivered to a place, so an order without one is meaningless — the
+// address is required, not best-effort. Prefers the default, falls back to the
+// most recent (a user can have addresses with none flagged default).
+async function requireDeliveryAddress(userId: string) {
+  const address =
+    (await prisma.address.findFirst({
+      where: { userId, isDefault: true },
+    })) ??
+    (await prisma.address.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    }));
+  if (!address) {
+    throw new ApiError(400, "Add a delivery address before placing the order");
+  }
+  return address;
+}
+
 const createFoodOrder = z.object({
   domain: z.literal("food"),
   dishId: z.string().max(60),
@@ -148,9 +166,7 @@ ordersRouter.post(
           });
         }
 
-        const defaultAddress = await prisma.address.findFirst({
-          where: { userId: req.userId!, isDefault: true },
-        });
+        const defaultAddress = await requireDeliveryAddress(req.userId!);
         const me = await prisma.user.findUniqueOrThrow({
           where: { id: req.userId! },
           select: { plusActive: true, plusUntil: true },
@@ -223,9 +239,7 @@ ordersRouter.post(
           ? Math.max(0, cheapestOther - quote.effectivePaise)
           : 0;
 
-        const defaultAddress = await prisma.address.findFirst({
-          where: { userId: req.userId!, isDefault: true },
-        });
+        const defaultAddress = await requireDeliveryAddress(req.userId!);
 
         // Radiues Plus perk: in-app convenience fee is waived for subscribers.
         const me = await prisma.user.findUniqueOrThrow({

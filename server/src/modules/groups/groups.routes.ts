@@ -546,9 +546,27 @@ groupsRouter.post(
               }),
       }));
 
+      // The host's address is where the whole group order gets delivered, so
+      // it's required here just like a solo food order.
+      const deliveryAddress =
+        (await prisma.address.findFirst({
+          where: { userId: req.userId!, isDefault: true },
+        })) ??
+        (await prisma.address.findFirst({
+          where: { userId: req.userId! },
+          orderBy: { createdAt: "desc" },
+        }));
+      if (!deliveryAddress) {
+        throw new ApiError(
+          400,
+          "Add a delivery address before checking out the group order",
+        );
+      }
+
       const order = await prisma.order.create({
         data: {
           userId: req.userId!,
+          addressId: deliveryAddress.id,
           domain: "food",
           status: "pending_payment",
           provider: cart.platform,
