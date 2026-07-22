@@ -21,15 +21,88 @@ const DEMO_PLACES = [
   { name: "Osmania University", area: "Amberpet", lat: 17.4137, lng: 78.5286 },
 ];
 
+// Coordinates → a human place name. Used when the rider drops a pin on the map
+// and to label their live GPS position with something real instead of
+// "Current location". Falls back to the nearest demo place offline.
+ridesRouter.get("/reverse", async (req, res, next) => {
+  try {
+    const lat = z.coerce.number().min(-90).max(90).parse(req.query.lat);
+    const lng = z.coerce.number().min(-180).max(180).parse(req.query.lng);
+
+    if (env.GEOAPIFY_KEY) {
+      const url = new URL("https://api.geoapify.com/v1/geocode/reverse");
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lon", String(lng));
+      url.searchParams.set("limit", "1");
+      url.searchParams.set("apiKey", env.GEOAPIFY_KEY);
+      const r = await fetch(url);
+      if (r.ok) {
+        const data = (await r.json()) as {
+          features?: Array<{
+            properties: {
+              name?: string;
+              street?: string;
+              formatted?: string;
+              suburb?: string;
+              city?: string;
+            };
+          }>;
+        };
+        const p = data.features?.[0]?.properties;
+        if (p) {
+          return res.json({
+            place: {
+              name: p.name ?? p.street ?? p.suburb ?? p.formatted ?? "Pinned location",
+              area: p.suburb ?? p.city ?? "",
+              lat,
+              lng,
+            },
+          });
+        }
+      }
+    }
+
+    // Offline: name the pin after the closest known place.
+    let best: (typeof DEMO_PLACES)[number] | undefined;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const p of DEMO_PLACES) {
+      const d = (p.lat - lat) ** 2 + (p.lng - lng) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    res.json({
+      place: {
+        name: "Pinned location",
+        area: best ? `Near ${best.name}` : "",
+        lat,
+        lng,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 ridesRouter.get("/geocode", async (req, res, next) => {
   try {
     const q = z.string().min(2).max(120).parse(req.query.q);
+
+    // Optional rider position — results near them rank first, so "MG Road"
+    // returns the one in their city rather than another state's.
+    const near = z
+      .object({ lat: z.coerce.number(), lng: z.coerce.number() })
+      .safeParse({ lat: req.query.lat, lng: req.query.lng });
 
     if (env.GEOAPIFY_KEY) {
       const url = new URL("https://api.geoapify.com/v1/geocode/autocomplete");
       url.searchParams.set("text", q);
       url.searchParams.set("filter", "countrycode:in");
       url.searchParams.set("limit", "6");
+      if (near.success) {
+        url.searchParams.set("bias", `proximity:${near.data.lng},${near.data.lat}`);
+      }
       url.searchParams.set("apiKey", env.GEOAPIFY_KEY);
       const r = await fetch(url);
       if (r.ok) {

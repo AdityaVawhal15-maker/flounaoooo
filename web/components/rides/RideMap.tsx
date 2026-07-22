@@ -16,14 +16,19 @@ export function RideMap({
   pickup,
   drop,
   routeGeometry,
+  onPick,
 }: {
   pickup: LatLng | null;
   drop: LatLng | null;
   routeGeometry: [number, number][] | null;
+  // Set while the user is choosing a point by tapping the map. Kept in a ref
+  // so toggling it doesn't tear the map down and rebuild it.
+  onPick?: ((p: LatLng) => void) | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const onPickRef = useRef(onPick);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -35,12 +40,23 @@ export function RideMap({
       attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("click", (e) => {
+      onPickRef.current?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    });
     mapRef.current = map;
     return () => {
       map.remove();
       mapRef.current = null;
     };
   }, []);
+
+  // Keep the click handler current, and show a crosshair while picking so the
+  // map reads as interactive.
+  useEffect(() => {
+    onPickRef.current = onPick;
+    const canvas = mapRef.current?.getCanvas();
+    if (canvas) canvas.style.cursor = onPick ? "crosshair" : "";
+  }, [onPick]);
 
   useEffect(() => {
     const map = mapRef.current;
