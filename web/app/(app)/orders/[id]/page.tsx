@@ -7,6 +7,7 @@ import { CheckCircle2, Circle, Receipt, ChevronLeft, LifeBuoy } from "lucide-rea
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
+import { RateOrder } from "@/components/orders/RateOrder";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { RideTracker } from "@/components/orders/RideTracker";
 import { LoadingView, ErrorView } from "@/components/ui/StatusView";
@@ -48,6 +49,7 @@ type OrderDetail = {
   };
   trackingEvents: TrackingEvent[];
   payment: { status: string; method: string | null } | null;
+  rating?: { stars: number } | null;
 };
 
 const POLL_MS = 15_000;
@@ -142,6 +144,15 @@ export default function OrderDetailPage({
             dropLabel={order.domain === "food" ? "your address" : d.drop ?? "your drop"}
           />
         </div>
+      )}
+
+      {/* Rate the order — only once it's actually done */}
+      {allDone && order.status !== "cancelled" && (
+        <RateOrder
+          orderId={order.id}
+          domain={order.domain}
+          existingStars={order.rating?.stars ?? null}
+        />
       )}
 
       {/* Tracking timeline */}
