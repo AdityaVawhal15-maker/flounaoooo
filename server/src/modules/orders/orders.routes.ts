@@ -588,6 +588,16 @@ ordersRouter.post(
         data: { status: "cancelled", details: JSON.stringify(details) },
       });
 
+      // Money already taken? Cancelling has to start the refund, not just mark
+      // the order dead — the tracker promises "refund will be processed", and
+      // ops would otherwise never learn money is owed back. Status-scoped so a
+      // payment that isn't actually settled is left alone (cash on delivery
+      // sits at "pending" — nothing to return).
+      const refundFlagged = await prisma.payment.updateMany({
+        where: { orderId: order.id, status: "success" },
+        data: { status: "refund_pending" },
+      });
+
       void sendPushToUser(order.userId, {
         title: isFood ? "Order cancelled" : "Ride cancelled",
         body: `${order.title} was cancelled.`,
@@ -602,7 +612,11 @@ ordersRouter.post(
         { dedupeKey: `cancelled:${order.id}` },
       ).catch(() => {});
 
-      res.json({ order: { ...updated, details: JSON.parse(updated.details) } });
+      res.json({
+        order: { ...updated, details: JSON.parse(updated.details) },
+        // Lets the UI say "refund on its way" only when one is actually owed.
+        refundPending: refundFlagged.count > 0,
+      });
     } catch (err) {
       next(err);
     }
