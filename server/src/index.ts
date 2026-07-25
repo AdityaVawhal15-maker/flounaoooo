@@ -9,6 +9,7 @@ import {
 } from "./modules/notifications/outbox.service.js";
 import { sweepPlusMemberships } from "./modules/subscription/subscription.service.js";
 import { initMonitoring } from "./lib/monitoring.js";
+import { seedDemoCoupons } from "./data/coupons.js";
 
 initMonitoring();
 const app = createApp();
@@ -29,6 +30,9 @@ const alertLoop = setInterval(async () => {
     console.error("[alerts] check failed:", err);
   }
 }, 60_000);
+
+// Demo promo codes, so checkout works out of the box in dev.
+void seedDemoCoupons().catch((err) => console.error("[coupons] seed failed:", err));
 
 // Drain the email-notification outbox every 30s.
 const stopOutbox = startOutboxWorker();

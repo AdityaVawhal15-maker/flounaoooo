@@ -16,15 +16,31 @@ const STEPS = [
 
 const STEP_MS = 700;
 
-export function ThinkingSteps() {
+// A greeting or a plain question isn't a price comparison — showing the full
+// "comparing across providers" trace for "hello" reads as fake work. Those get
+// a single neutral line instead.
+export function ThinkingSteps({ simple = false }: { simple?: boolean }) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
+    if (simple) return;
     const t = setInterval(() => {
       setActive((a) => (a < STEPS.length - 1 ? a + 1 : a));
     }, STEP_MS);
     return () => clearInterval(t);
-  }, []);
+  }, [simple]);
+
+  if (simple) {
+    return (
+      <div className="flex items-center gap-2 pl-1 text-[13px]">
+        <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
+        <span className="font-medium text-ink">
+          Thinking
+          <ThinkingDots />
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5 pl-1">

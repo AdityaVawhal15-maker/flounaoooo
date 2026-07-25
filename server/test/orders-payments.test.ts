@@ -337,3 +337,51 @@ describe("payments", () => {
 // FOOD_EVENTS / RIDE_EVENTS in payments.routes.ts).
 const FOOD_EVENT_COUNT = 4;
 const RIDE_EVENT_COUNT = 3;
+
+// Cancelling an order that was actually paid must start the refund — the
+// tracker promises one, so silently keeping the money is a real defect.
+describe("cancelling a paid order starts a refund", () => {
+  it("flags the payment refund_pending and reports it", async () => {
+    const { agent } = await authedAgent();
+    const created = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(201);
+    const orderId = created.body.order.id as string;
+
+    // Simulated gateway success → payment.status === "success".
+    await agent.post("/api/payments/simulate").send({ orderId, method: "upi" }).expect(200);
+
+    const cancelled = await agent
+      .post(`/api/orders/${orderId}/cancel`)
+      .send({ reason: "Changed my mind" })
+      .expect(200);
+    expect(cancelled.body.refundPending).toBe(true);
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId } });
+    expect(payment.status).toBe("refund_pending");
+  });
+
+  it("does not raise a refund for cash on delivery (no money taken yet)", async () => {
+    const { agent } = await authedAgent();
+    const created = await agent
+      .post("/api/orders")
+      .send({ domain: "food", dishId: "masala-dosa", platform: "ondc" })
+      .expect(201);
+    const orderId = created.body.order.id as string;
+
+    await agent
+      .post("/api/payments/checkout")
+      .send({ orderId, method: "cash" })
+      .expect(200);
+
+    const cancelled = await agent
+      .post(`/api/orders/${orderId}/cancel`)
+      .send({})
+      .expect(200);
+    expect(cancelled.body.refundPending).toBe(false);
+
+    const payment = await prisma.payment.findUniqueOrThrow({ where: { orderId } });
+    expect(payment.status).toBe("pending");
+  });
+});

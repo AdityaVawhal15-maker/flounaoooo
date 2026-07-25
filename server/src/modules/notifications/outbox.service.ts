@@ -329,13 +329,20 @@ export async function enqueueNotification(
   }
 }
 
-export async function drainOutbox() {
+// `userId` scopes the drain to one recipient. Production never passes it (the
+// worker drains everything); tests use it so parallel test files sharing a
+// database can't claim each other's rows.
+export async function drainOutbox(opts: { userId?: string } = {}) {
   // Claim rows before sending. Without this, a slow SMTP send keeps rows in
   // `queued` past the next 30s tick — and an overlapping drain (or a second
   // app instance) would pick the same row up and send the email twice. The
   // status-scoped updateMany is atomic, so exactly one worker wins each row.
   const candidates = await prisma.notification.findMany({
-    where: { status: "queued", attempts: { lt: MAX_ATTEMPTS } },
+    where: {
+      status: "queued",
+      attempts: { lt: MAX_ATTEMPTS },
+      ...(opts.userId ? { userId: opts.userId } : {}),
+    },
     orderBy: { createdAt: "asc" },
     take: BATCH,
     select: { id: true },

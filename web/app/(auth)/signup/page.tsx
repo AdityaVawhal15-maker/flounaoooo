@@ -84,13 +84,14 @@ export default function SignupPage() {
           <span className="flex size-20 items-center justify-center rounded-full bg-beige">
             <UserRound size={36} className="text-cocoa" />
           </span>
-          <button
-            type="button"
-            aria-label="Add photo"
+          {/* Decorative until avatar upload exists — a button here looked
+              clickable but did nothing when tapped. */}
+          <span
+            aria-hidden
             className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full border-2 border-cream bg-accent text-white"
           >
             <Camera size={14} />
-          </button>
+          </span>
         </div>
       </div>
 

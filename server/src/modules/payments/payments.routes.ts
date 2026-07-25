@@ -35,7 +35,13 @@ const RIDE_EVENTS = [
 async function markPaid(
   orderId: string,
   method: string,
-  opts: { paidPaise?: number; gatewayResponse?: string } = {},
+  opts: {
+    paidPaise?: number;
+    gatewayResponse?: string;
+    // Cash on delivery: the order is confirmed and goes into fulfilment, but
+    // no money has moved yet — the payment stays pending until collected.
+    collectOnDelivery?: boolean;
+  } = {},
 ) {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || order.status !== "pending_payment") return order;
@@ -77,15 +83,18 @@ async function markPaid(
     });
     if (claim.count === 0) return false;
 
+    // COD money hasn't moved yet, so the payment row must not claim success.
+    const paymentStatus = opts.collectOnDelivery ? "pending" : "success";
+
     await tx.payment.upsert({
       where: { orderId },
-      update: { status: "success", method, gatewayResponse: opts.gatewayResponse },
+      update: { status: paymentStatus, method, gatewayResponse: opts.gatewayResponse },
       create: {
         orderId,
         userId: order.userId,
         amount: order.amount,
         currency: "INR",
-        status: "success",
+        status: paymentStatus,
         method,
         gatewayResponse: opts.gatewayResponse,
       },
@@ -205,10 +214,21 @@ paymentsRouter.use(requireAuth);
 
 paymentsRouter.post(
   "/checkout",
-  validateBody(z.object({ orderId: z.string().cuid() })),
+  validateBody(
+    z.object({
+      orderId: z.string().cuid(),
+      // Cash on delivery collects money in person — it must never open an
+      // online gateway. Anything else goes through Cashfree (or the simulated
+      // path when no keys are configured).
+      method: z.enum(["upi", "card", "cash"]).optional(),
+    }),
+  ),
   async (req, res, next) => {
     try {
-      const { orderId } = req.body as { orderId: string };
+      const { orderId, method } = req.body as {
+        orderId: string;
+        method?: "upi" | "card" | "cash";
+      };
       const order = await prisma.order.findFirst({
         where: { id: orderId, userId: req.userId! },
         include: { user: true },
@@ -228,6 +248,12 @@ paymentsRouter.post(
         },
         update: { status: "created" },
       });
+
+      // ---- cash on delivery: confirm the order, collect the money later ----
+      if (method === "cash") {
+        await markPaid(orderId, "cash", { collectOnDelivery: true });
+        return res.json({ mode: "cash", amount: order.amount });
+      }
 
       if (cashfreeConfigured) {
         let cf;

@@ -48,11 +48,14 @@ function PlaceSearch({
   icon,
   value,
   onSelect,
+  near,
 }: {
   label: string;
   icon?: React.ReactNode;
   value: Place | null;
   onSelect: (p: Place | null) => void;
+  // Rider's live position — biases results to places near them.
+  near?: { lat: number; lng: number } | null;
 }) {
   const [text, setText] = useState("");
   const [places, setPlaces] = useState<Place[]>([]);
@@ -66,7 +69,10 @@ function PlaceSearch({
           setPlaces([]);
           return;
         }
-        api<{ places: Place[] }>(`/api/rides/geocode?q=${encodeURIComponent(text)}`)
+        api<{ places: Place[] }>(
+          `/api/rides/geocode?q=${encodeURIComponent(text)}` +
+            (near ? `&lat=${near.lat}&lng=${near.lng}` : ""),
+        )
           .then((d) => {
             setPlaces(d.places);
             setOpen(true);
@@ -76,7 +82,7 @@ function PlaceSearch({
       short ? 0 : 250,
     );
     return () => clearTimeout(t);
-  }, [text]);
+  }, [text, near]);
 
   return (
     <div className="relative">
@@ -167,6 +173,34 @@ function RidesInner() {
   );
   // "Suggested locations" (Figma) — the user's saved places with coordinates.
   const [saved, setSaved] = useState<Place[]>([]);
+  // Which endpoint the next map tap sets (null = tapping does nothing).
+  const [picking, setPicking] = useState<"pickup" | "drop" | null>(null);
+
+  // Turn a tapped point into a named place, then assign it.
+  const pickOnMap = useCallback(
+    async (p: { lat: number; lng: number }) => {
+      const target = picking;
+      if (!target) return;
+      setPicking(null);
+      let place: Place = {
+        name: "Pinned location",
+        area: `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
+        lat: p.lat,
+        lng: p.lng,
+      };
+      try {
+        const d = await api<{ place: Place }>(
+          `/api/rides/reverse?lat=${p.lat}&lng=${p.lng}`,
+        );
+        if (d.place) place = d.place;
+      } catch {
+        /* keep the coordinate label */
+      }
+      if (target === "pickup") setPickup(place);
+      else setDrop(place);
+    },
+    [picking],
+  );
 
   useEffect(() => {
     api<{
@@ -201,16 +235,24 @@ function RidesInner() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (cancelled) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
         // Don't override a pickup already chosen (e.g. carried from chat).
-        setPickup((prev) =>
-          prev ?? {
-            name: "Current location",
-            area: "Your live location",
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          },
-        );
+        setPickup((prev) => prev ?? { name: "Current location", area: "Your live location", lat, lng });
         setLocating(false);
+        // Name the GPS point so the rider sees an actual street/area rather
+        // than the generic "Current location" label.
+        api<{ place: Place }>(`/api/rides/reverse?lat=${lat}&lng=${lng}`)
+          .then((d) => {
+            if (cancelled || !d.place) return;
+            setPickup((prev) =>
+              prev && prev.name === "Current location"
+                ? { ...d.place, area: d.place.area || "Your live location" }
+                : prev,
+            );
+          })
+          .catch(() => {
+            /* keep the generic label */
+          });
       },
       () => !cancelled && setLocating(false),
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
@@ -425,11 +467,13 @@ function RidesInner() {
               label={locating ? "Locating you…" : "Pickup location"}
               value={pickup}
               onSelect={setPickup}
+              near={mapPoints.pickup}
             />
             <PlaceSearch
               label="Search for a location…"
               value={drop}
               onSelect={setDrop}
+              near={mapPoints.pickup}
             />
           </div>
         </div>
@@ -438,9 +482,18 @@ function RidesInner() {
         <div className="flex gap-2.5">
           <button
             type="button"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[13px] font-semibold text-ink transition-colors hover:bg-beige/40"
+            onClick={() => setPicking((p) => (p ? null : pickup ? "drop" : "pickup"))}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2.5 text-[13px] font-semibold transition-colors",
+              picking
+                ? "border-accent bg-accent-soft text-accent"
+                : "border-line bg-card text-ink hover:bg-beige/40",
+            )}
           >
-            <MapPin size={15} className="text-accent" /> Select on map
+            <MapPin size={15} className="text-accent" />
+            {picking
+              ? `Tap the map to set ${picking === "pickup" ? "pickup" : "drop"}`
+              : "Select on map"}
           </button>
           <button
             type="button"
@@ -630,6 +683,7 @@ function RidesInner() {
             pickup={mapPoints.pickup}
             drop={mapPoints.drop}
             routeGeometry={route?.geometry ?? null}
+            onPick={picking ? pickOnMap : null}
           />
         </div>
       </div>

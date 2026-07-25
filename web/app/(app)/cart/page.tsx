@@ -5,7 +5,8 @@
 // checkout. Quantities, optional cooking instructions, price details, and a
 // sticky checkout bar.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -15,6 +16,7 @@ import {
   Tag,
   ShieldCheck,
   ShoppingBag,
+  MapPin,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -24,6 +26,16 @@ import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
 
+type AppliedCoupon = { code: string; description: string; discountPaise: number };
+type OfferedCoupon = { code: string; description: string; minOrderPaise: number };
+
+type AddressLine = {
+  label: string;
+  line1: string;
+  city: string;
+  isDefault: boolean;
+};
+
 export default function CartPage() {
   const router = useRouter();
   const { lines, setQty, remove, clear } = useCart();
@@ -31,6 +43,45 @@ export default function CartPage() {
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // undefined = still loading, null = none saved (checkout would be rejected).
+  const [address, setAddress] = useState<AddressLine | null | undefined>(undefined);
+  const [codeInput, setCodeInput] = useState("");
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [offers, setOffers] = useState<OfferedCoupon[]>([]);
+
+  useEffect(() => {
+    api<{ addresses: AddressLine[] }>("/api/users/addresses")
+      .then((d) => setAddress(d.addresses.find((a) => a.isDefault) ?? d.addresses[0] ?? null))
+      .catch(() => setAddress(null));
+    api<{ coupons: OfferedCoupon[] }>("/api/coupons?domain=food")
+      .then((d) => setOffers(d.coupons))
+      .catch(() => setOffers([]));
+  }, []);
+
+  // Preview the discount. The server re-checks the code when the order is
+  // actually created, so this is only for showing the buyer what they'll save.
+  async function applyCoupon() {
+    setCouponBusy(true);
+    setCouponError("");
+    try {
+      const d = await api<AppliedCoupon>("/api/coupons/validate", {
+        method: "POST",
+        json: {
+          code: codeInput.trim(),
+          domain: "food",
+          subtotalPaise: itemsTotal,
+        },
+      });
+      setCoupon(d);
+    } catch (e) {
+      setCoupon(null);
+      setCouponError(e instanceof Error ? e.message : "Could not apply that code");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
 
   const itemsTotal = lines.reduce((s, l) => s + l.pricePaise * l.qty, 0);
 
@@ -49,6 +100,7 @@ export default function CartPage() {
             qty: l.qty,
           })),
           ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+          ...(coupon ? { couponCode: coupon.code } : {}),
         },
       });
       clear();
@@ -60,7 +112,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:px-6">
+    <div className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:max-w-5xl lg:px-6 lg:pb-10">
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.push("/food")}
@@ -87,6 +139,8 @@ export default function CartPage() {
         </div>
       ) : (
         <>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
+          <div className="min-w-0">
           {/* Reassurance banner (Figma: "Yay! Your items are added…") */}
           <p className="mt-4 rounded-card border border-success/30 bg-success/5 px-3.5 py-2.5 text-[12px] text-success">
             {t("cart.banner")}
@@ -161,6 +215,100 @@ export default function CartPage() {
             </label>
           </Card>
 
+          </div>
+
+          {/* Checkout panel — sticky beside the items on desktop */}
+          <div className="lg:sticky lg:top-6">
+          {/* Promo code */}
+          <Card className="mt-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <Tag size={15} className="shrink-0 text-accent" />
+              {coupon ? (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-bold text-success">
+                      {coupon.code} applied
+                    </span>
+                    <span className="block truncate text-[11px] text-cocoa">
+                      {coupon.description} · saving {rupees(coupon.discountPaise)}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => {
+                      setCoupon(null);
+                      setCodeInput("");
+                      setCouponError("");
+                    }}
+                    className="shrink-0 text-[12px] font-semibold text-cocoa hover:text-danger"
+                  >
+                    Remove
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    value={codeInput}
+                    onChange={(e) => {
+                      setCodeInput(e.target.value.toUpperCase().slice(0, 24));
+                      setCouponError("");
+                    }}
+                    placeholder="Enter promo code"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] uppercase text-ink outline-none placeholder:normal-case placeholder:text-cocoa/50"
+                  />
+                  <button
+                    onClick={applyCoupon}
+                    disabled={couponBusy || codeInput.trim().length < 2}
+                    className="shrink-0 text-[12px] font-semibold text-accent hover:underline disabled:opacity-40"
+                  >
+                    {couponBusy ? "Checking…" : "Apply"}
+                  </button>
+                </>
+              )}
+            </div>
+            {couponError && (
+              <p className="mt-1.5 pl-[26px] text-[11px] text-danger">{couponError}</p>
+            )}
+            {!coupon && offers.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5 pl-[26px]">
+                {offers.map((o) => (
+                  <button
+                    key={o.code}
+                    onClick={() => setCodeInput(o.code)}
+                    title={o.description}
+                    className="rounded-pill border border-dashed border-accent/50 px-2.5 py-1 text-[11px] font-semibold text-accent hover:bg-accent-soft"
+                  >
+                    {o.code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Delivery address — required, so it's shown before the bill */}
+          <Card className="mt-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <MapPin size={16} className="shrink-0 text-accent" />
+              {address === undefined ? (
+                <p className="text-[13px] text-cocoa">Loading address…</p>
+              ) : address ? (
+                <p className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                  <span className="font-semibold">{address.label}</span> —{" "}
+                  {address.line1}, {address.city}
+                </p>
+              ) : (
+                <p className="min-w-0 flex-1 text-[13px] text-cocoa">
+                  No delivery address saved
+                </p>
+              )}
+              <Link
+                href="/profile/addresses"
+                className="shrink-0 text-[12px] font-semibold text-accent hover:underline"
+              >
+                {address ? "Change" : "Add"}
+              </Link>
+            </div>
+          </Card>
+
           {/* Price details — estimates; the server recomputes at checkout */}
           <Card className="mt-4">
             <p className="text-[14px] font-bold text-ink">{t("cart.priceDetails")}</p>
@@ -175,10 +323,16 @@ export default function CartPage() {
                 <span>{t("cart.deliveryFees")}</span>
                 <span className="text-ink">{t("cart.shownAtPay")}</span>
               </div>
+              {coupon && (
+                <div className="flex justify-between text-success">
+                  <span>Promo {coupon.code}</span>
+                  <span>− {rupees(coupon.discountPaise)}</span>
+                </div>
+              )}
               <div className="my-1 h-px bg-line" />
               <div className="flex justify-between font-bold text-ink">
                 <span>{t("cart.toPay")}</span>
-                <span>{rupees(itemsTotal)}</span>
+                <span>{rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}</span>
               </div>
             </div>
           </Card>
@@ -189,17 +343,31 @@ export default function CartPage() {
             <ShieldCheck size={12} /> {t("cart.secure")}
           </p>
 
-          {/* Sticky checkout bar */}
-          <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:bottom-4 lg:px-6">
-            <Button
-              onClick={checkout}
-              disabled={busy}
-              className="h-[56px] w-full rounded-[22px] text-[15px] shadow-card"
-            >
-              {busy
-                ? t("foodOrder.placing")
-                : `${t("cart.checkout")} · ${rupees(itemsTotal)}`}
-            </Button>
+          {/* Checkout action — fixed bottom bar on mobile, inside the
+              summary panel on desktop */}
+          <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:static lg:mt-4 lg:max-w-none lg:px-0">
+            {address === null ? (
+              // Checkout would be rejected server-side without an address —
+              // send the buyer to add one instead of failing at the last step.
+              <Link
+                href="/profile/addresses"
+                className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[22px] bg-accent text-[15px] font-semibold text-white shadow-card transition-colors hover:bg-[#d4570f]"
+              >
+                <MapPin size={17} /> Add a delivery address
+              </Link>
+            ) : (
+              <Button
+                onClick={checkout}
+                disabled={busy || address === undefined}
+                className="h-[56px] w-full rounded-[22px] text-[15px] shadow-card"
+              >
+                {busy
+                  ? t("foodOrder.placing")
+                  : `${t("cart.checkout")} · ${rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}`}
+              </Button>
+            )}
+          </div>
+          </div>
           </div>
         </>
       )}

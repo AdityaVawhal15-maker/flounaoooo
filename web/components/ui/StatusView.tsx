@@ -55,3 +55,41 @@ export function ErrorView({
     </div>
   );
 }
+
+// Empty state for a list that loaded fine but has nothing in it. Distinct from
+// ErrorView (something broke) and from the loading state — a list initialised
+// to [] must not render this until the fetch has actually resolved, or the
+// message flashes before the data arrives.
+export function EmptyView({
+  icon: Icon,
+  title,
+  message,
+  actionLabel,
+  actionHref,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  message?: string;
+  actionLabel?: string;
+  actionHref?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center px-6 py-12 text-center">
+      <span className="flex size-14 items-center justify-center rounded-[18px] bg-beige/70">
+        <Icon size={24} className="text-cocoa" />
+      </span>
+      <p className="mt-3 text-[14px] font-semibold text-ink">{title}</p>
+      {message && (
+        <p className="mt-1 max-w-xs text-[12px] leading-relaxed text-cocoa">{message}</p>
+      )}
+      {actionLabel && actionHref && (
+        <Link
+          href={actionHref}
+          className="mt-5 rounded-pill bg-accent px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#d4570f]"
+        >
+          {actionLabel}
+        </Link>
+      )}
+    </div>
+  );
+}

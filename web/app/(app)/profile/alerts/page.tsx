@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Trash2, TrendingDown } from "lucide-react";
+import { Bell, BellOff, Trash2, TrendingDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { SubPage } from "@/components/profile/SubPage";
 import { Card } from "@/components/ui/Card";
+import { EmptyView } from "@/components/ui/StatusView";
+import { ListSkeleton } from "@/components/ui/Skeleton";
 
 type Alert = {
   id: string;
@@ -20,7 +22,8 @@ type Alert = {
 
 export default function AlertsPage() {
   const { t } = useI18n();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  // null = not loaded yet, so the empty state can't flash before data.
+  const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [error, setError] = useState("");
 
   const load = () =>
@@ -37,17 +40,23 @@ export default function AlertsPage() {
     await load();
   }
 
-  const active = alerts.filter((a) => a.active);
-  const past = alerts.filter((a) => !a.active);
+  const active = (alerts ?? []).filter((a) => a.active);
+  const past = (alerts ?? []).filter((a) => !a.active);
 
   return (
     <SubPage title={t("profile.alerts")}>
       {error && <p className="text-[13px] text-danger">{error}</p>}
 
-      {alerts.length === 0 && !error && (
-        <p className="py-8 text-center text-[13px] text-cocoa">
-          {t("pp.alerts.empty")}
-        </p>
+      {alerts === null && !error && <ListSkeleton rows={3} />}
+
+      {alerts !== null && alerts.length === 0 && !error && (
+        <EmptyView
+          icon={BellOff}
+          title={t("pp.alerts.empty")}
+          message="Set a target price on any dish and we'll tell you the moment it drops."
+          actionLabel="Browse food"
+          actionHref="/food"
+        />
       )}
 
       {active.length > 0 && (
