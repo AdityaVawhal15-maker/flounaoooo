@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { useToast } from "@/components/ui/Toast";
 
 type AppliedCoupon = { code: string; description: string; discountPaise: number };
 type OfferedCoupon = { code: string; description: string; minOrderPaise: number };
@@ -40,6 +41,7 @@ export default function CartPage() {
   const router = useRouter();
   const { lines, setQty, remove, clear } = useCart();
   const { t } = useI18n();
+  const { toast } = useToast();
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +77,7 @@ export default function CartPage() {
         },
       });
       setCoupon(d);
+      toast(`${d.code} applied — you save ${rupees(d.discountPaise)}`);
     } catch (e) {
       setCoupon(null);
       setCouponError(e instanceof Error ? e.message : "Could not apply that code");

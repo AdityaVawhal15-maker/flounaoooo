@@ -36,6 +36,7 @@ import { useCart } from "@/lib/cart";
 import { FadeIn, ScrollReveal, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
 
@@ -436,6 +437,7 @@ function ExploreTile({
 // with a dish-art tile standing in until real photography lands.
 function DishRow({ q }: { q: FoodQuote }) {
   const { add } = useCart();
+  const { toast } = useToast();
   const [added, setAdded] = useState(false);
   function addToCart() {
     add({
@@ -446,6 +448,7 @@ function DishRow({ q }: { q: FoodQuote }) {
       pricePaise: q.effectivePaise,
     });
     setAdded(true);
+    toast(`${q.name} added to cart`);
     setTimeout(() => setAdded(false), 1200);
   }
   return (
