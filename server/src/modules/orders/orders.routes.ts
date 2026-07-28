@@ -6,6 +6,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { quotesForDish } from "../food/food.service.js";
 import { quoteRides, fetchRoute } from "../rides/rides.service.js";
+import { quotesForProduct } from "../shop/shop.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
 import {
@@ -103,19 +104,27 @@ const createRideOrder = z.object({
   scheduledAt: z.string().datetime().optional(),
 });
 
+const createShopOrder = z.object({
+  domain: z.literal("shop"),
+  productId: z.string().max(60),
+  platform: z.string().max(60),
+  couponCode: z.string().trim().max(24).optional(),
+});
+
 // Prices are always recomputed server-side from the catalog/quote engine —
 // a tampered client cannot set its own amount.
 ordersRouter.post(
   "/",
   // Cart variant first: both food shapes share domain, so plain union with
   // the more specific (items[]) schema ahead.
-  validateBody(z.union([createFoodCartOrder, createFoodOrder, createRideOrder])),
+  validateBody(z.union([createFoodCartOrder, createFoodOrder, createRideOrder, createShopOrder])),
   async (req, res, next) => {
     try {
       const body = req.body as
         | z.infer<typeof createFoodCartOrder>
         | z.infer<typeof createFoodOrder>
-        | z.infer<typeof createRideOrder>;
+        | z.infer<typeof createRideOrder>
+        | z.infer<typeof createShopOrder>;
 
       // ---------- multi-item cart ----------
       if (body.domain === "food" && "items" in body) {
@@ -362,6 +371,83 @@ ordersRouter.post(
         return res.status(201).json({ order });
       }
 
+      if (body.domain === "shop") {
+        const allQuotes = quotesForProduct(body.productId);
+        const quote = allQuotes.find((q) => q.platform === body.platform);
+        if (!quote) throw new ApiError(404, "That product option is no longer available");
+
+        const cheapestOther = Math.min(
+          ...allQuotes
+            .filter((q) => q.platform !== body.platform)
+            .map((q) => q.effectivePaise),
+        );
+        const savedPaise = Number.isFinite(cheapestOther)
+          ? Math.max(0, cheapestOther - quote.effectivePaise)
+          : 0;
+
+        const defaultAddress = await requireDeliveryAddress(req.userId!);
+
+        const me = await prisma.user.findUniqueOrThrow({
+          where: { id: req.userId! },
+          select: { plusActive: true, plusUntil: true },
+        });
+        const convenienceFeePaise = !isPlusActive(me) ? CONVENIENCE_FEE_PAISE : 0;
+
+        let couponDiscount = 0;
+        let coupon: { couponId: string; code: string; description: string } | null = null;
+        if (body.couponCode) {
+          const check = await evaluateCoupon({
+            code: body.couponCode,
+            userId: req.userId!,
+            domain: "shop",
+            subtotalPaise: quote.effectivePaise,
+          });
+          if (!check.ok) throw new ApiError(400, check.reason);
+          couponDiscount = check.discountPaise;
+          coupon = {
+            couponId: check.couponId,
+            code: check.code,
+            description: check.description,
+          };
+        }
+
+        const order = await prisma.order.create({
+          data: {
+            userId: req.userId!,
+            domain: "shop",
+            status: "pending_payment",
+            provider: quote.platform,
+            fulfillment: "in_app",
+            title: `${quote.name} — ${quote.brand}`,
+            details: JSON.stringify({
+              ...quote,
+              convenienceFeePaise,
+              comparedOptions: allQuotes.length,
+              comparedPlatforms: new Set(allQuotes.map((q) => q.platform)).size,
+              coupon: coupon
+                ? { code: coupon.code, discountPaise: couponDiscount }
+                : undefined,
+            }),
+            amount: Math.max(
+              0,
+              quote.effectivePaise + convenienceFeePaise - couponDiscount,
+            ),
+            savedPaise: savedPaise + couponDiscount,
+            addressId: defaultAddress?.id ?? null,
+          },
+        });
+        if (coupon) {
+          await redeemCoupon({
+            couponId: coupon.couponId,
+            userId: req.userId!,
+            orderId: order.id,
+            discountPaise: couponDiscount,
+          });
+        }
+        void emitOrderDiscovery(order);
+        return res.status(201).json({ order });
+      }
+
       // Recompute the trip from coordinates — never trust a client distance.
       // Real road geometry (ORS when keyed, offline estimate otherwise) is
       // stored so the live-tracking marker follows the actual route.
@@ -445,7 +531,7 @@ ordersRouter.get("/", async (req, res, next) => {
     const orders = await prisma.order.findMany({
       where: {
         userId: req.userId!,
-        ...(domain === "food" || domain === "ride" ? { domain } : {}),
+        ...(domain === "food" || domain === "ride" || domain === "shop" ? { domain } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: 50,

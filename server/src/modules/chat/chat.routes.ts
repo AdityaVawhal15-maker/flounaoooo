@@ -10,6 +10,7 @@ import { llm, demoFallback } from "./llm/index.js";
 import type { Intent } from "./llm/types.js";
 import { recommendFood } from "../food/food.service.js";
 import { quoteRides } from "../rides/rides.service.js";
+import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { recommendProduct } from "../shop/shop.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
@@ -127,12 +128,13 @@ async function buildAssistantPayload(
       dietary: intent.food.dietary,
       priority: intent.food.priority,
     });
-    const rideQuotes = quoteRides({
+    const baseRideQuotes = quoteRides({
       distanceKm: 8,
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
       priority: intent.ride.priority,
     });
+    const rideQuotes = await withCommunityRatings("ride", baseRideQuotes, (q) => q.provider);
     if (foodRec) recordObservation("food", foodRec.best.dishId, foodRec.best.effectivePaise);
     if (rideQuotes[0]) recordObservation("ride", rideQuotes[0].vehicle, rideQuotes[0].effectivePaise);
     const comboScheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
@@ -208,12 +210,13 @@ async function buildAssistantPayload(
   if (intent.domain === "ride" && intent.ride) {
     // Without live geocoding in chat we quote a typical city trip;
     // exact fares come from the rides screen once locations are picked.
-    const quotes = quoteRides({
+    const baseQuotes = quoteRides({
       distanceKm: 8,
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
       priority: intent.ride.priority,
     });
+    const quotes = await withCommunityRatings("ride", baseQuotes, (q) => q.provider);
     if (quotes[0]) recordObservation("ride", quotes[0].vehicle, quotes[0].effectivePaise);
     // Send the full spread so the chat's Bike/Cab/Auto switcher always has
     // every available vehicle type (we only cap when a specific type was asked).

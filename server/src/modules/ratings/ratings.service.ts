@@ -42,9 +42,9 @@ export function blendRating(
   return Math.round(blended * 10) / 10;
 }
 
-// Applies community ratings to anything carrying { rating } plus an id field.
+// Applies community ratings to anything carrying { rating } or { driverRating } plus an id field.
 export async function withCommunityRatings<
-  T extends { rating: number },
+  T extends Record<string, any>,
 >(
   domain: "food" | "ride",
   items: T[],
@@ -53,8 +53,21 @@ export async function withCommunityRatings<
   if (items.length === 0) return items;
   const ratings = await communityRatings(domain, items.map(keyOf));
   if (ratings.size === 0) return items;
-  return items.map((item) => ({
-    ...item,
-    rating: blendRating(item.rating, ratings.get(keyOf(item))),
-  }));
+  return items.map((item) => {
+    const community = ratings.get(keyOf(item));
+    if (!community) return item;
+    if ("rating" in item && typeof item.rating === "number") {
+      return {
+        ...item,
+        rating: blendRating(item.rating, community),
+      };
+    }
+    if ("driverRating" in item && typeof item.driverRating === "number") {
+      return {
+        ...item,
+        driverRating: blendRating(item.driverRating, community),
+      };
+    }
+    return item;
+  });
 }

@@ -103,4 +103,40 @@ describe("order ratings", () => {
     const after = await agent.get("/api/food/dishes/masala-dosa").expect(200);
     expect(after.body.quotes[0].rating).toBeLessThan(baseline);
   });
+
+  it("real ratings reach the ride surfaces", async () => {
+    const { agent } = await authedAgent();
+    const before = await agent.get("/api/rides/quotes?distanceKm=10&rideMinutes=20").expect(200);
+    const ondcQuote = before.body.quotes.find((q: { provider: string }) => q.provider === "ondc");
+    const baseline = ondcQuote.driverRating as number;
+
+    for (let i = 0; i < 3; i++) {
+      const placed = await agent
+        .post("/api/orders")
+        .send({
+          domain: "ride",
+          provider: "ondc",
+          productName: "ONDC Cab",
+          pickup: "Home",
+          drop: "Airport",
+          pickupLat: 17.385,
+          pickupLng: 78.4867,
+          dropLat: 17.24,
+          dropLng: 78.4294,
+        })
+        .expect(201);
+      const orderId = placed.body.order.id as string;
+      await agent.post("/api/payments/simulate").send({ orderId, method: "upi" }).expect(200);
+      await prisma.trackingEvent.updateMany({
+        where: { orderId },
+        data: { createdAt: new Date(Date.now() - 60_000) },
+      });
+      await prisma.order.update({ where: { id: orderId }, data: { status: "completed" } });
+      await agent.post(`/api/orders/${orderId}/rate`).send({ stars: 1 }).expect(201);
+    }
+
+    const after = await agent.get("/api/rides/quotes?distanceKm=10&rideMinutes=20").expect(200);
+    const afterOndc = after.body.quotes.find((q: { provider: string }) => q.provider === "ondc");
+    expect(afterOndc.driverRating).toBeLessThan(baseline);
+  });
 });

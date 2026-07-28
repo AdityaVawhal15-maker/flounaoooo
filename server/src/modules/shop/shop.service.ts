@@ -55,6 +55,12 @@ function toQuotes(product: Product): ProductQuote[] {
   }));
 }
 
+export function quotesForProduct(productId: string): ProductQuote[] {
+  const product = products.find((p) => p.id === productId);
+  if (!product) return [];
+  return toQuotes(product).sort((a, b) => a.effectivePaise - b.effectivePaise);
+}
+
 export function searchProducts(opts: {
   query: string;
   budgetPaise?: number | null;
