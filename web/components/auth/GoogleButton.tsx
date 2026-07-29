@@ -73,10 +73,27 @@ export function GoogleButton({ onError }: { onError: (msg: string) => void }) {
   }, [router, setUser, onError]);
 
   if (!GOOGLE_CLIENT_ID) {
+    const handleDevLogin = async () => {
+      if (process.env.NODE_ENV === "production") {
+        onError("Google sign-in is not configured yet");
+        return;
+      }
+      try {
+        const d = await api<{ user: User }>("/api/auth/google", {
+          method: "POST",
+          json: { credential: "dev-mock-google" },
+        });
+        setUser(d.user);
+        router.push("/home");
+      } catch (e) {
+        onError(e instanceof Error ? e.message : "Google sign-in failed");
+      }
+    };
+
     return (
       <button
         type="button"
-        onClick={() => onError("Google sign-in is not configured yet")}
+        onClick={handleDevLogin}
         className="flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink hover:bg-beige/40 transition-colors"
       >
         <span className="font-bold text-accent">G</span> Google
