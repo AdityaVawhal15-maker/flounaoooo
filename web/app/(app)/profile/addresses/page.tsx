@@ -5,7 +5,7 @@
 // capture, and full edit + delete on saved addresses.
 
 import { useEffect, useState } from "react";
-import { MapPin, MapPinOff, Trash2, Plus, Pencil, LocateFixed, Check } from "lucide-react";
+import { MapPin, MapPinOff, Trash2, Plus, Pencil, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
 import { EmptyView } from "@/components/ui/StatusView";
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { LocationPicker } from "@/components/location/LocationPicker";
 
 type Address = {
   id: string;
@@ -104,17 +105,6 @@ export default function AddressesPage() {
     setLocated(Boolean(a.lat && a.lng));
     setEditingId(a.id);
     setError("");
-  }
-
-  function useCurrentLocation() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((f) => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude }));
-        setLocated(true);
-      },
-      () => setError("Couldn't read your location — check browser permissions."),
-    );
   }
 
   async function save(e: React.FormEvent) {
@@ -221,22 +211,25 @@ export default function AddressesPage() {
             {editingId ? t("pp.addr.editTitle") : t("pp.addr.newTitle")}
           </p>
 
-          {/* Use current location */}
-          <button
-            type="button"
-            onClick={useCurrentLocation}
-            className={cn(
-              "flex items-center gap-2.5 rounded-card border px-3.5 py-3 text-left text-[13px] font-semibold transition-colors",
-              located
-                ? "border-success/40 bg-success/5 text-success"
-                : "border-line bg-card text-accent hover:bg-accent-soft/40",
-            )}
-          >
-            {located ? <Check size={16} /> : <LocateFixed size={16} />}
-            {located
-              ? t("pp.addr.located")
-              : t("pp.addr.useLocation")}
-          </button>
+          {/* Map-first: set the point, and the address fills itself in */}
+          <LocationPicker
+            initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null}
+            height={200}
+            onChange={(picked) => {
+              setForm((f) => ({
+                ...f,
+                lat: picked.lat,
+                lng: picked.lng,
+                // Only fill what the user hasn't typed — re-positioning the pin
+                // must never wipe a flat number they already entered.
+                line2: f.line2 || picked.address.line1 || picked.address.area,
+                city: picked.address.city || f.city,
+                state: picked.address.state || f.state,
+                pincode: picked.address.pincode || f.pincode,
+              }));
+              setLocated(true);
+            }}
+          />
 
           {/* Label chips */}
           <div className="flex gap-2">
@@ -307,6 +300,11 @@ export default function AddressesPage() {
             value={form.landmark}
             onChange={(e) => setForm({ ...form, landmark: e.target.value })}
           />
+          {located && (
+            <p className="-mb-1 flex items-center gap-1.5 text-[11px] font-medium text-success">
+              <Check size={12} /> Filled in from the map — edit if anything looks off
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Input
               label={t("pp.addr.city")}
