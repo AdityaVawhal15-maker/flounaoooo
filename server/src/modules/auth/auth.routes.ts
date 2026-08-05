@@ -95,14 +95,28 @@ authRouter.post(
       name: z.string().trim().min(2).max(80),
       email: emailSchema,
       password: passwordSchema,
+      // Optional at sign-up. The form has always asked for these — they were
+      // being discarded, so the account never kept what the user typed.
+      phone: z
+        .string()
+        .trim()
+        .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number")
+        .optional(),
+      dateOfBirth: z
+        .string()
+        .trim()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+        .optional(),
     }),
   ),
   async (req, res, next) => {
     try {
-      const { name, email, password } = req.body as {
+      const { name, email, password, phone, dateOfBirth } = req.body as {
         name: string;
         email: string;
         password: string;
+        phone?: string;
+        dateOfBirth?: string;
       };
 
       const existing = await prisma.user.findUnique({ where: { email } });
@@ -111,12 +125,22 @@ authRouter.post(
       }
 
       const passwordHash = await hashPassword(password);
+      // Phone is unique — if someone else already claimed it, keep the signup
+      // working rather than failing on an optional field.
+      const phoneFree =
+        phone && !(await prisma.user.findFirst({ where: { phone, NOT: { email } } }));
+      const optional = {
+        ...(phoneFree ? { phone } : {}),
+        ...(dateOfBirth ? { dateOfBirth } : {}),
+      };
       const user = existing
         ? await prisma.user.update({
             where: { id: existing.id },
-            data: { name, passwordHash },
+            data: { name, passwordHash, ...optional },
           })
-        : await prisma.user.create({ data: { name, email, passwordHash } });
+        : await prisma.user.create({
+            data: { name, email, passwordHash, ...optional },
+          });
 
       const code = await createOtp({
         userId: user.id,

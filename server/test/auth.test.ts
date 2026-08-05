@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { app, authedAgent, lastOtpFor } from "./helpers.js";
+import { prisma } from "../src/lib/prisma.js";
 
 describe("auth", () => {
   it("rejects a wrong OTP and accepts the right one", async () => {
@@ -130,5 +131,66 @@ describe("auth", () => {
     await request(app).post("/api/auth/resend-otp").send({ email }).expect(200); // 3
     // 4th active code is refused
     await request(app).post("/api/auth/resend-otp").send({ email }).expect(429);
+  });
+});
+
+// The sign-up form asks for mobile number and date of birth. Both used to be
+// collected and silently discarded — the account never kept what the user
+// typed, while the profile screen claimed the number was saved.
+describe("sign-up keeps the optional details it asks for", () => {
+  it("stores phone and date of birth", async () => {
+    const email = `optional${Date.now()}@test.dev`;
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Optional Fields",
+        email,
+        password: "password123",
+        phone: `9${Math.floor(100000000 + Math.random() * 899999999)}`,
+        dateOfBirth: "1998-04-21",
+      })
+      .expect(201);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(user.phone).toMatch(/^9\d{9}$/);
+    expect(user.dateOfBirth).toBe("1998-04-21");
+  });
+
+  it("still works when they're omitted, and rejects a bad phone", async () => {
+    const email = `noopt${Date.now()}@test.dev`;
+    await request(app)
+      .post("/api/auth/signup")
+      .send({ name: "No Optionals", email, password: "password123" })
+      .expect(201);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(user.phone).toBeNull();
+    expect(user.dateOfBirth).toBeNull();
+
+    await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Bad Phone",
+        email: `badphone${Date.now()}@test.dev`,
+        password: "password123",
+        phone: "12345",
+      })
+      .expect(400);
+  });
+
+  it("a phone already taken by someone else doesn't break sign-up", async () => {
+    const phone = `9${Math.floor(100000000 + Math.random() * 899999999)}`;
+    const first = `dup1${Date.now()}@test.dev`;
+    await request(app)
+      .post("/api/auth/signup")
+      .send({ name: "First", email: first, password: "password123", phone })
+      .expect(201);
+
+    const second = `dup2${Date.now()}@test.dev`;
+    await request(app)
+      .post("/api/auth/signup")
+      .send({ name: "Second", email: second, password: "password123", phone })
+      .expect(201); // succeeds; the duplicate phone is just not attached
+    const u = await prisma.user.findUniqueOrThrow({ where: { email: second } });
+    expect(u.phone).toBeNull();
   });
 });
