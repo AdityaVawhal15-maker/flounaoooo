@@ -22,6 +22,23 @@ describe("food search — descriptors & fillers", () => {
       .toMatch(/bowl|salad|quinoa/i);
   });
 
+  it("keeps a specific dish request specific — 'I want pizza' returns pizza (regression)", () => {
+    // The chat searches on the LLM item PLUS the raw sentence, so a real query
+    // is "pizza I want pizza". The stray one-letter "i" from "I" used to match
+    // almost every dish (it's inside "ice cream", "italian", "biryani"…),
+    // widening the search to the whole menu so the top-rated dish (cake) won.
+    for (const q of ["pizza I want pizza", "I want pizza", "get me a pizza"]) {
+      const rec = recommendFood({ query: q, priority: "balanced" });
+      expect(rec).toBeTruthy();
+      expect(rec!.best.name.toLowerCase()).toContain("pizza");
+    }
+    // A bare one-letter token ("i") is treated as filler — it must not match
+    // dishes by letters-inside-a-word, so it can't surface a dessert as the
+    // top pick the way it used to.
+    const lone = recommendFood({ query: "i", priority: "balanced" });
+    expect(lone!.best.name.toLowerCase()).not.toContain("cake");
+  });
+
   it("strips generic filler items ('popular dishes', 'food') and skips desserts", () => {
     for (const item of ["popular dishes", "food", "something to eat", "i'm hungry"]) {
       const rec = recommendFood({ query: item, priority: "balanced" });

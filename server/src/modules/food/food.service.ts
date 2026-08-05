@@ -108,6 +108,8 @@ const FILLER_WORDS = new Set([
   "popular", "dishes", "dish", "food", "foods", "something", "eat", "order",
   "want", "get", "me", "a", "an", "the", "some", "any", "to", "for", "please",
   "good", "nice", "tasty", "yummy", "recommend", "recommendation", "hungry",
+  "i", "im", "we", "you", "need", "like", "would", "give", "have", "craving",
+  "today", "now", "please", "can", "could", "will",
 ]);
 
 export function searchFood(opts: {
@@ -123,10 +125,16 @@ export function searchFood(opts: {
     terms.length === 0
       ? []
       : dishes.filter((d) =>
-          terms.some(
-            (t) =>
-              d.keywords.some((k) => k.includes(t) || t.includes(k)) ||
-              d.name.toLowerCase().includes(t),
+          terms.some((t) =>
+            // Loose substring matching only for terms long enough to be a real
+            // word (≥3 chars). A stray 1–2 char token ("i", "hi") must match a
+            // keyword exactly or not at all — otherwise it matches half the
+            // catalog and dilutes a specific request like "pizza" until the
+            // scorer picks the highest-rated dish (a dessert) instead.
+            t.length >= 3
+              ? d.keywords.some((k) => k.includes(t) || t.includes(k)) ||
+                d.name.toLowerCase().includes(t)
+              : d.keywords.includes(t),
           ),
         );
   if (matched.length === 0) {

@@ -56,6 +56,10 @@ export async function fetchRoute(
 ): Promise<RouteResult> {
   if (orsKey) {
     try {
+      // Hard timeout: if ORS is slow or down (it 502s intermittently), don't
+      // hang the ride quote — fall back to the offline estimate fast. Without
+      // this, a hanging ORS call surfaces to the user as "could not calculate
+      // the route" instead of a working straight-line estimate.
       const r = await fetch(
         "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
         {
@@ -67,6 +71,7 @@ export async function fetchRoute(
               [toLng, toLat],
             ],
           }),
+          signal: AbortSignal.timeout(4000),
         },
       );
       if (r.ok) {
