@@ -47,6 +47,8 @@ cd server
 npm install
 cp .env.example .env        # then fill in the two JWT secrets (see below)
 npx prisma migrate dev
+npm run seed                # creates a dev login (see below) — do this or you
+                            # have an empty database and nothing to log in with
 npm run dev                 # http://localhost:4000
 
 # 2. Web app (second terminal)
@@ -55,6 +57,22 @@ npm install
 echo NEXT_PUBLIC_API_URL=http://localhost:4000 > .env.local
 npm run dev                 # http://localhost:3000
 ```
+
+### Signing in locally
+
+`npm run seed` creates a ready-to-use account (the database is gitignored, so a
+fresh clone starts empty):
+
+```
+email:    test@example.com
+password: newsecret99
+```
+
+It's pre-verified and has a delivery address, so you can order straight away.
+
+If you sign up with your own email instead, note that **no email is sent unless
+SMTP is configured** — the 6-digit OTP is printed to the API server's console
+instead. Look for `[mailer] OTP for you@example.com: 123456` in that terminal.
 
 Generate the JWT secrets (run twice — once per variable):
 
