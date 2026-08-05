@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Star } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 
 // Post-delivery rating. Stars feed the community average that the
@@ -24,6 +25,7 @@ export function RateOrder({
   const [saved, setSaved] = useState(Boolean(existingStars));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const { toast } = useToast();
 
   async function submit(value: number) {
     setBusy(true);
@@ -34,6 +36,7 @@ export function RateOrder({
         json: { stars: value, ...(comment.trim() ? { comment: comment.trim() } : {}) },
       });
       setSaved(true);
+      toast("Thanks for rating!");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save your rating");
     } finally {
