@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { app, authedAgent, lastOtpFor } from "./helpers.js";
 import { prisma } from "../src/lib/prisma.js";
@@ -193,4 +193,35 @@ describe("sign-up keeps the optional details it asks for", () => {
     const u = await prisma.user.findUniqueOrThrow({ where: { email: second } });
     expect(u.phone).toBeNull();
   });
+});
+
+// The local convenience sign-in accepts a fixed string as proof of identity,
+// so its gate has to fail closed. NODE_ENV defaults to "development", meaning
+// a deploy that forgets to set it would otherwise expose a password-less way
+// into a session — requiring Google to be unconfigured is the second lock.
+describe("dev mock Google sign-in is not reachable in a real deployment", () => {
+  it("is rejected when a Google client ID is configured", async () => {
+    await vi.resetModules();
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("GOOGLE_CLIENT_ID", "real-client-id.apps.googleusercontent.com");
+    try {
+      const fresh = await import("./helpers.js");
+      const res = await request(fresh.app)
+        .post("/api/auth/google")
+        .send({ credential: "dev-mock-google" });
+      // Must NOT hand back a session: either the gate refuses it outright or
+      // it falls through to real Google verification, which this string fails.
+      expect(res.status).not.toBe(200);
+      expect(res.body.user).toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+      await vi.resetModules();
+    }
+  });
+
+  // The production case can't be exercised here: setting NODE_ENV=production
+  // makes the app refuse to boot without production-grade secrets (that guard
+  // calls process.exit). That refusal is itself the protection for prod, so
+  // the lock that actually matters is the one above — it holds even when
+  // NODE_ENV is left at its "development" default.
 });

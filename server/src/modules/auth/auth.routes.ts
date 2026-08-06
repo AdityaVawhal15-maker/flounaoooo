@@ -385,7 +385,16 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const { credential } = req.body as { credential: string };
-      if (env.NODE_ENV === "development" && credential === "dev-mock-google") {
+      // Local convenience sign-in, behind two independent locks. NODE_ENV
+      // alone isn't enough: it *defaults* to "development", so a deployment
+      // that forgets to set it would silently accept this fixed string as a
+      // valid session — and would skip the production boot checks at the same
+      // time. Also requiring Google to be unconfigured mirrors the client
+      // (which only renders this button when there's no client ID) and fails
+      // closed on any real deployment, where the key is always set.
+      const devMockAllowed =
+        env.NODE_ENV === "development" && !env.GOOGLE_CLIENT_ID;
+      if (devMockAllowed && credential === "dev-mock-google") {
         const email = "dev@radiues.local";
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
