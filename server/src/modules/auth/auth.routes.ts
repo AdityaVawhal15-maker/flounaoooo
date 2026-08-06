@@ -384,10 +384,26 @@ authRouter.post(
   validateBody(z.object({ credential: z.string().min(10) })),
   async (req, res, next) => {
     try {
+      const { credential } = req.body as { credential: string };
+      if (env.NODE_ENV === "development" && credential === "dev-mock-google") {
+        const email = "dev@radiues.local";
+        let user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email,
+              name: "Local Developer",
+              googleId: "dev-mock-google-id",
+              emailVerified: true,
+            },
+          });
+        }
+        await startSession(res, user.id);
+        return res.json({ user: publicUser(user) });
+      }
       if (!googleClient || !env.GOOGLE_CLIENT_ID) {
         throw new ApiError(503, "Google sign-in is not configured");
       }
-      const { credential } = req.body as { credential: string };
       const ticket = await googleClient.verifyIdToken({
         idToken: credential,
         audience: env.GOOGLE_CLIENT_ID,

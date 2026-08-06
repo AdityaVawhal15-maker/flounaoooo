@@ -43,6 +43,21 @@ describe("ride scheduling", () => {
     expect(res.body.message.recommendation.why).toContain("scheduled");
   });
 
+  it("chat parses 'at 10pm' into scheduledAt for combo intent ride recommendation", async () => {
+    const { agent } = await authedAgent();
+    const res = await agent
+      .post("/api/chat/message")
+      .send({ message: "order biryani and book a cab to the airport at 10pm" })
+      .expect(200);
+    const rec = res.body.message.recommendation;
+    expect(rec.type).toBe("combo");
+    expect(rec.ride.scheduledAt).toBeTruthy();
+    const when = new Date(rec.ride.scheduledAt);
+    expect(when.getTime()).toBeGreaterThan(Date.now());
+    expect(when.getHours()).toBe(22);
+    expect(rec.ride.why).toContain("scheduled");
+  });
+
   it("chat leaves scheduledAt empty for a ride-now request", async () => {
     const { agent } = await authedAgent();
     const res = await agent

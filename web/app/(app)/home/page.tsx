@@ -31,6 +31,7 @@ import { VoiceButton } from "@/components/chat/VoiceButton";
 import { ThinkingSteps } from "@/components/chat/ThinkingSteps";
 import { PredictionBanner } from "@/components/chat/PredictionBanner";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { LanguageSelector } from "@/components/i18n/LanguageSelector";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { type TILE_THEMES } from "@/components/ui/CategoryTile";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
@@ -201,7 +202,8 @@ function ChatHome() {
           ChatGPT. On = nothing about this conversation is stored. */}
       {/* Mobile: sits inside the sticky app header row (right of the
           hamburger). Desktop: top-right of the chat column. */}
-      <div className="fixed right-3 top-0 z-30 flex h-14 items-center lg:static lg:h-auto lg:w-full lg:justify-end lg:pt-3">
+      <div className="fixed right-3 top-0 z-30 flex h-14 items-center gap-2 lg:static lg:h-auto lg:w-full lg:justify-end lg:pt-3">
+        <LanguageSelector />
         <button
           onClick={() => {
             setTemporary((v) => {

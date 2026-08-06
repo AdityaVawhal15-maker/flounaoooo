@@ -16,7 +16,7 @@ export function normaliseCode(code: string): string {
 export async function evaluateCoupon(opts: {
   code: string;
   userId: string;
-  domain: "food" | "ride";
+  domain: "food" | "ride" | "shop";
   subtotalPaise: number;
 }): Promise<CouponCheck> {
   const code = normaliseCode(opts.code);
@@ -34,7 +34,9 @@ export async function evaluateCoupon(opts: {
       reason:
         coupon.domain === "food"
           ? "This code works on food orders only"
-          : "This code works on rides only",
+          : coupon.domain === "ride"
+          ? "This code works on rides only"
+          : "This code isn't valid for this domain",
     };
   }
   if (opts.subtotalPaise < coupon.minOrderPaise) {

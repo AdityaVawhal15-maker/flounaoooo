@@ -25,6 +25,7 @@ export type Dish = {
   rating: number;
   tag: string; // badge shown in UI, e.g. "High Protein"
   reviewSummary: string;
+  image?: string;
   listings: Listing[];
 };
 

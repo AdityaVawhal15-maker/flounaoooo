@@ -78,7 +78,7 @@ export function createApp() {
 
   // Liveness + readiness: verifies the process is up AND the database is
   // reachable. Uptime monitors and load balancers poll this.
-  app.get("/api/health", async (_req, res) => {
+  const healthHandler: express.RequestHandler = async (_req, res) => {
     const started = Date.now();
     try {
       await prisma.$queryRaw`SELECT 1`;
@@ -98,7 +98,9 @@ export function createApp() {
         timestamp: new Date().toISOString(),
       });
     }
-  });
+  };
+
+  app.get(["/", "/health", "/api/health"], healthHandler);
 
   app.use("/api/auth", authRouter);
   app.use("/api/chat", chatRouter);

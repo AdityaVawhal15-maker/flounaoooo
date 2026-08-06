@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Star, Truck, BadgePercent, ChevronLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
@@ -19,11 +20,13 @@ export default function ProductPage({
   params: Promise<{ productId: string }>;
 }) {
   const { productId } = use(params);
+  const router = useRouter();
   const { t } = useI18n();
   const [quotes, setQuotes] = useState<ProductQuote[]>([]);
   const [platform, setPlatform] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
   // Reset state when navigating to a different product (reset-during-render —
   // the codebase's pattern instead of a synchronous setState inside an effect).
@@ -51,6 +54,22 @@ export default function ProductPage({
   }, [productId]);
 
   const selected = quotes.find((q) => q.platform === platform);
+
+  async function placeOrder() {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    try {
+      const d = await api<{ order: { id: string } }>("/api/orders", {
+        method: "POST",
+        json: { domain: "shop", productId, platform: selected.platform },
+      });
+      router.push(`/pay/${d.order.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not place order");
+      setBusy(false);
+    }
+  }
 
   if (loading) return <LoadingView rows={3} />;
   if (error)
@@ -154,8 +173,8 @@ export default function ProductPage({
       </Card>
 
       {/* Bought in-app — the order is routed to the seller via ONDC. */}
-      <Button className="mt-5 w-full" onClick={() => {}}>
-        {t("shop.buyNow")} · {rupees(selected.effectivePaise)}
+      <Button className="mt-5 w-full" onClick={placeOrder} disabled={busy}>
+        {busy ? "Placing order…" : `${t("shop.buyNow")} · ${rupees(selected.effectivePaise)}`}
       </Button>
       <p className="mt-3 flex items-center justify-center gap-1 text-center text-[11px] text-cocoa/70">
         <ShieldCheck size={12} /> Order &amp; pay in-app · best offer pre-applied
