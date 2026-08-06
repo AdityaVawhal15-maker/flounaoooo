@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Radiues API server \u2014 AI decision engine for food & rides",
+  "description": "Radiues API server — AI decision engine for food & rides",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
@@ -31,7 +31,7 @@
     "google-auth-library": "^10.7.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^8.0.11",
+    "nodemailer": "^9.0.4",
     "socket.io": "^4.8.3",
     "web-push": "^3.6.7",
     "zod": "^3.24.0"
