@@ -1,21 +1,30 @@
 name: CI
 
 # Runs on every PR (into any base branch, so stacked PRs get checked too) and
-# on pushes to main and the active feature-stack branches. This is the status
-# check to require in branch protection, so nothing merges without the server
-# tests and the web lint/build passing.
+# on pushes to main. This is the status check to require in branch protection,
+# so nothing merges without the server tests and the web lint/build passing.
+#
+# Deliberately NOT run on pushes to feature branches: those branches already
+# get a `pull_request` run, and firing both doubled every job. On the free
+# runner tier that starved the queue until jobs were cancelled after ~40
+# minutes, which looked like CI failures but was pure contention.
 on:
   pull_request:
   push:
-    branches:
-      - main
-      - "feat/**"
-      - "fix/**"
+    branches: [main]
+
+# One run per ref. A new push supersedes the previous run instead of queueing
+# behind it — without this, rapid pushes stack up and compete for runners.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   server:
     name: Server (typecheck + tests)
     runs-on: ubuntu-latest
+    # A stuck install/test should die quickly, not burn 45 minutes of queue.
+    timeout-minutes: 15
     # Test on the active LTS lines we support in dev and prod.
     strategy:
       fail-fast: false
@@ -49,6 +58,7 @@ jobs:
   web:
     name: Web (lint + build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
