@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Radiues API server — AI decision engine for food & rides",
+  "description": "Radiues API server \u2014 AI decision engine for food & rides",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
@@ -17,7 +17,8 @@
     "db:backup": "node --env-file=.env scripts/backup-db.mjs",
     "set-role": "node --env-file=.env scripts/set-role.mjs",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -29,6 +29,9 @@ model User {
   emailVerified Boolean   @default(false)
   phoneVerified Boolean   @default(false)
   avatarUrl     String?
+  // Collected at sign-up (optional). Stored so the account actually keeps what
+  // the user typed — previously the form asked for it and threw it away.
+  dateOfBirth   String? // ISO yyyy-mm-dd
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
   // Notification preferences (Settings). OTP/security mail always sends;
   // emailUpdates gates non-essential mail (receipts, announcements) and

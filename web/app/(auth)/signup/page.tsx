@@ -43,7 +43,15 @@ export default function SignupPage() {
     try {
       await api("/api/auth/signup", {
         method: "POST",
-        json: { name, email, password },
+        json: {
+          name,
+          email,
+          password,
+          // Optional, but the form asks for them — so they must be saved,
+          // not silently discarded.
+          ...(mobile.trim() ? { phone: mobile.trim() } : {}),
+          ...(dob ? { dateOfBirth: dob } : {}),
+        },
       });
       sessionStorage.setItem("pendingEmail", email);
       router.push("/verify");
@@ -151,9 +159,9 @@ export default function SignupPage() {
         />
         <Input
           label="Date of Birth"
-          type="text"
-          inputMode="numeric"
-          placeholder="DD / MM / YYYY"
+          type="date"
+          autoComplete="bday"
+          max={new Date().toISOString().slice(0, 10)}
           icon={<Calendar size={17} />}
           value={dob}
           onChange={(e) => setDob(e.target.value)}
