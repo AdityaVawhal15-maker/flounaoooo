@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MapPin, Star, Clock, CircleDot, Plus } from "lucide-react";
+import { Search, MapPin, Star, Clock, CircleDot, Plus, LocateFixed, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
@@ -49,6 +49,7 @@ function PlaceSearch({
   value,
   onSelect,
   near,
+  action,
 }: {
   label: string;
   icon?: React.ReactNode;
@@ -56,6 +57,8 @@ function PlaceSearch({
   onSelect: (p: Place | null) => void;
   // Rider's live position — biases results to places near them.
   near?: { lat: number; lng: number } | null;
+  // Small action rendered inside the field (e.g. re-detect GPS, clear).
+  action?: React.ReactNode;
 }) {
   const [text, setText] = useState("");
   const [places, setPlaces] = useState<Place[]>([]);
@@ -98,6 +101,7 @@ function PlaceSearch({
           placeholder={label}
           className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-cocoa/50"
         />
+        {action}
       </div>
       {open && places.length > 0 && !value && (
         <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[14px] border border-line bg-card shadow-card">
@@ -175,6 +179,37 @@ function RidesInner() {
   const [saved, setSaved] = useState<Place[]>([]);
   // Which endpoint the next map tap sets (null = tapping does nothing).
   const [picking, setPicking] = useState<"pickup" | "drop" | null>(null);
+
+  // Detect (or re-detect) the rider's live position on demand. The auto-detect
+  // on mount used to be the only chance to get this — if it failed or the
+  // rider moved, there was no way to ask again.
+  const detectPickup = useCallback(() => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        let place: Place = {
+          name: "Current location",
+          area: "Your live location",
+          lat,
+          lng,
+        };
+        try {
+          const d = await api<{ place: Place }>(
+            `/api/rides/reverse?lat=${lat}&lng=${lng}`,
+          );
+          if (d.place) place = { ...d.place, area: d.place.area || "Your live location" };
+        } catch {
+          /* keep the generic label */
+        }
+        setPickup(place);
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+    );
+  }, []);
 
   // Turn a tapped point into a named place, then assign it.
   const pickOnMap = useCallback(
@@ -444,13 +479,11 @@ function RidesInner() {
             <h1 className="text-[17px] font-bold text-[#1a1a2e]">Select your location</h1>
             <button
               type="button"
-              onClick={() => {
-                setPickup(null);
-                setDrop(null);
-              }}
+              onClick={() => setDrop(null)}
+              title="Choose a different destination"
               className="rounded-[17px] bg-[#f0e8e0] px-3.5 py-1.5 text-[13px] font-semibold text-[#2d2d2d] transition-colors hover:bg-[#e6dccf]"
             >
-              Change
+              Change drop
             </button>
           </div>
         </FadeIn>
@@ -468,6 +501,22 @@ function RidesInner() {
               value={pickup}
               onSelect={setPickup}
               near={mapPoints.pickup}
+              action={
+                <button
+                  type="button"
+                  onClick={detectPickup}
+                  disabled={locating}
+                  aria-label="Use my current location"
+                  title="Use my current location"
+                  className="shrink-0 rounded-full p-1.5 text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
+                >
+                  {locating ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <LocateFixed size={15} />
+                  )}
+                </button>
+              }
             />
             <PlaceSearch
               label="Search for a location…"

@@ -36,27 +36,44 @@ ridesRouter.get("/reverse", async (req, res, next) => {
       url.searchParams.set("lon", String(lng));
       url.searchParams.set("limit", "1");
       url.searchParams.set("apiKey", env.GEOAPIFY_KEY);
-      const r = await fetch(url);
+      // Bounded wait — a hanging geocode must not freeze the address form.
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (r.ok) {
         const data = (await r.json()) as {
           features?: Array<{
             properties: {
               name?: string;
+              housenumber?: string;
               street?: string;
               formatted?: string;
+              address_line1?: string;
               suburb?: string;
               city?: string;
+              state?: string;
+              postcode?: string;
             };
           }>;
         };
         const p = data.features?.[0]?.properties;
         if (p) {
+          // Structured parts let the address form auto-fill itself from a
+          // dropped pin — the user should only have to type their flat/house
+          // number, not re-key the whole address.
+          const street = [p.housenumber, p.street].filter(Boolean).join(" ");
           return res.json({
             place: {
               name: p.name ?? p.street ?? p.suburb ?? p.formatted ?? "Pinned location",
               area: p.suburb ?? p.city ?? "",
               lat,
               lng,
+            },
+            address: {
+              line1: street || p.address_line1 || "",
+              area: p.suburb ?? "",
+              city: p.city ?? "",
+              state: p.state ?? "",
+              pincode: p.postcode ?? "",
+              formatted: p.formatted ?? "",
             },
           });
         }
@@ -79,6 +96,16 @@ ridesRouter.get("/reverse", async (req, res, next) => {
         area: best ? `Near ${best.name}` : "",
         lat,
         lng,
+      },
+      // Same shape offline so the form can always read it; the user fills the
+      // blanks in manually when we have no geocoder.
+      address: {
+        line1: "",
+        area: best?.area ?? "",
+        city: best?.area ?? "",
+        state: "",
+        pincode: "",
+        formatted: best ? `Near ${best.name}` : "",
       },
     });
   } catch (err) {
