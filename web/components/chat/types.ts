@@ -6,6 +6,7 @@ export type FoodQuote = {
   tag: string;
   dietary: "veg" | "nonveg";
   reviewSummary: string;
+  image?: string;
   platform: string;
   fulfillment: "in_app";
   basePaise: number;

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 import { quoteRides, fetchRoute } from "./rides.service.js";
+import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
 
@@ -168,7 +169,8 @@ ridesRouter.get("/quotes", async (req, res, next) => {
         vehicle: z.enum(["bike", "auto", "cab", "any"]).default("any"),
       })
       .parse(req.query);
-    const quotes = quoteRides(parsed);
+    const baseQuotes = quoteRides(parsed);
+    const quotes = await withCommunityRatings("ride", baseQuotes, (q) => q.provider);
     const cheapest = quotes[0];
     if (cheapest) recordObservation("ride", cheapest.vehicle, cheapest.effectivePaise);
     res.json({

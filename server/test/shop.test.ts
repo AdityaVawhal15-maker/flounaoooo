@@ -58,4 +58,15 @@ describe("shop (e-commerce domain)", () => {
     expect(rec.type).toBe("shop");
     expect(rec.best.effectivePaise).toBeGreaterThan(0);
   });
+
+  it("places a shop order and computes price server-side", async () => {
+    const { agent } = await authedAgent();
+    const res = await agent
+      .post("/api/orders")
+      .send({ domain: "shop", productId: "wireless-earbuds", platform: "amazon" })
+      .expect(201);
+    expect(res.body.order.domain).toBe("shop");
+    expect(res.body.order.amount).toBeGreaterThan(0);
+    expect(res.body.order.status).toBe("pending_payment");
+  });
 });

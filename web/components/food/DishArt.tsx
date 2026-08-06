@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 // Dish artwork tiles. The catalog has no photography yet, so every dish gets
 // a deterministic, tasteful stand-in: a soft two-tone gradient + a food glyph
 // picked from the dish name. Same dish always renders the same tile, and the
@@ -48,14 +52,30 @@ export function dishVisual(name: string) {
 
 export function DishArt({
   name,
+  image,
   size = 48,
   className = "",
 }: {
   name: string;
+  image?: string;
   size?: number;
   className?: string;
 }) {
+  const [imgError, setImgError] = useState(false);
   const v = dishVisual(name);
+
+  if (image && !imgError) {
+    return (
+      <img
+        src={image}
+        alt={name}
+        onError={() => setImgError(true)}
+        className={`shrink-0 rounded-2xl object-cover ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
   return (
     <span
       aria-hidden

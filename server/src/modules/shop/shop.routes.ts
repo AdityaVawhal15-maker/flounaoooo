@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
-import { recommendProduct, searchProducts } from "./shop.service.js";
+import { recommendProduct, searchProducts, quotesForProduct } from "./shop.service.js";
 import { products } from "../../data/products.js";
 
 export const shopRouter = Router();
@@ -54,9 +54,7 @@ shopRouter.get("/recommend", (req, res, next) => {
 
 // All platform listings for one product (the comparison screen).
 shopRouter.get("/products/:productId", (req, res) => {
-  const quotes = searchProducts({ query: "" }).filter(
-    (q) => q.productId === req.params.productId,
-  );
+  const quotes = quotesForProduct(req.params.productId);
   if (quotes.length === 0) {
     return res.status(404).json({ error: "Product not found" });
   }
