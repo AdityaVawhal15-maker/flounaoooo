@@ -2,15 +2,28 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Phone, Mail, Lock, Eye, EyeOff, Apple } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Fingerprint,
+  Apple,
+} from "lucide-react";
 import { api, ApiClientError } from "@/lib/api";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { useAuth, type User } from "@/components/auth/AuthContext";
+import { AuthField } from "@/components/auth/AuthField";
 
+// Figma "Login Screen" (node 2086:269). The composition is a centred column on
+// cream: back button + wordmark, a badge, a two-tone headline, then the form
+// lifted onto a white card so it reads as the one thing to act on. Desktop
+// keeps the same column rather than stretching the card — a 1200px-wide login
+// form looks broken, and the design is a single centred stack at every width.
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
@@ -46,130 +59,157 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8 lg:max-w-none lg:flex-row lg:px-0 lg:py-0">
-      {/* Left hero — desktop only (Figma: brand, big Welcome, illustration) */}
-      <div className="hidden lg:flex lg:min-h-dvh lg:flex-1 lg:flex-col lg:px-16 lg:py-10 xl:px-24">
-        <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="" width={28} height={28} className="size-7" />
-          <span className="text-[16px] font-bold text-ink">Flouna</span>
-        </div>
-        <h1 className="mt-12 text-[64px] font-bold leading-none tracking-tight text-ink">
-          Welcome
-        </h1>
-        <p className="mt-5 max-w-sm text-[17px] leading-relaxed text-cocoa">
-          You&apos;ll get smarter responses and can upload files, images, and
-          more.
-        </p>
-        <Image
-          src="/illustrations/login-hero.png"
-          alt=""
-          width={569}
-          height={530}
-          priority
-          className="mt-6 w-full max-w-[540px] self-center"
-        />
-      </div>
-
-      {/* Form column */}
-      <div className="flex w-full flex-col lg:min-h-dvh lg:w-[600px] lg:justify-center lg:px-16 lg:pb-16">
-        <div className="flex justify-center lg:hidden">
-          <Image
-            src="/logo.png"
-            alt="Flouna"
-            width={56}
-            height={56}
-            priority
-            className="h-14 w-14"
-          />
+    <div className="min-h-dvh bg-cream px-5 py-5">
+      <div className="mx-auto w-full max-w-[440px]">
+        {/* Back + wordmark */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            aria-label="Back"
+            className="flex size-11 items-center justify-center rounded-full bg-beige text-ink transition-colors hover:bg-[#e6d8cc]"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <span className="text-[20px] font-bold text-ink">Flouna</span>
         </div>
 
-        <h1 className="mt-6 text-center text-[30px] font-bold text-ink lg:hidden">
-          Welcome
-        </h1>
-        <p className="mt-2 text-center text-[13px] leading-relaxed text-cocoa lg:hidden">
-          You&apos;ll get smarter responses and can upload files, images, and more.
-        </p>
+        {/* Badge + two-tone headline */}
+        <div className="mt-10 flex flex-col items-center text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-pill bg-accent-soft px-4 py-2 text-[14px] font-semibold text-accent">
+            <Sparkles size={15} />
+            Welcome Back
+          </span>
+          <h1 className="mt-4 text-[30px] font-bold leading-[1.25]">
+            <span className="block text-ink">Log In to</span>
+            <span className="block text-accent">Your Account</span>
+          </h1>
+          <p className="mt-2 text-[15px] text-cocoa">
+            Your smartest decisions are waiting for you.
+          </p>
+        </div>
 
-        <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4 lg:mt-0">
-        <Input
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          placeholder="admin@gmail.com"
-          icon={<Mail size={17} />}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <Input
-          label="Password"
-          type={showPw ? "text" : "password"}
-          autoComplete="current-password"
-          placeholder="••••••••••"
-          icon={<Lock size={17} />}
-          trailing={
+        {/* Form card */}
+        <div className="mt-7 rounded-[24px] bg-card p-6 shadow-card">
+          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+            <AuthField
+              label="Email Address"
+              type="email"
+              autoComplete="email"
+              placeholder="hello@example.com"
+              icon={<Mail size={18} />}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <AuthField
+              label="Password"
+              type={showPw ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              icon={<Lock size={18} />}
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  className="rounded-full p-1 text-cocoa/60 transition-colors hover:text-cocoa"
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              }
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+
+            <Link
+              href="/forgot"
+              className="-mt-1 self-end text-[14px] font-bold text-accent hover:underline"
+            >
+              Forgot password?
+            </Link>
+
+            {error && (
+              <p role="alert" className="text-[13px] text-danger">
+                {error}
+              </p>
+            )}
+            {info && <p className="text-[13px] text-cocoa">{info}</p>}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="group flex h-[60px] w-full items-center justify-center gap-2.5 rounded-pill bg-cocoa text-[17px] font-bold text-white transition-all hover:bg-[#7a5234] disabled:opacity-60"
+            >
+              {busy ? "Logging in…" : "Log In"}
+              {!busy && (
+                <ArrowRight
+                  size={20}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-center gap-3 text-[14px] text-cocoa/70">
+            <span className="h-px flex-1 bg-line" />
+            or continue with
+            <span className="h-px flex-1 bg-line" />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <GoogleButton onError={setError} />
             <button
               type="button"
-              onClick={() => setShowPw((v) => !v)}
-              aria-label={showPw ? "Hide password" : "Show password"}
-              className="rounded-full p-1.5 text-cocoa/60 hover:text-cocoa"
+              onClick={() =>
+                setInfo("Apple sign-in is coming soon — use email for now.")
+              }
+              className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[16px] bg-ink text-[15px] font-bold text-white transition-opacity hover:opacity-90"
             >
-              {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+              <Apple size={19} className="fill-white" />
+              Apple
             </button>
-          }
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+          </div>
+        </div>
 
-        <Link
-          href="/forgot"
-          className="-mt-2 self-end text-[13px] font-semibold text-accent hover:underline"
-        >
-          Forgot password?
-        </Link>
+        {/* Biometric — the design offers it as a separate path below the card.
+            Kept visible but honest: there's no passkey backend yet, so it says
+            so rather than failing silently on tap. */}
+        <div className="mt-6 flex items-center gap-3 text-[14px] text-cocoa/60">
+          <span className="h-px flex-1 bg-line" />
+          or
+          <span className="h-px flex-1 bg-line" />
+        </div>
 
-        {error && <p className="text-[13px] text-danger">{error}</p>}
-        {info && <p className="text-[13px] text-cocoa">{info}</p>}
-
-        <Button type="submit" disabled={busy} className="mt-2 w-full">
-          {busy ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
-
-      <div className="mt-7 flex items-center gap-3 text-[12px] text-cocoa/70">
-        <span className="h-px flex-1 bg-line" />
-        Or continue with
-        <span className="h-px flex-1 bg-line" />
-      </div>
-
-      <div className="mt-5 flex flex-col gap-3">
         <button
           type="button"
-          onClick={() => setInfo("Phone sign-in is coming soon — use email for now.")}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
+          onClick={() =>
+            setInfo("Face ID / fingerprint sign-in is coming soon.")
+          }
+          className="mx-auto mt-5 flex h-[52px] items-center justify-center gap-2.5 rounded-pill border border-accent/25 bg-accent-soft/40 px-7 text-[15px] font-semibold text-ink transition-colors hover:bg-accent-soft"
         >
-          <Phone size={16} className="text-cocoa" />
-          Continue with phone
+          <Fingerprint size={19} className="text-accent" />
+          Use Face ID / Fingerprint
         </button>
-        <div className="grid grid-cols-2 gap-3">
-          <GoogleButton onError={setError} />
-          <button
-            type="button"
-            onClick={() => setInfo("Apple sign-in is coming soon — use email for now.")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
-          >
-            <Apple size={17} className="text-ink" /> Apple
-          </button>
-        </div>
-      </div>
 
-      <p className="mt-9 text-center text-[13px] text-cocoa">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-bold text-ink hover:text-accent">
-          Create an account
-        </Link>
-      </p>
+        <p className="mt-7 text-center text-[15px] text-ink">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="font-bold text-accent hover:underline">
+            Sign Up
+          </Link>
+        </p>
+
+        <p className="mt-4 pb-6 text-center text-[13px] leading-relaxed text-cocoa/70">
+          By continuing, you agree to our
+          <br />
+          <Link href="/legal/terms" className="font-bold text-ink hover:text-accent">
+            Terms of Service
+          </Link>
+          {" · "}
+          <Link href="/legal/privacy" className="font-bold text-ink hover:text-accent">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );
