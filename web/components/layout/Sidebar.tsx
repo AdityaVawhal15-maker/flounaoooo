@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
 import type { TranslationKey } from "@/lib/i18n/dictionaries";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
@@ -102,8 +103,7 @@ export function Sidebar({
           )}
         >
           <Link href="/home" aria-label="Flouna home" className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.png" alt="" className="size-9 rounded-[10px]" />
+            <FlounaLogo size={34} className="shrink-0 text-ink" />
             <span
               className={cn(
                 "text-[20px] font-bold text-ink",

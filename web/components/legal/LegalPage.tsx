@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ChevronLeft } from "lucide-react";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 // Shared shell for public legal pages (privacy, terms). Clean, readable,
 // no auth required.
@@ -24,7 +24,7 @@ export function LegalPage({
           >
             <ChevronLeft size={20} />
           </Link>
-          <Image src="/logo.png" alt="Flouna" width={28} height={28} />
+          <FlounaLogo size={28} className="text-ink" />
           <span className="text-[16px] font-bold text-ink">Flouna</span>
         </div>
       </header>

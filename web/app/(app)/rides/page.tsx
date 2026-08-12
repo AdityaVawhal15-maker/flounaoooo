@@ -13,6 +13,7 @@ import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
 import type { RideQuote } from "@/components/chat/types";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 const RideMap = dynamic(
   () => import("@/components/rides/RideMap").then((m) => m.RideMap),
@@ -465,8 +466,7 @@ function RidesInner() {
     <div className="flex h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh">
       {/* Desktop header — brand mark above the panel+map split (Figma) */}
       <div className="hidden items-center gap-2 px-8 py-4 lg:flex">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon.png" alt="" className="size-8 rounded-[8px]" />
+        <FlounaLogo size={32} className="text-accent" />
         <span className="text-[22px] font-bold text-accent">Flouna</span>
       </div>
 

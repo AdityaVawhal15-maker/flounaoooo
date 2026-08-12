@@ -39,6 +39,7 @@ import { useI18n } from "@/components/i18n/I18nContext";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 // Fixed category set matching the Figma food landing. `value` is the search
 // term sent to the backend ("" = All / unfiltered).
@@ -119,8 +120,7 @@ export default function FoodLandingPage() {
       <FadeIn y={8}>
         <div className="hidden items-center justify-between lg:flex">
           <span className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.png" alt="" className="size-8 rounded-[8px]" />
+            <FlounaLogo size={32} className="text-accent" />
             <span className="text-[22px] font-bold text-accent">Flouna</span>
           </span>
           <span className="flex items-center gap-2">
