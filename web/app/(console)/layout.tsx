@@ -6,7 +6,7 @@ import { Playfair_Display, Inter, IBM_Plex_Mono } from "next/font/google";
 // warm ivory) with serif display + mono labels — scoped here as CSS variables
 // so it never affects the consumer app's cream/orange theme. Not indexed.
 export const metadata: Metadata = {
-  title: { default: "Radiues Console", template: "%s · Radiues Console" },
+  title: { default: "Flouna Console", template: "%s · Flouna Console" },
   robots: { index: false, follow: false },
 };
 

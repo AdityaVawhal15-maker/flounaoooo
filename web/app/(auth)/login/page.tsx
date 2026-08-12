@@ -51,7 +51,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:min-h-dvh lg:flex-1 lg:flex-col lg:px-16 lg:py-10 xl:px-24">
         <div className="flex items-center gap-2">
           <Image src="/logo.png" alt="" width={28} height={28} className="size-7" />
-          <span className="text-[16px] font-bold text-ink">Radiues</span>
+          <span className="text-[16px] font-bold text-ink">Flouna</span>
         </div>
         <h1 className="mt-12 text-[64px] font-bold leading-none tracking-tight text-ink">
           Welcome
@@ -75,7 +75,7 @@ export default function LoginPage() {
         <div className="flex justify-center lg:hidden">
           <Image
             src="/logo.png"
-            alt="Radiues"
+            alt="Flouna"
             width={56}
             height={56}
             priority

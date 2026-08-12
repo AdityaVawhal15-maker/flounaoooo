@@ -19,7 +19,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("Radiues <no-reply@radiues.app>"),
+  MAIL_FROM: z.string().default("Flouna <no-reply@flouna.app>"),
 
   // LLM providers — hybrid setup (Claude / Gemini / DeepSeek). Chat falls back
   // to a scripted demo mode if the selected provider's key is unset.
@@ -47,7 +47,7 @@ const envSchema = z.object({
   // Public key is also exposed to the browser as NEXT_PUBLIC_VAPID_PUBLIC_KEY.
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
-  VAPID_SUBJECT: z.string().default("mailto:support@radiues.app"),
+  VAPID_SUBJECT: z.string().default("mailto:support@flouna.app"),
 
   // Fulfilment provider. "simulation" runs the full booking/tracking flow with
   // a simulated captain + driver GPS (works with no third-party access).

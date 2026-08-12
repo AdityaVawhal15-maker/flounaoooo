@@ -1,4 +1,4 @@
-// Radiues Plus (₹50/mo) — the premium tier.
+// Flouna Plus (₹50/mo) — the premium tier.
 //
 // IMPORTANT: live ride tracking, the driver map, OTP and the core "best pick"
 // AI are FREE for everyone. Plus adds value on top — it never removes core

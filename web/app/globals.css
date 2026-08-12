@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Radiues design tokens — extracted from the Algorithec Figma (page "Algorithec (FINAL)") */
+/* Flouna design tokens — extracted from the Algorithec Figma (page "Algorithec (FINAL)") */
 @theme {
   --color-cream: #fff9f6; /* app background */
   --color-ink: #3d1c00; /* headings / primary text (deep brown) */

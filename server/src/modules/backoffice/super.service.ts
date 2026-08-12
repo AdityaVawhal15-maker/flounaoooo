@@ -155,7 +155,7 @@ export async function revenueDashboard() {
     }),
   ]);
 
-  // Radiues Plus is ₹50/mo — model recurring run-rate from active subscribers.
+  // Flouna Plus is ₹50/mo — model recurring run-rate from active subscribers.
   const planPaise = env.SUBSCRIPTION_PRICE_PAISE;
 
   return {

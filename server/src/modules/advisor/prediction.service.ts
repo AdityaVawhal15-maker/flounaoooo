@@ -1,6 +1,6 @@
 // Decision Intelligence — Faculty 4: Proactive prediction.
 //
-// The standout behaviour: Radiues doesn't just answer questions, it gets ahead
+// The standout behaviour: Flouna doesn't just answer questions, it gets ahead
 // of them. If a user books home→office at ~8:55am every day and rain is forecast
 // for that window, we surface a heads-up *before* they ask — "rain expected
 // around your 8:55 ride, leave 15 min early or it'll surge."

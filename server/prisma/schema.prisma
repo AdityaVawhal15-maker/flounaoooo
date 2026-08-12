@@ -1,4 +1,4 @@
-// Radiues data model.
+// Flouna data model.
 // Dev runs on SQLite; production runs on PostgreSQL. Fields below avoid
 // SQLite-only or Postgres-only types so the same schema compiles on both.
 // Enum-like fields are strings validated by zod at the API boundary.
@@ -42,7 +42,7 @@ model User {
   // emailUpdates keeps gating order/receipt mail.
   emailMoneyUpdates Boolean @default(true) // savings, price drops, Plus ROI
   emailTips         Boolean @default(true) // lifecycle nudges & announcements
-  // Radiues Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
+  // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive    Boolean   @default(false)
   plusSince     DateTime?
@@ -426,7 +426,7 @@ model ApiKey {
   @@index([revokedAt])
 }
 
-// ONDC transaction log (developer console). Radiues is a BAP: every order is a
+// ONDC transaction log (developer console). Flouna is a BAP: every order is a
 // Beckn flow of signed request/callback pairs (search→on_search, select→
 // on_select, confirm→on_confirm, status→on_status). Until participant
 // registration these are SIMULATED from real orders but recorded in the exact

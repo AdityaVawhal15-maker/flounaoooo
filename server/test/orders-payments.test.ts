@@ -13,7 +13,7 @@ describe("orders", () => {
       .send({ domain: "food", dishId: "masala-dosa", platform: "ondc", amount: 1 })
       .expect(201);
     // ONDC masala dosa: 12900 dish + 700 in-app convenience fee (free users,
-    // waived for Radiues Plus) = 13600.
+    // waived for Flouna Plus) = 13600.
     expect(res.body.order.amount).toBe(13600);
     expect(res.body.order.status).toBe("pending_payment");
   });

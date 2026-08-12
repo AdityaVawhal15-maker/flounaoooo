@@ -34,7 +34,7 @@ export default function VendorsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-(--c-ink)">Vendors / MSMEs</h1>
         <p className="mt-1 text-[13px] text-(--c-muted)">
-          Derived from real paid orders — vendors actually transacting through Radiues.
+          Derived from real paid orders — vendors actually transacting through Flouna.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default function VendorsPage() {
         {vendors.length === 0 ? (
           <Empty>No vendor activity yet — paid orders populate this.</Empty>
         ) : (
-          <Table head={["Vendor", "Domain", "Source", "Orders", "GMV", "Commission to Radiues"]}>
+          <Table head={["Vendor", "Domain", "Source", "Orders", "GMV", "Commission to Flouna"]}>
             {vendors.map((v) => (
               <tr key={v.name} className="hover:bg-[#f7f1e6]">
                 <td className="px-4 py-2.5 font-medium text-(--c-ink)">{v.name}</td>

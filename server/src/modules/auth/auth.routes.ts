@@ -395,7 +395,7 @@ authRouter.post(
       const devMockAllowed =
         env.NODE_ENV === "development" && !env.GOOGLE_CLIENT_ID;
       if (devMockAllowed && credential === "dev-mock-google") {
-        const email = "dev@radiues.local";
+        const email = "dev@flouna.local";
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
           user = await prisma.user.create({

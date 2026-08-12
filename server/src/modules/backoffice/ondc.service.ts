@@ -1,4 +1,4 @@
-// ONDC (Beckn) transaction recording + viewer data. Radiues is a Buyer App
+// ONDC (Beckn) transaction recording + viewer data. Flouna is a Buyer App
 // (BAP); each order is a journey of signed request/callback pairs. Until we're a
 // registered network participant these envelopes are SIMULATED from real orders,
 // but recorded in the exact Beckn shape so the developer viewer — and any real
@@ -24,8 +24,8 @@ function context(action: string, domain: string, txnId: string, messageId: strin
     city: "std:040", // Hyderabad STD as the demo region
     action,
     core_version: "1.2.0",
-    bap_id: env.ONDC_SUBSCRIBER_ID ?? "radiues.bap.simulated",
-    bap_uri: env.ONDC_BASE_URL ?? "https://buyer.radiues.app",
+    bap_id: env.ONDC_SUBSCRIBER_ID ?? "flouna.bap.simulated",
+    bap_uri: env.ONDC_BASE_URL ?? "https://buyer.flouna.app",
     transaction_id: txnId,
     message_id: messageId,
     timestamp: new Date().toISOString(),

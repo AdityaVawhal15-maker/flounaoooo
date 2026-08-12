@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
 
-describe("Radiues Plus subscription", () => {
+describe("Flouna Plus subscription", () => {
   it("reports inactive status with price and perks for a new user", async () => {
     const { agent } = await authedAgent();
     const res = await agent.get("/api/subscription").expect(200);

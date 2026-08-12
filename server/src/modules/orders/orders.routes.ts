@@ -290,7 +290,7 @@ ordersRouter.post(
 
         const defaultAddress = await requireDeliveryAddress(req.userId!);
 
-        // Radiues Plus perk: in-app convenience fee is waived for subscribers.
+        // Flouna Plus perk: in-app convenience fee is waived for subscribers.
         const me = await prisma.user.findUniqueOrThrow({
           where: { id: req.userId! },
           select: { plusActive: true, plusUntil: true },

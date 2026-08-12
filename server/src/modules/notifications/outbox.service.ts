@@ -40,10 +40,10 @@ export const NOTIFICATION_TYPES = {
   "security.password_changed": {
     category: "security",
     build: () => ({
-      subject: "Your Radiues password was changed",
+      subject: "Your Flouna password was changed",
       heading: "Password changed",
       lines: [
-        "The password for your Radiues account was just changed.",
+        "The password for your Flouna account was just changed.",
         "If you did this, you're all set — no action needed.",
       ],
       ctaLabel: "Review account",
@@ -57,7 +57,7 @@ export const NOTIFICATION_TYPES = {
       subject: "A delivery address was added to your account",
       heading: "New address on your account",
       lines: [
-        `A new delivery address${p.label ? ` ("${p.label}")` : ""} was just saved to your Radiues account.`,
+        `A new delivery address${p.label ? ` ("${p.label}")` : ""} was just saved to your Flouna account.`,
         "If you added it, ignore this email.",
       ],
       ctaLabel: "View addresses",
@@ -68,7 +68,7 @@ export const NOTIFICATION_TYPES = {
   "security.suspicious_login": {
     category: "security",
     build: (p) => ({
-      subject: "Your Radiues account was just accessed",
+      subject: "Your Flouna account was just accessed",
       heading: "Sign-in after failed attempts",
       lines: [
         `Someone signed in to your account${p.attempts ? ` after ${p.attempts} failed password attempt${p.attempts === "1" ? "" : "s"}` : ""}.`,
@@ -82,10 +82,10 @@ export const NOTIFICATION_TYPES = {
   "security.account_deletion_requested": {
     category: "security",
     build: () => ({
-      subject: "Your Radiues account is scheduled for deletion",
+      subject: "Your Flouna account is scheduled for deletion",
       heading: "Account deletion requested",
       lines: [
-        "We've received a request to delete your Radiues account. It will be permanently removed after a 7-day grace period.",
+        "We've received a request to delete your Flouna account. It will be permanently removed after a 7-day grace period.",
         "Changed your mind? Sign in any time in the next 7 days to keep your account and cancel the deletion.",
       ],
       ctaLabel: "Keep my account",
@@ -123,10 +123,10 @@ export const NOTIFICATION_TYPES = {
   "plus.activated": {
     category: "orders", // subscription receipts ride the transactional gate
     build: (p) => ({
-      subject: "Welcome to Radiues Plus 🎉",
+      subject: "Welcome to Flouna Plus 🎉",
       heading: "Your Plus membership is active",
       lines: [
-        `Radiues Plus is now active${p.until ? ` until ${p.until}` : ""}. You're unlocking deeper AI picks, price-drop alerts, zero convenience fees and the savings guarantee.`,
+        `Flouna Plus is now active${p.until ? ` until ${p.until}` : ""}. You're unlocking deeper AI picks, price-drop alerts, zero convenience fees and the savings guarantee.`,
         "We'll email you before your next renewal so there are never any surprises.",
       ],
       ctaLabel: "Explore Plus",
@@ -136,10 +136,10 @@ export const NOTIFICATION_TYPES = {
   "plus.renewal_reminder": {
     category: "orders",
     build: (p) => ({
-      subject: "Your Radiues Plus renews soon",
+      subject: "Your Flouna Plus renews soon",
       heading: "Heads up — Plus renews in 3 days",
       lines: [
-        `Your Radiues Plus membership renews${p.until ? ` on ${p.until}` : " soon"} for ${p.price ?? "₹50"}.`,
+        `Your Flouna Plus membership renews${p.until ? ` on ${p.until}` : " soon"} for ${p.price ?? "₹50"}.`,
         "Nothing to do if you'd like to continue. If not, you can cancel any time before then.",
       ],
       ctaLabel: "Manage membership",
@@ -149,10 +149,10 @@ export const NOTIFICATION_TYPES = {
   "plus.payment_failed": {
     category: "orders",
     build: () => ({
-      subject: "We couldn't renew your Radiues Plus",
+      subject: "We couldn't renew your Flouna Plus",
       heading: "Your Plus renewal didn't go through",
       lines: [
-        "We tried to renew your Radiues Plus membership but the payment didn't succeed.",
+        "We tried to renew your Flouna Plus membership but the payment didn't succeed.",
         "Update your payment method to keep your Plus perks — we'll retry automatically.",
       ],
       ctaLabel: "Fix payment",
@@ -162,10 +162,10 @@ export const NOTIFICATION_TYPES = {
   "plus.expired": {
     category: "orders",
     build: () => ({
-      subject: "Your Radiues Plus has ended",
+      subject: "Your Flouna Plus has ended",
       heading: "Your Plus membership expired",
       lines: [
-        "Your Radiues Plus membership has ended. Core Radiues — best-pick AI, live tracking and OTP — stays free, always.",
+        "Your Flouna Plus membership has ended. Core Flouna — best-pick AI, live tracking and OTP — stays free, always.",
         "Renew any time to bring back deeper AI, price-drop alerts and the savings guarantee.",
       ],
       ctaLabel: "Renew Plus",
@@ -175,10 +175,10 @@ export const NOTIFICATION_TYPES = {
   "money.savings_milestone": {
     category: "money",
     build: (p) => ({
-      subject: `You've saved ${p.amount} with Radiues 🎉`,
+      subject: `You've saved ${p.amount} with Flouna 🎉`,
       heading: `${p.amount} saved — nice going!`,
       lines: [
-        `Your lifetime savings on Radiues just crossed ${p.amount}.`,
+        `Your lifetime savings on Flouna just crossed ${p.amount}.`,
         "Every order compares prices across platforms so you always pay the least.",
       ],
       ctaLabel: "See your savings",
@@ -202,18 +202,18 @@ export const NOTIFICATION_TYPES = {
     category: "money",
     build: (p) => ({
       subject: p.active
-        ? "Your Radiues Plus is paying off"
+        ? "Your Flouna Plus is paying off"
         : `You'd have saved ${p.wouldSave ?? "more"} with Plus`,
       heading: p.active
         ? "Plus is working for you"
         : "See what Plus could save you",
       lines: p.active
         ? [
-            `This month your Radiues Plus saved you ${p.saved ?? "more than its cost"} in waived fees and better picks.`,
+            `This month your Flouna Plus saved you ${p.saved ?? "more than its cost"} in waived fees and better picks.`,
             "That's the membership paying for itself — keep enjoying it.",
           ]
         : [
-            `Over the last month you'd have saved about ${p.wouldSave ?? "₹50+"} with Radiues Plus — waived convenience fees plus deeper price comparison.`,
+            `Over the last month you'd have saved about ${p.wouldSave ?? "₹50+"} with Flouna Plus — waived convenience fees plus deeper price comparison.`,
             "Plus is ₹50/month and comes with a saved-you-more-than-₹50 guarantee.",
           ],
       ctaLabel: p.active ? "View membership" : "Try Plus",
@@ -223,10 +223,10 @@ export const NOTIFICATION_TYPES = {
   "tips.onboarding_no_order": {
     category: "tips",
     build: () => ({
-      subject: "Your first pick is waiting on Radiues",
-      heading: "Let Radiues find your best deal",
+      subject: "Your first pick is waiting on Flouna",
+      heading: "Let Flouna find your best deal",
       lines: [
-        "You signed up but haven't placed your first order yet. Radiues compares prices across platforms and books the cheapest — you just ask.",
+        "You signed up but haven't placed your first order yet. Flouna compares prices across platforms and books the cheapest — you just ask.",
         'Try: "order a biryani under ₹300" or "book a cab to the airport".',
       ],
       ctaLabel: "Make your first pick",
@@ -236,21 +236,21 @@ export const NOTIFICATION_TYPES = {
   "tips.win_back": {
     category: "tips",
     build: (p) => ({
-      subject: "We've missed you at Radiues",
+      subject: "We've missed you at Flouna",
       heading: "Come back to smarter ordering",
       lines: [
-        `It's been a while! Radiues is still comparing prices so you always pay the least.${p.usual ? ` Your usual — ${p.usual} — is one tap away.` : ""}`,
+        `It's been a while! Flouna is still comparing prices so you always pay the least.${p.usual ? ` Your usual — ${p.usual} — is one tap away.` : ""}`,
         "Pick up right where you left off.",
       ],
-      ctaLabel: "Open Radiues",
+      ctaLabel: "Open Flouna",
       ctaPath: "/home",
     }),
   },
   "tips.feature_announcement": {
     category: "tips",
     build: (p) => ({
-      subject: p.subject ?? "New on Radiues",
-      heading: p.heading ?? "New on Radiues",
+      subject: p.subject ?? "New on Flouna",
+      heading: p.heading ?? "New on Flouna",
       lines: [p.body ?? ""],
       ctaLabel: p.ctaLabel,
       ctaPath: p.ctaPath,

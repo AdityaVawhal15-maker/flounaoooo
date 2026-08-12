@@ -236,7 +236,7 @@ function ChatHome() {
       {temporary && empty && (
         <p className="mx-auto mt-2 max-w-md text-center text-[12px] leading-relaxed text-cocoa lg:mt-1">
           This chat won&apos;t appear in your history and won&apos;t be used to
-          personalise your recommendations. Radiues never trains AI models on
+          personalise your recommendations. Flouna never trains AI models on
           your conversations.
         </p>
       )}

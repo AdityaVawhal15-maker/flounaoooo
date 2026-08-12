@@ -57,7 +57,7 @@ export default function GroupRidePage({
 
   async function shareCode() {
     if (!cart?.ride) return;
-    const text = `Share my ${cart.ride.displayName} to ${cart.ride.drop} on Radiues! Join with code ${cart.code} — we split the fare.`;
+    const text = `Share my ${cart.ride.displayName} to ${cart.ride.drop} on Flouna! Join with code ${cart.code} — we split the fare.`;
     if (navigator.share) {
       try {
         await navigator.share({ text });

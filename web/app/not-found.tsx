@@ -9,7 +9,7 @@ export default function NotFound() {
       <div className="flex w-full max-w-sm flex-col items-center">
         <Image
           src="/logo.png"
-          alt="Radiues"
+          alt="Flouna"
           width={64}
           height={64}
           style={{ filter: "drop-shadow(0 6px 18px rgba(240,101,0,0.25))" }}
@@ -36,7 +36,7 @@ export default function NotFound() {
             href="/home"
             className="flex h-13 items-center justify-center gap-2 rounded-pill border border-line bg-card text-[15px] font-semibold text-ink transition-colors hover:bg-beige/40"
           >
-            <MessageSquareText size={16} className="text-accent" /> Ask Radiues
+            <MessageSquareText size={16} className="text-accent" /> Ask Flouna
           </Link>
         </div>
       </div>

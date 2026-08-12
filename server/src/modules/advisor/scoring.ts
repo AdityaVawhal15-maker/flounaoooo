@@ -1,4 +1,4 @@
-// The decision engine's scoring core. Radiues does not pick "cheapest, period" —
+// The decision engine's scoring core. Flouna does not pick "cheapest, period" —
 // it scores each option on price, rating and speed, weighted by what the user
 // actually asked for. "top-rated" raises the rating weight, "cheap" raises
 // price, "fast" raises speed. This is what makes the recommendation the

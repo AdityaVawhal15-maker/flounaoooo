@@ -5,7 +5,7 @@ import { Share2, Check, Sparkles, Download, Loader2 } from "lucide-react";
 import { rupees } from "@/lib/money";
 import { renderReceiptImage } from "@/lib/receiptImage";
 
-// Shareable proof-of-decision: what Radiues compared and what it saved.
+// Shareable proof-of-decision: what Flouna compared and what it saved.
 // Shares a branded PNG when the device supports it, otherwise downloads the
 // image or copies a text version — every share doubles as marketing.
 export function DecisionReceipt({
@@ -30,7 +30,7 @@ export function DecisionReceipt({
 
   const what = domain === "food" ? "my food order" : "my ride";
   const shareText =
-    `Radiues compared ${comparedOptions} options across ${comparedPlatforms} apps for ${what}` +
+    `Flouna compared ${comparedOptions} options across ${comparedPlatforms} apps for ${what}` +
     (savedPaise > 0 ? ` and saved me ${rupees(savedPaise)}` : " and picked the best one") +
     ". Stop searching, start deciding 🔶";
 
@@ -46,7 +46,7 @@ export function DecisionReceipt({
       });
 
       const file = blob
-        ? new File([blob], "radiues-savings.png", { type: "image/png" })
+        ? new File([blob], "flouna-savings.png", { type: "image/png" })
         : null;
 
       // 1. Native share with the image (mobile)
@@ -65,7 +65,7 @@ export function DecisionReceipt({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "radiues-savings.png";
+        a.download = "flouna-savings.png";
         a.click();
         URL.revokeObjectURL(url);
         setState("done");
@@ -89,7 +89,7 @@ export function DecisionReceipt({
         <Sparkles size={13} /> Decision receipt
       </p>
       <p className="mt-2 text-[15px] font-bold leading-snug text-ink">
-        Radiues compared {comparedOptions} options across {comparedPlatforms}{" "}
+        Flouna compared {comparedOptions} options across {comparedPlatforms}{" "}
         apps
         {savedPaise > 0 ? (
           <>

@@ -467,7 +467,7 @@ function RidesInner() {
       <div className="hidden items-center gap-2 px-8 py-4 lg:flex">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icon.png" alt="" className="size-8 rounded-[8px]" />
-        <span className="text-[22px] font-bold text-accent">Radiues</span>
+        <span className="text-[22px] font-bold text-accent">Flouna</span>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-0 lg:px-8 lg:pb-6">

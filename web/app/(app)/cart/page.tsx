@@ -1,7 +1,7 @@
 "use client";
 
-// My Cart — Figma "My Cart Screen" adapted to the Radiues theme and brand
-// rules: no network names, one Radiues price per line, server reprices at
+// My Cart — Figma "My Cart Screen" adapted to the Flouna theme and brand
+// rules: no network names, one Flouna price per line, server reprices at
 // checkout. Quantities, optional cooking instructions, price details, and a
 // sticky checkout bar.
 

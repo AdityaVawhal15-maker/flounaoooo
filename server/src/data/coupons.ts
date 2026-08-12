@@ -14,7 +14,7 @@ const DEMO_COUPONS = [
     firstOrderOnly: true,
   },
   {
-    code: "RADIUES20",
+    code: "FLOUNA20",
     description: "20% off, up to ₹60",
     kind: "percent",
     percentOff: 20,

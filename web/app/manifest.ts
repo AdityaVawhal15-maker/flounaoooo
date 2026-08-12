@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Radiues — AI Decision Engine",
-    short_name: "Radiues",
+    name: "Flouna — AI Decision Engine",
+    short_name: "Flouna",
     description:
       "Stop searching, start deciding. The single best option across food and rides.",
     start_url: "/home",

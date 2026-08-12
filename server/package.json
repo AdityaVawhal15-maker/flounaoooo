@@ -1,9 +1,9 @@
 {
-  "name": "radiues-server",
+  "name": "flouna-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Radiues API server — AI decision engine for food & rides",
+  "description": "Flouna API server — AI decision engine for food & rides",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",

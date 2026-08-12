@@ -19,7 +19,7 @@ export default function LandingPage() {
         <FadeIn y={16}>
           <Image
             src="/logo.png"
-            alt="Radiues"
+            alt="Flouna"
             width={230}
             height={230}
             priority

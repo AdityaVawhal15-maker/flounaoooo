@@ -1,8 +1,8 @@
-# Radiues
+# Flouna
 
 **Stop Searching. Start Deciding.**
 
-Radiues is an AI decision engine by [Algorithec](https://github.com/Algorithec). Instead of switching between apps and comparing prices yourself, you tell Radiues what you need — it searches across ONDC and partner platforms, applies the best offers, reads the reviews, and gives you one clear answer. Food and rides today; more domains on the roadmap.
+Flouna is an AI decision engine by [Algorithec](https://github.com/Algorithec). Instead of switching between apps and comparing prices yourself, you tell Flouna what you need — it searches across ONDC and partner platforms, applies the best offers, reads the reviews, and gives you one clear answer. Food and rides today; more domains on the roadmap.
 
 ---
 
@@ -14,7 +14,7 @@ Radiues is an AI decision engine by [Algorithec](https://github.com/Algorithec).
 - **Order timing advisor** — tells you when waiting will get you a better price ("₹100 off expected after 8 PM") and when it won't.
 - **Rides comparison** — live map, route and ETA, fares compared across providers with best-price and fastest badges.
 - **In-app checkout** for ONDC orders (Cashfree), tracking timeline, invoices, and order history.
-- **Savings ledger** — every order records what Radiues saved you; your lifetime total lives on the Rewards screen.
+- **Savings ledger** — every order records what Flouna saved you; your lifetime total lives on the Rewards screen.
 - **Budget guardian** — set a weekly food budget and get warned before an order takes you over it.
 - **Smart reorder** — one tap to reorder your usual at today's best price.
 
@@ -122,7 +122,7 @@ npm run build
 
 - Switch the Prisma datasource to `postgresql` and run `npx prisma migrate deploy`
 - Set `NODE_ENV=production` and `WEB_ORIGIN` to the deployed frontend URL
-- Host the web app and API on the same domain (e.g. `radiues.app` + `api.radiues.app`) — session cookies require it
+- Host the web app and API on the same domain (e.g. `flouna.app` + `api.flouna.app`) — session cookies require it
 - Register the Cashfree webhook: `https://<api-host>/api/payments/webhook/cashfree`
 - Put both services behind Cloudflare
 

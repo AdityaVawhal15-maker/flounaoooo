@@ -32,7 +32,10 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "radiues-cart";
+const STORAGE_KEY = "flouna-cart";
+// Pre-rebrand key. Read once so a cart saved before the rename isn't silently
+// dropped the first time someone returns after the update.
+const LEGACY_STORAGE_KEY = "radiues-cart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   // Lazy hydration from localStorage — safe here because this provider mounts
@@ -40,7 +43,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(() => {
     if (typeof window === "undefined") return [];
     try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as CartLine[];
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved) as CartLine[];
+      // Carry a pre-rebrand cart over, then retire the old key.
+      const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacy) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        return JSON.parse(legacy) as CartLine[];
+      }
+      return [];
     } catch {
       return []; // corrupted storage — start empty
     }

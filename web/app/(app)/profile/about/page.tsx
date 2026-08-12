@@ -10,8 +10,8 @@ export default function AboutPage() {
   return (
     <SubPage title={t("profile.about")}>
       <div className="flex flex-col items-center py-4 text-center">
-        <Image src="/logo.png" alt="Radiues" width={84} height={84} />
-        <h2 className="mt-3 text-[18px] font-bold text-ink">Radiues</h2>
+        <Image src="/logo.png" alt="Flouna" width={84} height={84} />
+        <h2 className="mt-3 text-[18px] font-bold text-ink">Flouna</h2>
         <p className="text-[12px] text-cocoa">Version 0.1.0 · by Algorithec Pvt Ltd</p>
       </div>
 

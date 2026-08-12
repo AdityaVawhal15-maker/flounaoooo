@@ -84,7 +84,7 @@ export function createApp() {
       await prisma.$queryRaw`SELECT 1`;
       res.json({
         ok: true,
-        service: "radiues-api",
+        service: "flouna-api",
         db: "ok",
         uptimeSeconds: Math.round(process.uptime()),
         latencyMs: Date.now() - started,
@@ -93,7 +93,7 @@ export function createApp() {
     } catch {
       res.status(503).json({
         ok: false,
-        service: "radiues-api",
+        service: "flouna-api",
         db: "unreachable",
         timestamp: new Date().toISOString(),
       });

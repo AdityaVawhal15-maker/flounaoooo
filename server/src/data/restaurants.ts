@@ -46,7 +46,7 @@ export const dishes: Dish[] = [
         basePaise: 24900,
         deliveryFeePaise: 1500,
         etaMinutes: 30,
-        offers: [{ label: "Radiues launch offer", discountPaise: 3500 }],
+        offers: [{ label: "Flouna launch offer", discountPaise: 3500 }],
       },
       {
         platform: "swiggy",

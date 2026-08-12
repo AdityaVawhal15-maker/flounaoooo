@@ -105,7 +105,7 @@ export async function createCashfreeRefund(opts: {
     body: JSON.stringify({
       refund_id: opts.refundId,
       refund_amount: opts.amountRupees,
-      refund_note: opts.note ?? "Refund approved from Radiues console",
+      refund_note: opts.note ?? "Refund approved from Flouna console",
     }),
   });
   const body = await res.text();

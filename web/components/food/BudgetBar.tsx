@@ -32,7 +32,7 @@ export function BudgetBar({ budget }: { budget: Budget }) {
         className="mt-4 flex items-center gap-2 rounded-card border border-line bg-card px-3.5 py-2.5 text-[12px] text-cocoa transition-colors hover:bg-beige/30"
       >
         <Wallet size={14} className="text-accent" />
-        Set a weekly food budget and Radiues will keep you under it →
+        Set a weekly food budget and Flouna will keep you under it →
       </Link>
     );
   }

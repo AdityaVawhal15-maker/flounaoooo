@@ -3,7 +3,7 @@ import { LegalPage, H2 } from "@/components/legal/LegalPage";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Radiues collects, uses and protects your information.",
+  description: "How Flouna collects, uses and protects your information.",
 };
 
 export default function PrivacyPage() {
@@ -12,8 +12,8 @@ export default function PrivacyPage() {
       <p>
         This Privacy Policy explains how <b>Algorithec Pvt Ltd</b> (&ldquo;Algorithec&rdquo;,
         &ldquo;we&rdquo;, &ldquo;us&rdquo;) collects, uses, shares and protects your information
-        when you use the <b>Radiues</b> application and website (the &ldquo;Service&rdquo;). By using
-        Radiues, you agree to the practices described here.
+        when you use the <b>Flouna</b> application and website (the &ldquo;Service&rdquo;). By using
+        Flouna, you agree to the practices described here.
       </p>
 
       <H2>1. Information we collect</H2>
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <li><b>Location data</b> — your device location, used only to set your pickup/delivery point and show nearby options, with your permission. You can deny or revoke this at any time in your device settings.</li>
         <li><b>Saved addresses</b> — addresses you choose to save (e.g. Home, Work).</li>
         <li><b>Payment data</b> — payments are processed by our payment partner (Cashfree). We do <b>not</b> store your full card or UPI credentials; we store only the payment status and a reference.</li>
-        <li><b>Chat content</b> — the messages you send to the Radiues AI assistant, to provide recommendations and improve the Service.</li>
+        <li><b>Chat content</b> — the messages you send to the Flouna AI assistant, to provide recommendations and improve the Service.</li>
         <li><b>Usage &amp; device data</b> — anonymised information about how the app performs and where issues occur, to fix bugs and improve reliability.</li>
       </ul>
 
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
         To understand your requests, your chat messages may be processed by trusted AI providers
         (such as Anthropic Claude, Google Gemini, or DeepSeek). These providers process the message
         to return a result and are bound by their own data terms. We do not send them your payment
-        details. The final recommendation logic and pricing are computed by Radiues itself.
+        details. The final recommendation logic and pricing are computed by Flouna itself.
       </p>
 
       <H2>4. How we share information</H2>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
 
       <H2>8. Children</H2>
       <p>
-        Radiues is not directed at children under 13, and we do not knowingly collect their data.
+        Flouna is not directed at children under 13, and we do not knowingly collect their data.
       </p>
 
       <H2>9. Changes to this policy</H2>
@@ -90,8 +90,8 @@ export default function PrivacyPage() {
       <H2>10. Contact</H2>
       <p>
         For any privacy questions or requests, contact us at{" "}
-        <a href="mailto:support@radiues.app" className="font-medium text-accent">
-          support@radiues.app
+        <a href="mailto:support@flouna.app" className="font-medium text-accent">
+          support@flouna.app
         </a>
         .
       </p>

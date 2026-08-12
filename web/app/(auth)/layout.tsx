@@ -23,7 +23,7 @@ export default function AuthLayout({
         <div className="flex justify-center">
           <Image
             src="/logo.png"
-            alt="Radiues"
+            alt="Flouna"
             width={56}
             height={56}
             priority

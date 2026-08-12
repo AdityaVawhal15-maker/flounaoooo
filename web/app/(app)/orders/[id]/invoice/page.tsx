@@ -96,7 +96,7 @@ export default function InvoicePage({
   const dt = new Date(order.createdAt);
   const paid = PAID_STATUSES.has(order.status) || order.payment?.status === "success";
   const seller =
-    order.details.restaurant ?? order.details.displayName ?? "Radiues fulfilment partner";
+    order.details.restaurant ?? order.details.displayName ?? "Flouna fulfilment partner";
 
   // Line items. The total shown is always order.amount (the authoritative,
   // server-computed charge). We derive the line subtotal and only render fee
@@ -163,11 +163,11 @@ export default function InvoicePage({
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-line pb-5">
           <div>
-            <p className="text-[20px] font-bold tracking-tight text-ink">Radiues</p>
+            <p className="text-[20px] font-bold tracking-tight text-ink">Flouna</p>
             <p className="mt-0.5 text-[11px] leading-relaxed text-cocoa">
               Algorithec Pvt Ltd
               <br />
-              support@radiues.app
+              support@flouna.app
             </p>
           </div>
           <div className="text-right">
@@ -192,7 +192,7 @@ export default function InvoicePage({
             <p className="font-semibold uppercase tracking-wide text-cocoa">Fulfilled by</p>
             <p className="mt-1 text-ink">{seller}</p>
             <p className="text-cocoa">
-              {order.domain === "food" ? "Food delivery" : "Ride"} · via Radiues
+              {order.domain === "food" ? "Food delivery" : "Ride"} · via Flouna
             </p>
           </div>
           <div className="text-right">
@@ -239,16 +239,16 @@ export default function InvoicePage({
         {/* Footer note */}
         <p className="mt-6 border-t border-line pt-4 text-[10px] leading-relaxed text-muted">
           Amounts are inclusive of applicable taxes. This is a computer-generated
-          payment receipt and does not require a signature. Radiues (Algorithec Pvt
+          payment receipt and does not require a signature. Flouna (Algorithec Pvt
           Ltd) is an aggregator; the goods/services are supplied by the seller named
-          above. For help, contact support@radiues.app.
+          above. For help, contact support@flouna.app.
         </p>
       </div>
 
       {/* Marketing line — screen only, kept OUT of the printed receipt. */}
       {order.savedPaise > 0 && (
         <div className="mt-3 rounded-card bg-accent-soft/60 px-4 py-2.5 text-[12px] font-medium text-accent print:hidden">
-          You saved {rupees(order.savedPaise)} vs the next-best option — Radiues
+          You saved {rupees(order.savedPaise)} vs the next-best option — Flouna
           picked the smartest choice for you.
         </div>
       )}

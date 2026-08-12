@@ -31,8 +31,8 @@ const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
   { href: "/rides", key: "nav.rides", icon: Car },
 ];
 
-const COLLAPSE_KEY = "radiues-sidebar-collapsed";
-const COLLAPSE_EVENT = "radiues-sidebar-collapse";
+const COLLAPSE_KEY = "flouna-sidebar-collapsed";
+const COLLAPSE_EVENT = "flouna-sidebar-collapse";
 
 function subscribeCollapse(cb: () => void) {
   window.addEventListener(COLLAPSE_EVENT, cb);
@@ -101,7 +101,7 @@ export function Sidebar({
             collapsed ? "lg:flex-col lg:gap-4" : "justify-between",
           )}
         >
-          <Link href="/home" aria-label="Radiues home" className="flex items-center gap-2.5">
+          <Link href="/home" aria-label="Flouna home" className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/icon.png" alt="" className="size-9 rounded-[10px]" />
             <span
@@ -110,7 +110,7 @@ export function Sidebar({
                 collapsed && "lg:hidden",
               )}
             >
-              Radiues
+              Flouna
             </span>
           </Link>
           <button

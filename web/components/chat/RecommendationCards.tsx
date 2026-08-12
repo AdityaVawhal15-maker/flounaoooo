@@ -147,7 +147,7 @@ function InsightCard({ text }: { text: string }) {
   return (
     <div className="rounded-card border border-accent/30 bg-accent-soft/40 p-4">
       <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-accent">
-        <Zap size={12} /> RADIUES INSIGHTS
+        <Zap size={12} /> FLOUNA INSIGHTS
       </p>
       <p className="mt-1.5 text-[13px] leading-relaxed text-ink">{text}</p>
     </div>

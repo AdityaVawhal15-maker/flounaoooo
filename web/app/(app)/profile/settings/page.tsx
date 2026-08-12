@@ -158,7 +158,7 @@ export default function SettingsPage() {
           <Wallet size={15} className="text-accent" /> {t("settings.budgetTitle")}
         </p>
         <p className="mt-1 text-[12px] text-cocoa">
-          Radiues tracks your food spend Monday–Sunday and warns you before an
+          Flouna tracks your food spend Monday–Sunday and warns you before an
           order takes you over.
         </p>
         <div className="mt-3 flex items-end gap-2">

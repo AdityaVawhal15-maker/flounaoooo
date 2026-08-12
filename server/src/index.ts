@@ -15,7 +15,7 @@ initMonitoring();
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
-  console.log(`radiues-api listening on http://localhost:${env.PORT}`);
+  console.log(`flouna-api listening on http://localhost:${env.PORT}`);
 });
 
 // Realtime channel for live price-drop alerts.

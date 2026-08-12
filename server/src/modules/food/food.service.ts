@@ -48,7 +48,7 @@ function toQuotes(dish: Dish): FoodQuote[] {
     reviewSummary: dish.reviewSummary,
     image: dish.image,
     platform: l.platform,
-    // Everything is bought in-app — the user pays Radiues and the order is
+    // Everything is bought in-app — the user pays Flouna and the order is
     // routed to the seller through ONDC. No redirect to any external app.
     fulfillment: "in_app",
     basePaise: l.basePaise,

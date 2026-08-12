@@ -1,10 +1,10 @@
-// PM2 process configuration for the Radiues API in production.
+// PM2 process configuration for the Flouna API in production.
 //
 //   Build:   npm run build
 //   DB:      DB_PROVIDER=postgresql npm run db:deploy
 //   Start:   pm2 start ecosystem.config.cjs --env production
-//   Logs:    pm2 logs radiues-api
-//   Restart: pm2 reload radiues-api   (zero-downtime)
+//   Logs:    pm2 logs flouna-api
+//   Restart: pm2 reload flouna-api   (zero-downtime)
 //   Boot:    pm2 startup && pm2 save   (restart on server reboot)
 //
 // Reads runtime config from the environment / a .env file in this directory.
@@ -12,7 +12,7 @@
 module.exports = {
   apps: [
     {
-      name: "radiues-api",
+      name: "flouna-api",
       script: "dist/index.js",
       node_args: "--env-file=.env",
       instances: 1, // single instance; raise to "max" once stateless workers are verified

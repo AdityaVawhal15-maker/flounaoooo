@@ -24,8 +24,8 @@ export function LegalPage({
           >
             <ChevronLeft size={20} />
           </Link>
-          <Image src="/logo.png" alt="Radiues" width={28} height={28} />
-          <span className="text-[16px] font-bold text-ink">Radiues</span>
+          <Image src="/logo.png" alt="Flouna" width={28} height={28} />
+          <span className="text-[16px] font-bold text-ink">Flouna</span>
         </div>
       </header>
 
@@ -36,11 +36,11 @@ export function LegalPage({
           {children}
         </div>
         <footer className="mt-12 border-t border-line pt-5 text-[12px] text-muted">
-          <p>Algorithec Pvt Ltd · Radiues</p>
+          <p>Algorithec Pvt Ltd · Flouna</p>
           <p className="mt-1">
             Questions? Email{" "}
-            <a href="mailto:support@radiues.app" className="font-medium text-accent">
-              support@radiues.app
+            <a href="mailto:support@flouna.app" className="font-medium text-accent">
+              support@flouna.app
             </a>
           </p>
           <div className="mt-3 flex gap-4">

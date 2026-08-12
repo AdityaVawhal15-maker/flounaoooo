@@ -137,7 +137,7 @@ type ProviderConfig = {
 
 // `name` is the internal product id (stable — order matching + tests key on it).
 // `displayName` is what users see: neutral service tiers with NO network brand —
-// users book with Radiues; ONDC routes to whichever registered partner fulfils.
+// users book with Flouna; ONDC routes to whichever registered partner fulfils.
 const providers: ProviderConfig[] = [
   {
     provider: "uber",

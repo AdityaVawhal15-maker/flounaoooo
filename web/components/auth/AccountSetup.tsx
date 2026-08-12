@@ -29,7 +29,7 @@ export function AccountSetup({ onDone }: { onDone: () => void }) {
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream px-8">
       <Image
         src="/logo.png"
-        alt="Radiues"
+        alt="Flouna"
         width={110}
         height={110}
         priority

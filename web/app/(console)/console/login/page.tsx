@@ -89,7 +89,7 @@ export default function ConsoleLoginPage() {
             className="c-serif mt-4 text-xl font-extrabold"
             style={{ color: "var(--c-maroon)" }}
           >
-            Radiues Console
+            Flouna Console
           </h1>
           <p className="mt-1 text-[13px]" style={{ color: "var(--c-muted)" }}>
             Operator access only. Two-factor required. All actions are audited.

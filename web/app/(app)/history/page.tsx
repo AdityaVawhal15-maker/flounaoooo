@@ -96,7 +96,7 @@ export default function HistoryPage() {
 
       {/* Activity snapshot — Figma "Booking History": at-a-glance stats for
           the current tab. "Total saved" replaces the design's avg-rating tile
-          (savings is the number Radiues is about). */}
+          (savings is the number Flouna is about). */}
       {orders && orders.length > 0 && (
         <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           <StatTile
