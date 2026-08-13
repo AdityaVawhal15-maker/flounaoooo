@@ -18,6 +18,19 @@
   --color-terracotta: #c8855a; /* hero heading line 2 */
   --color-chip: #e5ddd5; /* flat quick-chip background */
   --color-chip-ink: #2d2d2d; /* quick-chip label */
+
+  /* Auth palette — the "Log in or sign up" flow (Figma 2177:71xx–74xx) is drawn
+     on its own set rather than the brand tokens above: a near-black navy for
+     headings instead of the brown ink, a marginally hotter orange, and a
+     cooler off-white ground. Kept as separate tokens so the flow can be
+     reunified with the brand set later by editing these four lines. */
+  --color-auth-ink: #1a1a2e; /* headings */
+  --color-auth-accent: #e8531a; /* labels, links, primary button */
+  --color-auth-bg: #fff8f5; /* screen ground */
+  --color-auth-line: #edd9d3; /* input borders */
+  --color-auth-muted: #8b7b72; /* subtitles, placeholders */
+  --color-auth-disabled: #f8d7c8; /* primary button, inactive */
+  --color-auth-disabled-ink: #d97757; /* its label */
   --color-send: #e8a060; /* ask-bar send button */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */

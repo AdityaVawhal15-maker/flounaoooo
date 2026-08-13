@@ -9,18 +9,12 @@ import { useAuth, type User } from "@/components/auth/AuthContext";
 import { AccountSetup } from "@/components/auth/AccountSetup";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
-const RESEND_SECONDS = 50;
+const RESEND_SECONDS = 45;
 
-// Figma "OTP Verify" (node 2177:7484): back button, lotus, headline, six boxes,
-// and a resend countdown. The design shows no submit button, which is the
-// standard OTP pattern — the code submits itself once the sixth digit lands. A
-// visible button is kept as well, because after a wrong code the user needs an
-// obvious way to retry, and auto-submit alone leaves nothing to press.
-//
-// The design also reuses the signup headline here and never shows the address
-// the code went to. That's kept as a verify-specific headline instead: without
-// the address on screen, anyone who mistyped their email has no way to tell why
-// the code never arrived.
+// Figma "OTP Verify" (2177:7484): back button, lotus, the same headline the
+// entry screen carries, six boxes, and a resend countdown. No submit button is
+// drawn, so the code submits itself once the sixth digit lands — guarded so a
+// rejected code can't resubmit in a loop while the boxes are still full.
 export default function VerifyEmailPage() {
   const router = useRouter();
   const { setUser } = useAuth();
@@ -31,8 +25,6 @@ export default function VerifyEmailPage() {
   const [settingUp, setSettingUp] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
-  // Remembers which code already went to the server, so a rejected code doesn't
-  // auto-resubmit in a loop while the six boxes are still full.
   const attempted = useRef<string>("");
 
   useEffect(() => {
@@ -69,10 +61,14 @@ export default function VerifyEmailPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setBusy(false);
+      // Clear so the next attempt is a fresh six digits, and put the caret back
+      // at the start — otherwise the boxes stay full with a code already known
+      // to be wrong.
+      setDigits(Array(6).fill(""));
+      inputs.current[0]?.focus();
     }
   }, [digits, email, busy, setUser]);
 
-  // Auto-submit once the code is complete and hasn't already been tried.
   useEffect(() => {
     const code = digits.join("");
     if (code.length === 6 && code !== attempted.current && email && !busy) {
@@ -111,8 +107,8 @@ export default function VerifyEmailPage() {
     try {
       await api("/api/auth/resend-otp", { method: "POST", json: { email } });
       setSecondsLeft(RESEND_SECONDS);
-      // A fresh code invalidates the old one — clear the boxes so the stale
-      // digits can't auto-submit against it.
+      // A fresh code invalidates the old one — clear the boxes so stale digits
+      // can't auto-submit against it.
       setDigits(Array(6).fill(""));
       attempted.current = "";
       inputs.current[0]?.focus();
@@ -125,38 +121,34 @@ export default function VerifyEmailPage() {
     return <AccountSetup onDone={() => router.push("/home")} />;
   }
 
-  const complete = digits.join("").length === 6;
-
   return (
-    <div className="min-h-dvh bg-cream px-5 py-5">
-      <div className="mx-auto w-full max-w-[440px]">
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/signup"
           aria-label="Back"
-          className="flex size-11 items-center justify-center rounded-full bg-card text-ink shadow-soft transition-colors hover:bg-beige"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
         >
           <ArrowLeft size={20} />
         </Link>
 
         <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={84} strokeWidth={5} className="text-ink" />
-          <h1 className="mt-5 text-[26px] font-bold text-ink">
-            Verify your email
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            Log in or sign up
           </h1>
-          <p className="mt-2 text-[15px] leading-[1.5] text-cocoa">
-            We sent a 6-digit code to
-            <br />
-            <span className="font-semibold text-ink">{email ?? "…"}</span>
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            You&apos;ll get smarter responses and can book rides, order food and
+            more.
           </p>
-          <Link
-            href="/signup"
-            className="mt-2 text-[14px] font-semibold text-accent hover:underline"
-          >
-            Change email address
-          </Link>
         </div>
 
-        <div className="mt-9 flex justify-center gap-2.5" onPaste={onPaste}>
+        <div
+          className="mt-10 flex justify-center gap-2.5"
+          onPaste={onPaste}
+          aria-label="Verification code"
+          role="group"
+        >
           {digits.map((d, i) => (
             <input
               key={i}
@@ -168,42 +160,40 @@ export default function VerifyEmailPage() {
               aria-label={`Digit ${i + 1}`}
               value={d}
               disabled={busy}
+              autoFocus={i === 0}
               onChange={(e) => setDigit(i, e.target.value)}
               onKeyDown={(e) => onKeyDown(i, e)}
-              className="h-[62px] w-[52px] rounded-[16px] border border-line bg-card text-center text-[22px] font-bold text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+              className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12 disabled:opacity-60"
             />
           ))}
         </div>
 
-        <p className="mt-6 text-center text-[15px] text-cocoa">
+        <p className="mt-7 text-center text-[16px] text-auth-muted">
           Didn&apos;t receive code?{" "}
           {secondsLeft > 0 ? (
-            <span className="font-bold text-accent">
+            <span className="font-bold text-auth-accent">
               Resend in 00:{String(secondsLeft).padStart(2, "0")}
             </span>
           ) : (
             <button
               onClick={resend}
-              className="font-bold text-accent hover:underline"
+              className="font-bold text-auth-accent hover:underline"
             >
               Resend now
             </button>
           )}
         </p>
 
+        {busy && (
+          <p className="mt-4 text-center text-[15px] text-auth-muted">
+            Verifying…
+          </p>
+        )}
         {error && (
-          <p role="alert" className="mt-4 text-center text-[14px] text-danger">
+          <p role="alert" className="mt-4 text-center text-[15px] text-danger">
             {error}
           </p>
         )}
-
-        <button
-          onClick={verify}
-          disabled={busy || !complete}
-          className="mt-8 h-[60px] w-full rounded-pill bg-accent text-[17px] font-bold text-white transition-colors hover:bg-[#d4570f] disabled:opacity-50"
-        >
-          {busy ? "Verifying…" : "Verify & Continue"}
-        </button>
       </div>
     </div>
   );

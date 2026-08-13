@@ -63,7 +63,10 @@ export function GoogleButton({
         theme: "outline",
         size: "large",
         shape: "pill",
-        width: Math.max(120, Math.min(320, slot)),
+        // 400 is Google's own ceiling. Filling the slot up to it keeps this
+        // button the same width as the pills stacked with it — below that cap
+        // it visibly under-hangs them.
+        width: Math.max(120, Math.min(400, slot)),
       });
       setReady(true);
     };
@@ -101,9 +104,9 @@ export function GoogleButton({
       <button
         type="button"
         onClick={handleDevLogin}
-        className="flex h-[56px] w-full items-center justify-center gap-2.5 rounded-[16px] border border-line bg-card text-[15px] font-bold text-ink transition-colors hover:bg-beige/40"
+        className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill border border-auth-line bg-white text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg"
       >
-        <GoogleG />
+        <GoogleG size={22} />
         {label}
       </button>
     );
@@ -111,7 +114,7 @@ export function GoogleButton({
 
   return (
     <div className="flex w-full justify-center overflow-hidden">
-      <div ref={ref} className={ready ? "" : "h-[56px]"} />
+      <div ref={ref} className={ready ? "" : "h-[60px]"} />
     </div>
   );
 }

@@ -3,14 +3,13 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-// The input style the redesigned auth screens share: a label above, a leading
-// icon, and an optional trailing control (the password eye), all inside a
-// rounded cream pill. Split out of the pages so login / signup / forgot / reset
-// can't drift apart the way they did before the redesign.
+// The field treatment the "Log in or sign up" flow shares (Figma 2177:71xx):
+// a small accent-orange label above a white pill input with a soft pink border.
+// Split out so the entry, create-account and password screens can't drift.
 //
-// The label is a real <label htmlFor>, not styled text — the icon is aria-hidden
-// so a screen reader announces the field once, by its label, rather than
-// reading decorative glyphs.
+// The label is a real <label htmlFor> and any icon is aria-hidden, so a screen
+// reader announces each field once by its name rather than reading decorative
+// glyphs.
 export function AuthField({
   label,
   icon,
@@ -20,7 +19,7 @@ export function AuthField({
   id,
   ...props
 }: {
-  label: string;
+  label?: string;
   icon?: ReactNode;
   trailing?: ReactNode;
   error?: string;
@@ -31,18 +30,23 @@ export function AuthField({
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={inputId} className="text-[15px] font-bold text-ink">
-        {label}
-      </label>
+      {label && (
+        <label
+          htmlFor={inputId}
+          className="text-[14px] font-medium text-auth-accent"
+        >
+          {label}
+        </label>
+      )}
       <div
         className={cn(
-          "flex h-[56px] items-center gap-3 rounded-[16px] border bg-cream px-4 transition-colors",
-          "focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15",
-          error ? "border-danger" : "border-line",
+          "flex h-[60px] items-center gap-3 rounded-[16px] border bg-white px-4 transition-colors",
+          "focus-within:border-auth-accent focus-within:ring-2 focus-within:ring-auth-accent/12",
+          error ? "border-danger" : "border-auth-line",
         )}
       >
         {icon && (
-          <span aria-hidden className="shrink-0 text-cocoa">
+          <span aria-hidden className="shrink-0 text-auth-muted">
             {icon}
           </span>
         )}
@@ -51,7 +55,7 @@ export function AuthField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={cn(
-            "min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-cocoa/50",
+            "min-w-0 flex-1 bg-transparent text-[17px] text-auth-ink outline-none placeholder:text-auth-muted/70",
             className,
           )}
           {...props}
@@ -64,5 +68,75 @@ export function AuthField({
         </p>
       )}
     </div>
+  );
+}
+
+/** Primary action. Drawn pale peach until the form is usable, solid once it is. */
+export function AuthButton({
+  children,
+  disabled,
+  ...props
+}: InputHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  type?: "button" | "submit";
+}) {
+  return (
+    <button
+      disabled={disabled}
+      className={cn(
+        "h-[60px] w-full rounded-pill text-[17px] font-bold transition-colors",
+        disabled
+          ? "bg-auth-disabled text-auth-disabled-ink"
+          : "bg-auth-accent text-white hover:bg-[#d4470f]",
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The white outlined pills beneath the OR rule (Google, phone, email). */
+export function AuthAltButton({
+  children,
+  ...props
+}: InputHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  type?: "button";
+}) {
+  return (
+    <button
+      className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill border border-auth-line bg-white text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg"
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The "OR" rule that separates the primary action from the alternatives. */
+export function AuthOr() {
+  return (
+    <div className="flex items-center gap-4 text-[14px] font-medium text-auth-muted/70">
+      <span className="h-px flex-1 bg-auth-line" />
+      OR
+      <span className="h-px flex-1 bg-auth-line" />
+    </div>
+  );
+}
+
+/** Shared header: back button, lotus, headline, subtitle. */
+export function AuthHeader({
+  onBack,
+  children,
+}: {
+  onBack: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <>
+      {onBack}
+      <div className="mt-6 flex flex-col items-center text-center">{children}</div>
+    </>
   );
 }

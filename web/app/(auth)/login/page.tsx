@@ -3,52 +3,68 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Fingerprint,
-  Apple,
-} from "lucide-react";
+import { ArrowLeft, Mail, Phone, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { useAuth, type User } from "@/components/auth/AuthContext";
-import { AuthField } from "@/components/auth/AuthField";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import {
+  AuthField,
+  AuthButton,
+  AuthAltButton,
+  AuthOr,
+} from "@/components/auth/AuthField";
 
-// Figma "Login Screen" (node 2086:269). The composition is a centred column on
-// cream: back button + wordmark, a badge, a two-tone headline, then the form
-// lifted onto a white card so it reads as the one thing to act on. Desktop
-// keeps the same column rather than stretching the card — a 1200px-wide login
-// form looks broken, and the design is a single centred stack at every width.
+// Figma "Log in or sign up" (2177:7108 email / 2177:7168 phone). One screen in
+// two modes, each offering to continue with the other.
+//
+// The password step is the one thing the frames don't draw: they stop at
+// "Continue". Accounts here are password-backed, so the field is revealed in
+// place after Continue rather than on a screen of its own — same surface, same
+// treatment, no invented navigation.
+const COUNTRIES = [
+  { label: "India (+91)", dial: "+91" },
+  { label: "United States (+1)", dial: "+1" },
+  { label: "United Kingdom (+44)", dial: "+44" },
+  { label: "United Arab Emirates (+971)", dial: "+971" },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
+  const [mode, setMode] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [askPassword, setAskPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [dial, setDial] = useState(COUNTRIES[0].dial);
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showPw, setShowPw] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneValid = phone.replace(/\D/g, "").length >= 7;
+
+  async function onEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!askPassword) {
+      setAskPassword(true);
+      return;
+    }
     setBusy(true);
     try {
       const d = await api<{ user: User }>("/api/auth/login", {
         method: "POST",
-        json: { email, password },
+        json: { email: email.trim(), password },
       });
       setUser(d.user);
       router.push("/home");
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 403) {
         // Account exists but email unverified — backend has re-sent a code.
-        sessionStorage.setItem("pendingEmail", email);
+        sessionStorage.setItem("pendingEmail", email.trim());
         router.push("/verify");
         return;
       }
@@ -58,155 +74,202 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="min-h-dvh bg-cream px-5 py-5">
-      <div className="mx-auto w-full max-w-[440px]">
-        {/* Back + wordmark */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            aria-label="Back"
-            className="flex size-11 items-center justify-center rounded-full bg-beige text-ink transition-colors hover:bg-[#e6d8cc]"
-          >
-            <ArrowLeft size={20} />
-          </Link>
-          <span className="text-[20px] font-bold text-ink">Flouna</span>
-        </div>
+  async function onPhoneSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setBusy(true);
+    try {
+      await api("/api/auth/phone/send-otp", {
+        method: "POST",
+        json: { phone: `${dial}${phone.replace(/\D/g, "")}` },
+      });
+      sessionStorage.setItem("pendingPhone", `${dial}${phone.replace(/\D/g, "")}`);
+      router.push("/verify");
+    } catch (err) {
+      // The backend returns 501 until an SMS provider is contracted. Say so
+      // plainly and point at the path that does work, rather than failing mute.
+      setError(
+        err instanceof ApiClientError && err.status === 501
+          ? "Phone sign-in isn't available yet — continue with email or Google."
+          : err instanceof Error
+            ? err.message
+            : "Could not send the code",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
-        {/* Badge + two-tone headline */}
-        <div className="mt-10 flex flex-col items-center text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-pill bg-accent-soft px-4 py-2 text-[14px] font-semibold text-accent">
-            <Sparkles size={15} />
-            Welcome Back
-          </span>
-          <h1 className="mt-4 text-[30px] font-bold leading-[1.25]">
-            <span className="block text-ink">Log In to</span>
-            <span className="block text-accent">Your Account</span>
+  return (
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
+        <Link
+          href="/"
+          aria-label="Back"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+        >
+          <ArrowLeft size={20} />
+        </Link>
+
+        <div className="mt-6 flex flex-col items-center text-center">
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            Log in or sign up
           </h1>
-          <p className="mt-2 text-[15px] text-cocoa">
-            Your smartest decisions are waiting for you.
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            You&apos;ll get smarter responses and can book rides, order food and
+            more.
           </p>
         </div>
 
-        {/* Form card */}
-        <div className="mt-7 rounded-[24px] bg-card p-6 shadow-card">
-          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        {mode === "email" ? (
+          <form onSubmit={onEmailSubmit} className="mt-9 flex flex-col gap-4">
             <AuthField
-              label="Email Address"
+              label="Email"
               type="email"
               autoComplete="email"
-              placeholder="hello@example.com"
-              icon={<Mail size={18} />}
+              autoFocus
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setAskPassword(false);
+              }}
               required
             />
-            <AuthField
-              label="Password"
-              type={showPw ? "text" : "password"}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              icon={<Lock size={18} />}
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  aria-label={showPw ? "Hide password" : "Show password"}
-                  className="rounded-full p-1 text-cocoa/60 transition-colors hover:text-cocoa"
-                >
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              }
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-
-            <Link
-              href="/forgot"
-              className="-mt-1 self-end text-[14px] font-bold text-accent hover:underline"
-            >
-              Forgot password?
-            </Link>
-
+            {askPassword && (
+              <AuthField
+                label="Password"
+                type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                autoFocus
+                icon={<Lock size={18} />}
+                trailing={
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="rounded-full p-1 text-auth-muted transition-colors hover:text-auth-ink"
+                  >
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            )}
             {error && (
-              <p role="alert" className="text-[13px] text-danger">
+              <p role="alert" className="text-[14px] text-danger">
                 {error}
               </p>
             )}
-            {info && <p className="text-[13px] text-cocoa">{info}</p>}
-
-            <button
+            <AuthButton
               type="submit"
-              disabled={busy}
-              className="group flex h-[60px] w-full items-center justify-center gap-2.5 rounded-pill bg-cocoa text-[17px] font-bold text-white transition-all hover:bg-[#7a5234] disabled:opacity-60"
+              disabled={busy || !emailValid || (askPassword && !password)}
             >
-              {busy ? "Logging in…" : "Log In"}
-              {!busy && (
-                <ArrowRight
-                  size={20}
-                  className="transition-transform group-hover:translate-x-0.5"
-                />
-              )}
-            </button>
+              {busy ? "Signing in…" : askPassword ? "Log In" : "Continue"}
+            </AuthButton>
+            {askPassword && (
+              <Link
+                href="/forgot"
+                className="-mt-1 self-center text-[15px] font-semibold text-auth-accent hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
           </form>
+        ) : (
+          <form onSubmit={onPhoneSubmit} className="mt-9 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="country"
+                className="text-[14px] font-medium text-auth-accent"
+              >
+                Country/Region
+              </label>
+              <div className="relative">
+                <select
+                  id="country"
+                  value={dial}
+                  onChange={(e) => setDial(e.target.value)}
+                  className="h-[60px] w-full appearance-none rounded-[16px] border border-auth-line bg-white px-4 pr-11 text-[17px] text-auth-ink outline-none focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.dial} value={c.dial}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={20}
+                  aria-hidden
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-auth-muted"
+                />
+              </div>
+            </div>
+            <AuthField
+              label="Phone number"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+            {error && (
+              <p role="alert" className="text-[14px] text-danger">
+                {error}
+              </p>
+            )}
+            <AuthButton type="submit" disabled={busy || !phoneValid}>
+              {busy ? "Sending…" : "Send Verification code"}
+            </AuthButton>
+          </form>
+        )}
 
-          <div className="mt-6 flex items-center gap-3 text-[14px] text-cocoa/70">
-            <span className="h-px flex-1 bg-line" />
-            or continue with
-            <span className="h-px flex-1 bg-line" />
-          </div>
+        {info && <p className="mt-3 text-center text-[14px] text-auth-muted">{info}</p>}
 
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <GoogleButton onError={setError} />
-            <button
-              type="button"
-              onClick={() =>
-                setInfo("Apple sign-in is coming soon — use email for now.")
-              }
-              className="flex h-[56px] w-full items-center justify-center gap-2 rounded-[16px] bg-ink text-[15px] font-bold text-white transition-opacity hover:opacity-90"
-            >
-              <Apple size={19} className="fill-white" />
-              Apple
-            </button>
-          </div>
+        <div className="mt-7">
+          <AuthOr />
         </div>
 
-        {/* Biometric — the design offers it as a separate path below the card.
-            Kept visible but honest: there's no passkey backend yet, so it says
-            so rather than failing silently on tap. */}
-        <div className="mt-6 flex items-center gap-3 text-[14px] text-cocoa/60">
-          <span className="h-px flex-1 bg-line" />
-          or
-          <span className="h-px flex-1 bg-line" />
+        <div className="mt-7 flex flex-col gap-4">
+          <GoogleButton onError={setError} label="Continue with Google" />
+          <AuthAltButton
+            type="button"
+            onClick={() => {
+              setMode(mode === "email" ? "phone" : "email");
+              setError("");
+              setAskPassword(false);
+            }}
+          >
+            {mode === "email" ? (
+              <>
+                <Phone size={20} /> Continue with phone
+              </>
+            ) : (
+              <>
+                <Mail size={20} /> Continue with email
+              </>
+            )}
+          </AuthAltButton>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setInfo("Face ID / fingerprint sign-in is coming soon.")
-          }
-          className="mx-auto mt-5 flex h-[52px] items-center justify-center gap-2.5 rounded-pill border border-accent/25 bg-accent-soft/40 px-7 text-[15px] font-semibold text-ink transition-colors hover:bg-accent-soft"
-        >
-          <Fingerprint size={19} className="text-accent" />
-          Use Face ID / Fingerprint
-        </button>
-
-        <p className="mt-7 text-center text-[15px] text-ink">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-bold text-accent hover:underline">
-            Sign Up
+        <p className="mt-7 text-center text-[15px] text-auth-muted">
+          New here?{" "}
+          <Link href="/signup" className="font-bold text-auth-accent hover:underline">
+            Create an account
           </Link>
         </p>
 
-        <p className="mt-4 pb-6 text-center text-[13px] leading-relaxed text-cocoa/70">
-          By continuing, you agree to our
-          <br />
-          <Link href="/legal/terms" className="font-bold text-ink hover:text-accent">
-            Terms of Service
+        <p className="mt-4 pb-8 text-center text-[15px]">
+          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+            Terms of Use
           </Link>
-          {" · "}
-          <Link href="/legal/privacy" className="font-bold text-ink hover:text-accent">
+          <span className="px-2 text-auth-muted">·</span>
+          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
             Privacy Policy
           </Link>
         </p>
