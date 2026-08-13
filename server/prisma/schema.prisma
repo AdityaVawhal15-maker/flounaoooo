@@ -32,6 +32,10 @@ model User {
   // Collected at sign-up (optional). Stored so the account actually keeps what
   // the user typed — previously the form asked for it and threw it away.
   dateOfBirth   String? // ISO yyyy-mm-dd
+  // Free text rather than an enum: the Personal Information screen offers a
+  // short list, but a fixed set in the database would make adding an option a
+  // migration, and would force users whose answer isn't listed into a wrong one.
+  gender        String?
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
   // Notification preferences (Settings). OTP/security mail always sends;
   // emailUpdates gates non-essential mail (receipts, announcements) and

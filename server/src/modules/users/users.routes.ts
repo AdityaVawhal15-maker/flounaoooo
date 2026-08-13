@@ -66,11 +66,23 @@ usersRouter.patch(
         .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number")
         .nullable()
         .optional(),
+      // Stored as the browser's date-input format so it round-trips exactly.
+      dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+        .nullable()
+        .optional(),
+      gender: z.string().trim().max(32).nullable().optional(),
     }),
   ),
   async (req, res, next) => {
     try {
-      const data = req.body as { name?: string; phone?: string | null };
+      const data = req.body as {
+        name?: string;
+        phone?: string | null;
+        dateOfBirth?: string | null;
+        gender?: string | null;
+      };
       const user = await prisma.user.update({
         where: { id: req.userId! },
         data: {
@@ -79,6 +91,10 @@ usersRouter.patch(
           ...(data.phone !== undefined
             ? { phone: data.phone, phoneVerified: false }
             : {}),
+          ...(data.dateOfBirth !== undefined
+            ? { dateOfBirth: data.dateOfBirth }
+            : {}),
+          ...(data.gender !== undefined ? { gender: data.gender } : {}),
         },
         select: {
           id: true,
@@ -88,6 +104,8 @@ usersRouter.patch(
           emailVerified: true,
           phoneVerified: true,
           avatarUrl: true,
+          dateOfBirth: true,
+          gender: true,
         },
       });
       res.json({ user });

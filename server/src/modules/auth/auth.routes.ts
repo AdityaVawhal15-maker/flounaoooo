@@ -52,6 +52,8 @@ function publicUser(user: {
   emailVerified: boolean;
   phoneVerified: boolean;
   avatarUrl: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
   role?: string;
 }) {
   return {
@@ -62,6 +64,8 @@ function publicUser(user: {
     emailVerified: user.emailVerified,
     phoneVerified: user.phoneVerified,
     avatarUrl: user.avatarUrl,
+    dateOfBirth: user.dateOfBirth ?? null,
+    gender: user.gender ?? null,
     // Operator role for console routing; "user" for ordinary customers.
     role: normalizeRole(user.role),
   };
