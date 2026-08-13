@@ -1,31 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import { AuthField, AuthButton } from "@/components/auth/AuthField";
 
 type Step = "email" | "reset";
 
+// Password reset, on the auth flow's own palette and field treatment.
+//
+// The Figma set doesn't draw this screen, so it is composed from that flow's
+// existing parts rather than invented: the same back button, lotus, navy
+// headline and orange-labelled white pill inputs as "Log in or sign up", and
+// the six-box code entry from OTP Verify. Nothing here is a new visual idea —
+// it just stops /forgot being the one screen still wearing the brand palette.
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const inputs = useRef<Array<HTMLInputElement | null>>([]);
+
+  const code = digits.join("");
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const mismatch = confirm.length > 0 && password !== confirm;
+  const canReset = code.length === 6 && password.length >= 8 && password === confirm;
+
+  function setDigit(i: number, value: string) {
+    const v = value.replace(/\D/g, "").slice(-1);
+    setDigits((prev) => {
+      const next = [...prev];
+      next[i] = v;
+      return next;
+    });
+    if (v && i < 5) inputs.current[i + 1]?.focus();
+  }
+
+  function onKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace" && !digits[i] && i > 0) inputs.current[i - 1]?.focus();
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (text.length === 6) {
+      e.preventDefault();
+      setDigits(text.split(""));
+      inputs.current[5]?.focus();
+    }
+  }
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setBusy(true);
     try {
-      await api("/api/auth/forgot", { method: "POST", json: { email } });
+      await api("/api/auth/forgot", { method: "POST", json: { email: email.trim() } });
       setStep("reset");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send the code");
@@ -45,7 +82,7 @@ export default function ForgotPasswordPage() {
     try {
       await api("/api/auth/reset", {
         method: "POST",
-        json: { email, code, password },
+        json: { email: email.trim(), code, password },
       });
       router.push("/login?reset=1");
     } catch (err) {
@@ -54,87 +91,143 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  return (
-    <div className="mt-2">
-      <div className="relative flex items-center justify-center py-3">
-        <Link
-          href="/login"
-          aria-label="Back to login"
-          className="absolute left-0 rounded-full p-2 text-ink hover:bg-beige"
-        >
-          <ChevronLeft size={22} />
-        </Link>
-        <h1 className="text-[20px] font-bold text-ink">Reset password</h1>
-      </div>
+  const eye = (
+    <button
+      type="button"
+      onClick={() => setShowPw((v) => !v)}
+      aria-label={showPw ? "Hide password" : "Show password"}
+      className="rounded-full p-1 text-auth-muted transition-colors hover:text-auth-ink"
+    >
+      {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+    </button>
+  );
 
-      {step === "email" ? (
-        <form onSubmit={sendCode} className="mt-6 flex flex-col gap-4">
-          <p className="text-[13px] text-cocoa">
-            Enter your account email and we&apos;ll send a 6-digit code to reset
-            your password.
+  return (
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
+        <button
+          type="button"
+          onClick={() => (step === "reset" ? setStep("email") : router.push("/login"))}
+          aria-label="Back"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+        >
+          <ArrowLeft size={20} />
+        </button>
+
+        <div className="mt-6 flex flex-col items-center text-center">
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            {step === "email" ? "Reset your password" : "Choose a new password"}
+          </h1>
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            {step === "email" ? (
+              "Enter your account email and we'll send you a 6-digit code."
+            ) : (
+              <>
+                We sent a code to{" "}
+                <span className="font-semibold text-auth-ink">{email}</span>
+              </>
+            )}
           </p>
-          <Input
-            label="Email address"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          {error && <p className="text-[13px] text-danger">{error}</p>}
-          <Button type="submit" disabled={busy} className="mt-2 w-full">
-            {busy ? "Sending…" : "Send code"}
-          </Button>
-        </form>
-      ) : (
-        <form onSubmit={resetPassword} className="mt-6 flex flex-col gap-4">
-          <p className="text-[13px] text-cocoa">
-            We sent a code to <span className="font-semibold text-ink">{email}</span>.
-            Enter it below with your new password.
-          </p>
-          <Input
-            label="6-digit code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="123456"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            required
-          />
-          <Input
-            label="New password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            minLength={8}
-            required
-          />
-          <Input
-            label="Confirm new password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="Confirm"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            minLength={8}
-            required
-          />
-          {error && <p className="text-[13px] text-danger">{error}</p>}
-          <Button type="submit" disabled={busy || code.length !== 6} className="mt-2 w-full">
-            {busy ? "Resetting…" : "Reset password"}
-          </Button>
-          <button
-            type="button"
-            onClick={() => setStep("email")}
-            className="text-[13px] font-semibold text-accent hover:underline"
-          >
-            Didn&apos;t get it? Send again
-          </button>
-        </form>
-      )}
+        </div>
+
+        {step === "email" ? (
+          <form onSubmit={sendCode} className="mt-9 flex flex-col gap-4">
+            <AuthField
+              label="Email"
+              type="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            {error && (
+              <p role="alert" className="text-[14px] text-danger">
+                {error}
+              </p>
+            )}
+            <AuthButton type="submit" disabled={busy || !emailValid}>
+              {busy ? "Sending…" : "Send code"}
+            </AuthButton>
+          </form>
+        ) : (
+          <form onSubmit={resetPassword} className="mt-9 flex flex-col gap-5">
+            <div
+              className="flex justify-center gap-2.5"
+              onPaste={onPaste}
+              role="group"
+              aria-label="Reset code"
+            >
+              {digits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={(el) => {
+                    inputs.current[i] = el;
+                  }}
+                  inputMode="numeric"
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
+                  aria-label={`Digit ${i + 1}`}
+                  value={d}
+                  autoFocus={i === 0}
+                  onChange={(e) => setDigit(i, e.target.value)}
+                  onKeyDown={(e) => onKeyDown(i, e)}
+                  className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                />
+              ))}
+            </div>
+
+            <AuthField
+              label="New password"
+              type={showPw ? "text" : "password"}
+              autoComplete="new-password"
+              trailing={eye}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+            <AuthField
+              label="Re-Enter the Password"
+              type={showPw ? "text" : "password"}
+              autoComplete="new-password"
+              error={mismatch ? "Passwords do not match" : undefined}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              minLength={8}
+              required
+            />
+
+            {error && (
+              <p role="alert" className="text-[14px] text-danger">
+                {error}
+              </p>
+            )}
+
+            <AuthButton type="submit" disabled={busy || !canReset}>
+              {busy ? "Resetting…" : "Reset password"}
+            </AuthButton>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStep("email");
+                setDigits(Array(6).fill(""));
+              }}
+              className="text-[15px] font-bold text-auth-accent hover:underline"
+            >
+              Didn&apos;t get it? Send again
+            </button>
+          </form>
+        )}
+
+        <p className="mt-7 pb-8 text-center text-[15px] text-auth-muted">
+          Remembered it?{" "}
+          <Link href="/login" className="font-bold text-auth-accent hover:underline">
+            Log In
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
