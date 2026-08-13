@@ -20,6 +20,7 @@ import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
 import { couponsRouter } from "./modules/coupons/coupons.routes.js";
+import { complaintsRouter } from "./modules/complaints/complaints.routes.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
 import { superRouter } from "./modules/backoffice/super.routes.js";
@@ -106,6 +107,7 @@ export function createApp() {
   app.use("/api/chat", chatRouter);
   app.use("/api/food", foodRouter);
   app.use("/api/orders", ordersRouter);
+  app.use("/api/complaints", complaintsRouter);
   app.use("/api/rides", ridesRouter);
   app.use("/api/payments", paymentsRouter);
   app.use("/api/users", usersRouter);
