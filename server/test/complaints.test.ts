@@ -3,6 +3,11 @@ import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
 import { prisma } from "../src/lib/prisma.js";
 import { recordAction } from "../src/modules/complaints/complaints.service.js";
+import {
+  applyInboundEvent,
+  callbackVerificationConfigured,
+  verifyCallbackSignature,
+} from "../src/modules/complaints/igm.adapter.js";
 
 // ONDC IGM 2.0 complaints.
 //
@@ -370,5 +375,110 @@ describe("complaint evidence", () => {
     await other
       .get(`/api/complaints/${complaint.id}/evidence/${up.body.evidence.id}`)
       .expect(404);
+  });
+});
+
+describe("ONDC IGM protocol layer", () => {
+  it("queues the outbound issue as pending and never claims it was sent", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+
+    const outbound = await prisma.complaintMessage.findFirst({
+      where: { complaintId: complaint.id, direction: "outbound", action: "issue" },
+    });
+    expect(outbound).not.toBeNull();
+    // Until the spec and credentials land, nothing is transmitted — and the
+    // record must not pretend otherwise.
+    expect(outbound!.status).toBe("pending");
+    expect(outbound!.sentAt).toBeNull();
+    expect(outbound!.error).toContain("not configured");
+  });
+
+  it("refuses a callback it cannot interpret rather than silently accepting", async () => {
+    const res = await request(app)
+      .post("/webhooks/ondc/igm/on-issue")
+      .send({ context: {}, message: { issue: { id: "whatever" } } })
+      .expect(400);
+    expect(res.body.message.ack.status).toBe("NACK");
+    expect(res.body.error.code).toBe("UNPARSEABLE");
+  });
+
+  it("exposes the callbacks outside /api so they carry no session", async () => {
+    // A session cookie must not be what authorises a network callback.
+    await request(app).post("/api/webhooks/ondc/igm/on-issue").send({}).expect(404);
+  });
+
+  it("applies an inbound event once, however many times it arrives", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    const row = await prisma.complaint.findUniqueOrThrow({
+      where: { id: complaint.id },
+      select: { code: true },
+    });
+
+    const event = {
+      messageId: `MSG-${complaint.id}`,
+      action: "on_issue" as const,
+      complaintRef: row.code,
+      actionId: `ACT-SELLER-${complaint.id}`,
+      code: "ACKNOWLEDGED" as const,
+      infoRequest: "Please send a photo of the item",
+      resolutions: [
+        {
+          resolutionId: `R1-${complaint.id}`,
+          type: "REFUND",
+          amountPaise: 35000,
+          description: "Full refund",
+        },
+      ],
+    };
+
+    const first = await applyInboundEvent("on_issue", event, { raw: true });
+    const second = await applyInboundEvent("on_issue", event, { raw: true });
+
+    expect(first.applied).toBe(true);
+    expect(second.applied).toBe(false);
+    expect(second.reason).toBe("duplicate message");
+
+    // One message, one resolution, one acknowledgement — not two of anything.
+    expect(
+      await prisma.complaintMessage.count({
+        where: { complaintId: complaint.id, direction: "inbound" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.complaintResolution.count({ where: { complaintId: complaint.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.complaintAction.count({
+        where: { complaintId: complaint.id, code: "ACKNOWLEDGED" },
+      }),
+    ).toBe(1);
+
+    // The info request reached the customer-facing record.
+    const after = await prisma.complaint.findUniqueOrThrow({ where: { id: complaint.id } });
+    expect(after.infoRequestedAt).not.toBeNull();
+    expect(after.status).toBe("PROCESSING");
+  });
+
+  it("ignores an event for a complaint it doesn't know", async () => {
+    const result = await applyInboundEvent(
+      "on_issue",
+      {
+        messageId: `MSG-unknown-${Date.now()}`,
+        action: "on_issue",
+        complaintRef: "ALG-999999",
+        code: "ACKNOWLEDGED",
+      },
+      {},
+    );
+    expect(result.applied).toBe(false);
+    expect(result.reason).toBe("unknown complaint");
+  });
+
+  it("treats signature verification as unconfigured, and would fail closed in production", async () => {
+    // Not configured here, so dev/test is permitted and production is not.
+    expect(callbackVerificationConfigured()).toBe(false);
+    expect(verifyCallbackSignature({}, "{}")).toBe(true); // NODE_ENV=test
   });
 });

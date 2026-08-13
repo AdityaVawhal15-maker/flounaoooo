@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { ApiError } from "../../middleware/error.js";
 import { enqueueNotification } from "../notifications/outbox.service.js";
+import { igmAdapter } from "./igm.adapter.js";
 
 // ONDC IGM 2.0 complaint service.
 //
@@ -242,6 +243,12 @@ export async function createComplaint(input: {
     { code: complaint.code, complaintId: complaint.id },
     { dedupeKey: `complaint.raised:${complaint.id}` },
   ).catch(() => {});
+
+  // Hand the case to the network. Deliberately after the complaint is durable
+  // and swallowed on failure: the customer has filed something real, and an
+  // ONDC outage must not lose it. The adapter records what it queued either
+  // way, so nothing has to be reconstructed later.
+  await igmAdapter.sendIssue(complaint.id).catch(() => {});
 
   return complaint;
 }
