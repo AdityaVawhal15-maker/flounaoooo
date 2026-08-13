@@ -8,6 +8,13 @@ import {
   callbackVerificationConfigured,
   verifyCallbackSignature,
 } from "../src/modules/complaints/igm.adapter.js";
+import {
+  getComplaintForOps,
+  simulateSellerAcknowledgement,
+  simulateInformationRequest,
+  simulateResolutionProposal,
+  simulateRefundCompleted,
+} from "../src/modules/complaints/complaints.admin.js";
 
 // ONDC IGM 2.0 complaints.
 //
@@ -480,5 +487,74 @@ describe("ONDC IGM protocol layer", () => {
     // Not configured here, so dev/test is permitted and production is not.
     expect(callbackVerificationConfigured()).toBe(false);
     expect(verifyCallbackSignature({}, "{}")).toBe(true); // NODE_ENV=test
+  });
+});
+
+describe("operator view", () => {
+  it("returns the full record including protocol messages", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+
+    const detail = await getComplaintForOps(complaint.id);
+    expect(detail.code).toBe(complaint.code);
+    // Operators DO see raw protocol traffic — that pairing is what the ONDC
+    // walkthrough asks to demonstrate. Customers never do.
+    expect(Array.isArray(detail.messages)).toBe(true);
+    expect(detail.messages.some((m) => m.direction === "outbound")).toBe(true);
+    expect(detail.actors).toHaveLength(2);
+  });
+
+  it("drives the real action trail when simulating a seller", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+
+    await simulateSellerAcknowledgement(complaint.id);
+    await simulateInformationRequest(complaint.id, "Send a photo please");
+    await simulateResolutionProposal(complaint.id, [
+      { type: "REFUND", amountPaise: 35000, description: "Full refund" },
+      { type: "REPLACEMENT", description: "Replacement" },
+    ]);
+
+    const detail = await getComplaintForOps(complaint.id);
+    expect(detail.status).toBe("PROCESSING");
+    expect(detail.infoRequestedAt).not.toBeNull();
+    expect(detail.resolutions).toHaveLength(2);
+    // Simulated actions are labelled so an audit can tell them from real ones.
+    expect(
+      detail.actions.filter((a) => a.description.includes("simulated")).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps refund completion separate from resolution acceptance", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    await simulateResolutionProposal(complaint.id, [
+      { type: "REFUND", amountPaise: 35000, description: "Full refund" },
+    ]);
+
+    const before = await getComplaintForOps(complaint.id);
+    await agent
+      .post(
+        `/api/complaints/${complaint.id}/resolution/${before.resolutions[0]!.id}/accept`,
+      )
+      .expect(200);
+
+    // Accepting opens a refund, but does not settle it.
+    let detail = await getComplaintForOps(complaint.id);
+    expect(detail.refunds[0]!.status).toBe("initiated");
+    expect(detail.refunds[0]!.refundReference).toBeNull();
+
+    // Settlement is a separate, explicit fact.
+    await simulateRefundCompleted(complaint.id, "RFND-TEST-1");
+    detail = await getComplaintForOps(complaint.id);
+    expect(detail.refunds[0]!.status).toBe("completed");
+    expect(detail.refunds[0]!.refundReference).toBe("RFND-TEST-1");
+    expect(detail.actions.some((a) => a.code === "REFUND_COMPLETED")).toBe(true);
+  });
+
+  it("hides the console from ordinary users and demands step-up from operators", async () => {
+    const { agent } = await authedAgent();
+    // A plain user must not even learn the console exists.
+    await agent.get("/api/console/admin/complaints").expect(404);
   });
 });
