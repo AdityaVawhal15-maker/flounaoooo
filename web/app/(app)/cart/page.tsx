@@ -312,30 +312,38 @@ export default function CartPage() {
             </div>
           </Card>
 
-          {/* Price details — estimates; the server recomputes at checkout */}
+          {/* Order Summary — the design's typography (Figma 2265:1975), but not
+              its numbers. That frame prints "Delivery Fee FREE" and a flat
+              "Platform Fee ₹5" as fixed values; fees here are computed
+              server-side at checkout, so quoting them now would be a price
+              promise this screen can't keep. The line stays honest instead. */}
           <Card className="mt-4">
-            <p className="text-[14px] font-bold text-ink">{t("cart.priceDetails")}</p>
-            <div className="mt-2 flex flex-col gap-1.5 text-[13px]">
-              <div className="flex justify-between text-cocoa">
-                <span>
+            <p className="text-[17px] font-extrabold text-ink">Order Summary</p>
+            <div className="mt-3 flex flex-col gap-2.5 text-[14px]">
+              <div className="flex justify-between">
+                <span className="text-cocoa">
                   {t("bill.itemTotal")} ({lines.reduce((s, l) => s + l.qty, 0)})
                 </span>
-                <span className="text-ink">{rupees(itemsTotal)}</span>
+                <span className="font-medium text-ink">{rupees(itemsTotal)}</span>
               </div>
-              <div className="flex justify-between text-cocoa">
-                <span>{t("cart.deliveryFees")}</span>
-                <span className="text-ink">{t("cart.shownAtPay")}</span>
+              <div className="flex justify-between">
+                <span className="text-cocoa">{t("cart.deliveryFees")}</span>
+                <span className="font-medium text-ink">{t("cart.shownAtPay")}</span>
               </div>
               {coupon && (
                 <div className="flex justify-between text-success">
                   <span>Promo {coupon.code}</span>
-                  <span>− {rupees(coupon.discountPaise)}</span>
+                  <span className="font-semibold">− {rupees(coupon.discountPaise)}</span>
                 </div>
               )}
               <div className="my-1 h-px bg-line" />
-              <div className="flex justify-between font-bold text-ink">
-                <span>{t("cart.toPay")}</span>
-                <span>{rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}</span>
+              <div className="flex items-center justify-between">
+                <span className="text-[16px] font-extrabold text-ink">
+                  {t("cart.toPay")}
+                </span>
+                <span className="text-[20px] font-extrabold text-ink">
+                  {rupees(Math.max(0, itemsTotal - (coupon?.discountPaise ?? 0)))}
+                </span>
               </div>
             </div>
           </Card>
