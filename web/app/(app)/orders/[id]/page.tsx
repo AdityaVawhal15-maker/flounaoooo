@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { RateOrder } from "@/components/orders/RateOrder";
+import { CancelOrderSheet } from "@/components/orders/CancelOrderSheet";
 import { TrackingTimeline } from "@/components/orders/TrackingTimeline";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { RideTracker } from "@/components/orders/RideTracker";
@@ -65,6 +66,7 @@ export default function OrderDetailPage({
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const [cancelling, setCancelling] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -251,6 +253,30 @@ export default function OrderDetailPage({
           <Row label={t("bill.orderId")} value={order.id} mono />
         </div>
       </Card>
+
+      {/* Cancel — only while the order is still cancellable. The server owns
+          the real policy (food can't be cancelled once out for delivery), so
+          this hides the obvious cases and lets the server refuse the rest with
+          its own message rather than duplicating the rules here. */}
+      {order.status !== "cancelled" && order.status !== "completed" && !allDone && (
+        <button
+          onClick={() => setCancelling(true)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill border border-danger/30 bg-card py-3 text-[14px] font-semibold text-danger transition-colors hover:bg-danger/5"
+        >
+          Cancel {order.domain === "ride" ? "booking" : "order"}
+        </button>
+      )}
+
+      {cancelling && (
+        <CancelOrderSheet
+          orderId={order.id}
+          domain={order.domain}
+          onClose={() => setCancelling(false)}
+          onCancelled={() =>
+            setOrder((o) => (o ? { ...o, status: "cancelled" } : o))
+          }
+        />
+      )}
 
       {/* Need Help opens the ONDC IGM complaint flow — a tracked grievance case
           with a complaint ID, not a helpdesk message. The older support link
