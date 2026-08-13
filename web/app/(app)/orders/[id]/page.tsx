@@ -252,12 +252,20 @@ export default function OrderDetailPage({
         </div>
       </Card>
 
-      {/* Something wrong? Straight into the support flow with this order linked. */}
+      {/* Need Help opens the ONDC IGM complaint flow — a tracked grievance case
+          with a complaint ID, not a helpdesk message. The older support link
+          stays beneath it for questions that aren't a formal complaint. */}
+      <Link
+        href={`/orders/${order.id}/help`}
+        className="mt-4 flex items-center justify-center gap-2 rounded-pill bg-ink py-3.5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+      >
+        <LifeBuoy size={16} /> Need Help
+      </Link>
       <Link
         href={`/profile/help?order=${order.id}`}
-        className="mt-4 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-cocoa transition-colors hover:bg-beige/40"
+        className="mt-3 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-cocoa transition-colors hover:bg-beige/40"
       >
-        <LifeBuoy size={15} className="text-accent" /> {t("order.reportIssue")}
+        {t("order.reportIssue")}
       </Link>
     </div>
   );

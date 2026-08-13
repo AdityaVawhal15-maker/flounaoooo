@@ -37,6 +37,23 @@ const SECURITY_FOOTNOTE =
 // against RegistryEntry while preserving the literal keys, which then become
 // the NotificationType union below.
 export const NOTIFICATION_TYPES = {
+  // ONDC IGM: the complaint acknowledgement the Complaint Submitted screen
+  // promises. Filed under security so it is never suppressed by the marketing
+  // preferences — a grievance receipt is not an update the customer opted into.
+  "complaint.raised": {
+    category: "security",
+    build: (p) => ({
+      subject: `Complaint ${p.code} received`,
+      heading: "We've got your complaint",
+      lines: [
+        `Your complaint reference is ${p.code}.`,
+        "We've passed it to the seller and will update you as they respond.",
+        "You can follow its progress at any time.",
+      ],
+      ctaLabel: "Track complaint",
+      ctaPath: `/complaints/${p.complaintId}`,
+    }),
+  },
   "security.password_changed": {
     category: "security",
     build: () => ({

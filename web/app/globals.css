@@ -42,6 +42,17 @@
   --color-acct-bg: #f9fafb; /* page ground */
   --color-acct-accent: #b33b06; /* premium badge, row icons */
   --color-acct-tint: #fff6f1; /* icon badges, premium pill */
+
+  /* Complaint / grievance palette (Figma 2286:*, 2290:*). The ONDC IGM screens
+     are drawn on a blue primary with semantic green for a processed refund and
+     amber for a pending timeline, over the same greys as the account set.
+     Isolated like the others so it can be reconciled with the brand later. */
+  --color-igm-accent: #2563eb;
+  --color-igm-tint: #eff6ff;
+  --color-igm-good: #16a34a;
+  --color-igm-good-tint: #dcfce7;
+  --color-igm-wait: #f59e0b;
+  --color-igm-body: #374151; /* body copy, one step darker than acct-muted */
   --color-send: #e8a060; /* ask-bar send button */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */

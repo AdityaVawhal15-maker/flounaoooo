@@ -283,3 +283,18 @@ describe("complaints", () => {
     await request(app).post("/api/complaints").send({}).expect(401);
   });
 });
+
+describe("complaint acknowledgement email", () => {
+  it("queues the confirmation the Submitted screen promises", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+
+    const queued = await prisma.notification.findFirst({
+      where: { type: "complaint.raised", dedupeKey: `complaint.raised:${complaint.id}` },
+    });
+    expect(queued).not.toBeNull();
+    // Filed under security so marketing preferences can never suppress a
+    // grievance receipt.
+    expect(JSON.parse(queued!.payload).code).toBe(complaint.code);
+  });
+});

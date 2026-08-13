@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.js";
 import { ApiError } from "../../middleware/error.js";
+import { enqueueNotification } from "../notifications/outbox.service.js";
 
 // ONDC IGM 2.0 complaint service.
 //
@@ -230,6 +231,17 @@ export async function createComplaint(input: {
     actionBy: "CONSUMER",
     actorId: input.userId,
   });
+
+  // The Complaint Submitted screen tells the customer a confirmation email is
+  // on its way, so one is actually queued. dedupeKey makes a retried create
+  // harmless. Awaited-and-swallowed rather than fire-and-forget: a mail problem
+  // must not fail the complaint, but it also must not race the response.
+  await enqueueNotification(
+    input.userId,
+    "complaint.raised",
+    { code: complaint.code, complaintId: complaint.id },
+    { dedupeKey: `complaint.raised:${complaint.id}` },
+  ).catch(() => {});
 
   return complaint;
 }
