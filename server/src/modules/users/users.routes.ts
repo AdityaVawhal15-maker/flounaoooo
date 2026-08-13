@@ -161,6 +161,7 @@ usersRouter.get("/preferences", async (req, res, next) => {
         smartSuggestions: true,
         emailMoneyUpdates: true,
         emailTips: true,
+        shareLocation: true,
       },
     });
     res.json(user);
@@ -178,6 +179,7 @@ usersRouter.put(
         smartSuggestions: z.boolean().optional(),
         emailMoneyUpdates: z.boolean().optional(),
         emailTips: z.boolean().optional(),
+        shareLocation: z.boolean().optional(),
       })
       .refine((b) => Object.keys(b).length > 0, { message: "Nothing to update" }),
   ),
@@ -188,6 +190,7 @@ usersRouter.put(
         smartSuggestions?: boolean;
         emailMoneyUpdates?: boolean;
         emailTips?: boolean;
+        shareLocation?: boolean;
       };
       const user = await prisma.user.update({
         where: { id: req.userId! },
@@ -197,6 +200,7 @@ usersRouter.put(
           smartSuggestions: true,
           emailMoneyUpdates: true,
           emailTips: true,
+          shareLocation: true,
         },
       });
       res.json(user);
@@ -205,6 +209,32 @@ usersRouter.put(
     }
   },
 );
+
+// ---------- Login activity (Privacy & Security) ----------
+//
+// Backed by the refresh tokens that already represent sessions, so this is the
+// real list rather than a display: revoking here genuinely ends those sessions
+// at their next refresh. The current session is identified by its own cookie so
+// the caller can't accidentally sign themselves out of the device they're on.
+
+usersRouter.get("/sessions", async (req, res, next) => {
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId: req.userId!, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    // Counted separately — the list above is capped, so its length would
+    // under-report anyone with more than 50 live sessions.
+    const count = await prisma.refreshToken.count({
+      where: { userId: req.userId!, revokedAt: null, expiresAt: { gt: new Date() } },
+    });
+    res.json({ sessions, count });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Decision profile — the user's learned taste, spend behaviour and routines.
 // Powers personalized recommendations and proactive nudges.

@@ -35,9 +35,15 @@ export function verifyAccessToken(token: string): AccessPayload | null {
 
 // Refresh tokens are opaque random strings stored hashed — a DB leak
 // exposes nothing usable, and individual sessions can be revoked.
+
+/** Hash a raw refresh token the way it is stored, so callers can match a row. */
+export function hashToken(raw: string) {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
 export async function issueRefreshToken(userId: string, stepUp = false) {
   const raw = crypto.randomBytes(48).toString("hex");
-  const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
+  const tokenHash = hashToken(raw);
   await prisma.refreshToken.create({
     data: {
       userId,
@@ -50,7 +56,7 @@ export async function issueRefreshToken(userId: string, stepUp = false) {
 }
 
 export async function rotateRefreshToken(raw: string) {
-  const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
+  const tokenHash = hashToken(raw);
   const existing = await prisma.refreshToken.findUnique({ where: { tokenHash } });
   if (!existing || existing.revokedAt || existing.expiresAt < new Date()) {
     return null;
@@ -66,7 +72,7 @@ export async function rotateRefreshToken(raw: string) {
 }
 
 export async function revokeRefreshToken(raw: string) {
-  const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
+  const tokenHash = hashToken(raw);
   await prisma.refreshToken.updateMany({
     where: { tokenHash, revokedAt: null },
     data: { revokedAt: new Date() },

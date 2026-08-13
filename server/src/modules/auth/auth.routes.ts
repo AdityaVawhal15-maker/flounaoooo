@@ -14,6 +14,7 @@ import {
   setAuthCookies,
   signAccessToken,
   verifyPassword,
+  hashToken,
 } from "../../lib/tokens.js";
 import { validateBody } from "../../middleware/validate.js";
 import { requireAuth } from "../../middleware/auth.js";
@@ -571,6 +572,37 @@ authRouter.post("/logout", sessionLimiter, async (req, res) => {
   clearAuthCookies(res);
   res.json({ ok: true });
 });
+
+// Sign out everywhere except this device.
+//
+// Lives on the auth router, not with the other user endpoints, because the
+// refresh cookie is deliberately scoped to /api/auth for CSRF defence — from
+// anywhere else the cookie simply isn't sent, and the handler would have no way
+// to tell which session is the caller's. Kept as revoke-others rather than
+// revoke-all: a control that also drops the current session just reads as a
+// crash to whoever pressed it.
+authRouter.post(
+  "/sessions/revoke-others",
+  sessionLimiter,
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const raw = req.cookies?.refresh_token as string | undefined;
+      if (!raw) throw new ApiError(401, "Not authenticated");
+      const { count } = await prisma.refreshToken.updateMany({
+        where: {
+          userId: req.userId!,
+          revokedAt: null,
+          NOT: { tokenHash: hashToken(raw) },
+        },
+        data: { revokedAt: new Date() },
+      });
+      res.json({ revoked: count });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 authRouter.get("/me", requireAuth, async (req, res, next) => {
   try {

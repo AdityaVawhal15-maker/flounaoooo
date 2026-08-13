@@ -49,7 +49,7 @@ const ACCOUNT: Row[] = [
     subtitle: "Manage your personal details",
   },
   {
-    href: "/profile/settings",
+    href: "/profile/privacy",
     icon: ShieldCheck,
     title: "Privacy & Security",
     subtitle: "Manage privacy and security settings",

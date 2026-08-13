@@ -46,6 +46,10 @@ model User {
   // emailUpdates keeps gating order/receipt mail.
   emailMoneyUpdates Boolean @default(true) // savings, price drops, Plus ROI
   emailTips         Boolean @default(true) // lifecycle nudges & announcements
+  // Privacy & Security. Gates the rides screen auto-detecting the rider's
+  // position on load; they can still pick a pickup by hand or tap the locate
+  // control, which is an explicit request rather than a silent read.
+  shareLocation     Boolean @default(true)
   // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive    Boolean   @default(false)
