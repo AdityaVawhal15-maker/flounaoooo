@@ -31,6 +31,17 @@
   --color-auth-muted: #8b7b72; /* subtitles, placeholders */
   --color-auth-disabled: #f8d7c8; /* primary button, inactive */
   --color-auth-disabled-ink: #d97757; /* its label */
+
+  /* Account palette — the profile set (Figma 2195:5xx–17xx) is drawn on a
+     neutral grey scale rather than either palette above: near-black text on an
+     off-white page, grey secondary copy, and a deeper burnt orange. Same
+     reasoning as the auth tokens — isolated here so the set can be pulled back
+     onto the brand later without touching the screens. */
+  --color-acct-ink: #111827; /* titles and values */
+  --color-acct-muted: #9ca3af; /* section labels, row subtitles */
+  --color-acct-bg: #f9fafb; /* page ground */
+  --color-acct-accent: #b33b06; /* premium badge, row icons */
+  --color-acct-tint: #fff6f1; /* icon badges, premium pill */
   --color-send: #e8a060; /* ask-bar send button */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */

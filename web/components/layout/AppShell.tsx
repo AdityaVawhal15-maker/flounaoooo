@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
@@ -24,6 +25,12 @@ export function AppShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+  const pathname = usePathname();
+
+  // The account screens are drawn on their own near-white grey rather than the
+  // app cream. The sticky header sits directly above them, so it has to take
+  // the same ground or a hard colour seam shows across the top of the page.
+  const onAccountGround = pathname.startsWith("/profile");
 
   return (
     <div className="flex min-h-dvh w-full">
@@ -31,7 +38,11 @@ export function AppShell({
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 bg-cream/90 px-4 backdrop-blur lg:hidden">
+        <header
+          className={`sticky top-0 z-20 flex h-16 items-center justify-between gap-3 px-4 backdrop-blur lg:hidden ${
+            onAccountGround ? "bg-acct-bg/90" : "bg-cream/90"
+          }`}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
             className="-ml-1 rounded-full p-2 text-ink transition-colors hover:bg-beige"
