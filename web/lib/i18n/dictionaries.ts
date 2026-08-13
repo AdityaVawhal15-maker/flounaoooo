@@ -228,7 +228,7 @@ export const dictionaries = {
     "nav.rides": "Rides",
     "nav.profile": "Profile",
     "nav.newChat": "New Chat",
-    "chat.placeholder": "Ask Flouna",
+    "chat.placeholder": "Ask anything...",
     "chat.heading1": "What do you want to ",
     "chat.heading2": "choose today?",
     "chat.bookRide": "Book a ride",

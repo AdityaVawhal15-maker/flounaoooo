@@ -6,30 +6,37 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   Home,
   History,
-  Pizza,
   Car,
-  Settings,
-  PenLine,
+  Utensils,
+  PanelLeftClose,
   PanelLeft,
+  ChevronRight,
+  MessageSquare,
   X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
+import { useAuth } from "@/components/auth/AuthContext";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
-// Figma desktop sidebar: New chat / Home / History / Food / Rides with a
-// gear+Profile row pinned to the bottom. On desktop it collapses to an
-// icon-only rail (the PanelLeft toggle), remembered across visits. On mobile
-// it stays the full-width drawer.
+// Redesigned sidebar (Figma 2177:1233): outlined "New Conversation" pill, an
+// "AI Assistants" card whose rows carry a round icon badge and a chevron, and a
+// profile card pinned to the foot.
+//
+// The design frame shows no recent-chats list, but it is drawn as a fresh
+// account — hence the large empty band between the nav card and the profile
+// card. Recent chats are kept and restyled into that band rather than dropped,
+// since conversation restore is a working feature and the History row goes to a
+// different surface.
 const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
   { href: "/home", key: "nav.home", icon: Home },
   { href: "/history", key: "nav.history", icon: History },
-  { href: "/food", key: "nav.food", icon: Pizza },
   { href: "/rides", key: "nav.rides", icon: Car },
+  { href: "/food", key: "nav.food", icon: Utensils },
 ];
 
 const COLLAPSE_KEY = "flouna-sidebar-collapsed";
@@ -54,6 +61,7 @@ export function Sidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { t } = useI18n();
+  const { user } = useAuth();
   const [recent, setRecent] = useState<ChatSessionSummary[]>([]);
   const [showAll, setShowAll] = useState(false);
   // Collapse preference lives in localStorage (SSR renders expanded).
@@ -90,23 +98,28 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card px-4 py-5 transition-transform",
-          "lg:static lg:translate-x-0 lg:shrink-0 lg:border-r lg:border-line lg:bg-cream lg:transition-[width] lg:duration-200",
-          collapsed ? "lg:w-[88px] lg:px-3" : "lg:w-[264px]",
+          "fixed inset-y-0 left-0 z-50 flex w-[300px] flex-col bg-cream px-4 py-5 transition-transform",
+          "lg:static lg:translate-x-0 lg:shrink-0 lg:border-r lg:border-line lg:transition-[width] lg:duration-200",
+          collapsed ? "lg:w-[96px] lg:px-3" : "lg:w-[300px]",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
+        {/* Brand row + collapse toggle */}
         <div
           className={cn(
             "flex items-center",
-            collapsed ? "lg:flex-col lg:gap-4" : "justify-between",
+            collapsed ? "lg:flex-col lg:gap-3" : "justify-between",
           )}
         >
-          <Link href="/home" aria-label="Flouna home" className="flex items-center gap-2.5">
-            <FlounaLogo size={34} className="shrink-0 text-ink" />
+          <Link
+            href="/home"
+            aria-label="Flouna home"
+            className="flex min-w-0 items-center gap-2.5"
+          >
+            <FlounaLogo size={30} className="shrink-0 text-cocoa/70" />
             <span
               className={cn(
-                "text-[20px] font-bold text-ink",
+                "truncate text-[17px] font-bold text-ink",
                 collapsed && "lg:hidden",
               )}
             >
@@ -115,10 +128,10 @@ export function Sidebar({
           </Link>
           <button
             onClick={toggleCollapsed}
-            className="hidden rounded-[10px] p-2 text-cocoa transition-colors hover:bg-beige lg:block"
+            className="hidden size-10 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent transition-colors hover:bg-accent/15 lg:flex"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <PanelLeft size={20} />
+            {collapsed ? <PanelLeft size={19} /> : <PanelLeftClose size={19} />}
           </button>
           <button
             onClick={onClose}
@@ -129,20 +142,39 @@ export function Sidebar({
           </button>
         </div>
 
-        <nav className={cn("mt-8 flex flex-col gap-2", collapsed && "lg:items-center")}>
-          <Link
-            href="/home"
-            onClick={onClose}
-            title={t("nav.newChat")}
-            className={cn(
-              "flex items-center gap-3 rounded-pill px-4 py-3 text-[15px] font-medium text-ink/85 transition-colors hover:bg-beige/70",
-              collapsed && "lg:justify-center lg:px-3",
-            )}
-          >
-            <PenLine size={19} className="shrink-0 text-ink" />
-            <span className={cn(collapsed && "lg:hidden")}>{t("nav.newChat")}</span>
-          </Link>
+        {/* New conversation — outlined, per the design */}
+        <Link
+          href="/home"
+          onClick={onClose}
+          title={t("nav.newChat")}
+          className={cn(
+            "mt-6 flex h-[58px] items-center justify-center gap-2 rounded-pill border border-accent bg-transparent text-[17px] font-bold text-ink transition-colors hover:bg-accent-soft/60",
+            collapsed && "lg:h-12 lg:px-0",
+          )}
+        >
+          {collapsed ? (
+            <MessageSquare size={19} className="text-accent lg:block" />
+          ) : (
+            "New Conversation"
+          )}
+        </Link>
 
+        <p
+          className={cn(
+            "mt-6 px-1 text-[13px] font-bold text-muted",
+            collapsed && "lg:hidden",
+          )}
+        >
+          AI Assistants
+        </p>
+
+        {/* Nav card */}
+        <nav
+          className={cn(
+            "mt-2 overflow-hidden rounded-[20px] bg-card shadow-soft",
+            collapsed && "lg:bg-transparent lg:shadow-none",
+          )}
+        >
           {navItems.map(({ href, key, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
@@ -151,75 +183,110 @@ export function Sidebar({
                 href={href}
                 onClick={onClose}
                 title={t(key)}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-pill px-4 py-3 text-[15px] transition-colors",
-                  active
-                    ? "bg-accent-soft font-semibold text-accent"
-                    : "text-ink/85 hover:bg-beige/70",
-                  collapsed && "lg:justify-center lg:px-3",
+                  "flex items-center gap-3 px-3 py-2.5 transition-colors",
+                  active ? "bg-accent-soft/70" : "hover:bg-beige/40",
+                  collapsed && "lg:justify-center lg:px-0",
                 )}
               >
-                <Icon
-                  size={19}
-                  className={cn("shrink-0", active ? "text-accent" : "text-cocoa")}
+                <span
+                  className={cn(
+                    "flex size-11 shrink-0 items-center justify-center rounded-full",
+                    active ? "bg-card" : "bg-accent-soft/60",
+                  )}
+                >
+                  <Icon size={19} className="text-accent" />
+                </span>
+                <span
+                  className={cn(
+                    "flex-1 truncate text-[16px]",
+                    active ? "font-bold text-accent" : "text-ink",
+                    collapsed && "lg:hidden",
+                  )}
+                >
+                  {t(key)}
+                </span>
+                <ChevronRight
+                  size={17}
+                  className={cn(
+                    "shrink-0",
+                    active ? "text-accent" : "text-muted/60",
+                    collapsed && "lg:hidden",
+                  )}
                 />
-                <span className={cn(collapsed && "lg:hidden")}>{t(key)}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* Recent chats — expanded sidebar and mobile drawer only */}
+        {/* Recent chats fill the band the design leaves empty on a fresh account */}
         <div
           className={cn(
-            "mt-7 min-h-0 flex-1 overflow-y-auto",
+            "mt-5 min-h-0 flex-1 overflow-y-auto",
             collapsed && "lg:invisible",
           )}
         >
-          <p className="px-3 text-[12px] font-semibold text-accent">
-            Recent Chats
-          </p>
-          <div className="mt-2 flex flex-col gap-0.5">
-            {recent.length === 0 && (
-              <p className="flex items-center gap-2 px-3 py-2 text-[13px] text-cocoa/70">
-                <PenLine size={14} />
-                No chats yet
+          {recent.length > 0 && (
+            <>
+              <p className="px-1 text-[13px] font-bold text-muted">
+                Recent Chats
               </p>
-            )}
-            {visible.map((s) => (
-              <Link
-                key={s.id}
-                href={`/home?chat=${s.id}`}
-                onClick={onClose}
-                className="flex items-center gap-2 truncate rounded-[10px] px-3 py-2 text-[13px] text-ink/80 transition-colors hover:bg-beige/60"
-              >
-                <PenLine size={13} className="shrink-0 text-cocoa/60" />
-                <span className="truncate">{s.title ?? "New chat"}</span>
-              </Link>
-            ))}
-            {recent.length > 5 && !showAll && (
-              <button
-                onClick={() => setShowAll(true)}
-                className="px-3 py-2 text-left text-[13px] font-semibold text-accent hover:underline"
-              >
-                Show all
-              </button>
-            )}
-          </div>
+              <div className="mt-2 flex flex-col gap-0.5">
+                {visible.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`/home?chat=${s.id}`}
+                    onClick={onClose}
+                    className="flex items-center gap-2 truncate rounded-[12px] px-3 py-2 text-[14px] text-ink/80 transition-colors hover:bg-beige/50"
+                  >
+                    <MessageSquare size={14} className="shrink-0 text-muted" />
+                    <span className="truncate">{s.title ?? "New chat"}</span>
+                  </Link>
+                ))}
+                {recent.length > 5 && !showAll && (
+                  <button
+                    onClick={() => setShowAll(true)}
+                    className="px-3 py-2 text-left text-[13px] font-semibold text-accent hover:underline"
+                  >
+                    Show all
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Bottom pinned: gear + Profile, per the desktop design */}
+        {/* Profile card, pinned to the foot */}
         <Link
           href="/profile"
           onClick={onClose}
           title={t("nav.profile")}
           className={cn(
-            "mt-4 flex items-center gap-3 rounded-pill px-4 py-3 text-[15px] font-semibold text-ink transition-colors hover:bg-beige/70",
-            collapsed && "lg:justify-center lg:px-3",
+            "mt-4 flex items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
+            collapsed && "lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
           )}
         >
-          <Settings size={19} className="shrink-0 text-ink" />
-          <span className={cn(collapsed && "lg:hidden")}>{t("nav.profile")}</span>
+          <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
+            {user?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+            ) : (
+              (user?.name?.trim()?.[0] ?? "?").toUpperCase()
+            )}
+          </span>
+          <span className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
+            <span className="block truncate text-[16px] font-bold text-ink">
+              {user?.name ?? "Your account"}
+            </span>
+            <span className="block truncate text-[13px] text-muted">
+              View profile
+            </span>
+          </span>
+          <ChevronRight
+            size={17}
+            className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
+          />
         </Link>
       </aside>
     </>

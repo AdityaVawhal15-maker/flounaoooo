@@ -13,7 +13,6 @@ import {
   Utensils,
   Coffee,
   Moon,
-  Plus,
   Search as SearchIcon,
   Eye,
   EyeOff,
@@ -194,15 +193,18 @@ function ChatHome() {
   return (
     <div
       className={cn(
-        "mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6",
+        // 4rem = the mobile app header; desktop has none.
+        "mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6",
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
       )}
     >
-      {/* Temporary chat toggle — top right, like the incognito switch in
-          ChatGPT. On = nothing about this conversation is stored. */}
-      {/* Mobile: sits inside the sticky app header row (right of the
-          hamburger). Desktop: top-right of the chat column. */}
-      <div className="fixed right-3 top-0 z-30 flex h-14 items-center gap-2 lg:static lg:h-auto lg:w-full lg:justify-end lg:pt-3">
+      {/* Temporary chat toggle — the incognito switch. On = nothing about this
+          conversation is stored.
+
+          These used to be pinned into the mobile app header, but the redesign
+          fills that bar with hamburger / wordmark / avatar, so they sit in the
+          chat column on every width now rather than overlapping the avatar. */}
+      <div className="flex w-full items-center justify-end gap-2 pt-2 lg:pt-3">
         <LanguageSelector />
         <button
           onClick={() => {
@@ -251,15 +253,17 @@ function ChatHome() {
             />
           </div>
 
-          {/* Hero heading — exact Figma: navy line 1, terracotta line 2 */}
+          {/* Hero heading — the redesign sets both lines in the brand accent
+              (Figma 2177:4763), replacing the old navy/terracotta split. */}
           <FadeIn y={10}>
-            <h1 className="flex flex-col gap-0.5 text-[26px] font-bold leading-[1.2] tracking-tight lg:text-[44px]">
-              <span className="text-navy">{t("chat.heading1")}</span>
-              <span className="text-terracotta">{t("chat.heading2")}</span>
+            <h1 className="text-balance text-[30px] font-bold leading-[1.2] tracking-tight text-accent lg:text-[44px]">
+              {t("chat.heading1")}
+              {t("chat.heading2")}
             </h1>
           </FadeIn>
 
-          {/* Quick chips — flat beige pills, matching the design */}
+          {/* Quick chips — solid accent pills in the redesign, replacing the
+              flat beige ones. Two per row on mobile, as drawn. */}
           <Stagger delayChildren={0.15} className="mt-6 flex flex-wrap items-center justify-center gap-3">
             {suggestions.slice(0, 3).map((s) => {
               const Icon = ICONS[s.icon] ?? Pizza;
@@ -269,9 +273,9 @@ function ChatHome() {
                     onClick={() =>
                       s.prompt.endsWith(" ") ? setInput(s.prompt) : send(s.prompt)
                     }
-                    className="flex items-center gap-2 rounded-[22px] bg-chip px-4 py-2.5 text-[13px] font-medium text-chip-ink transition-colors hover:bg-[#dcd2c8]"
+                    className="flex items-center gap-2 rounded-pill bg-accent px-5 py-3 text-[15px] font-medium text-white transition-colors hover:bg-[#d4570f]"
                   >
-                    <Icon size={15} className="text-chip-ink" />
+                    <Icon size={16} className="text-white" />
                     {s.label}
                   </button>
                 </StaggerItem>
@@ -283,13 +287,16 @@ function ChatHome() {
             <FadeIn delay={0.35} className="mt-5 w-full max-w-md">
               <Link
                 href={`/food/order/${usual.dishId}?platform=${usual.platform}`}
-                className="flex items-center gap-2.5 rounded-[22px] bg-chip px-4 py-2.5 text-left transition-colors hover:bg-[#dcd2c8]"
+                // Outlined rather than solid: the accent chips above are the
+                // primary suggestions, and a second solid pill would compete
+                // with them instead of reading as the quieter shortcut it is.
+                className="flex items-center gap-2.5 rounded-pill border border-line bg-card px-4 py-3 text-left shadow-soft transition-colors hover:bg-beige/40"
               >
-                <RotateCcw size={15} className="shrink-0 text-chip-ink" />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-chip-ink">
+                <RotateCcw size={16} className="shrink-0 text-accent" />
+                <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-ink">
                   {t("chat.yourUsual")} {usual.name}
                 </span>
-                <span className="shrink-0 text-[13px] font-semibold text-terracotta">
+                <span className="shrink-0 text-[14px] font-bold text-accent">
                   {rupees(usual.effectivePaise)}
                 </span>
               </Link>
@@ -346,25 +353,27 @@ function ChatHome() {
         }}
         className="sticky bottom-0 z-10 pb-4 pt-2"
       >
-        {/* Ask bar — matches Figma: white, soft border, plus left, terracotta send */}
-        <div className="flex items-center gap-2.5 rounded-[30px] border border-[#d0c8c0] bg-white py-2 pl-4 pr-2 shadow-[0px_3px_8px_rgba(0,0,0,0.07)] lg:py-3 lg:pl-6">
-          <Plus size={19} className="shrink-0 text-cocoa/70 lg:hidden" />
-          <SearchIcon size={20} className="hidden shrink-0 text-ink lg:block" />
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={t("chat.placeholder")}
-            maxLength={500}
-            className="h-9 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-[#a09890]"
-          />
-          <VoiceButton onTranscript={setInput} onFinal={send} />
+        {/* Ask bar — the redesign lifts the send button out of the field into
+            its own accent circle beside it (Figma 2177:4763). */}
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-pill bg-white py-3 pl-5 pr-4 shadow-card">
+            <SearchIcon size={19} className="shrink-0 text-ink/70" />
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t("chat.placeholder")}
+              maxLength={500}
+              className="h-9 min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-[#a09890]"
+            />
+            <VoiceButton onTranscript={setInput} onFinal={send} />
+          </div>
           <button
             type="submit"
             disabled={!input.trim() || thinking}
             aria-label="Send"
-            className="flex size-[38px] shrink-0 items-center justify-center rounded-full bg-send text-white transition-colors hover:bg-[#dc9450] disabled:opacity-40 lg:size-[42px] lg:bg-ink lg:hover:bg-ink/85"
+            className="flex size-[54px] shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-[#d4570f] disabled:opacity-40"
           >
-            <Send size={16} />
+            <Send size={20} />
           </button>
         </div>
       </form>
