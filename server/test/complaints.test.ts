@@ -298,3 +298,77 @@ describe("complaint acknowledgement email", () => {
     expect(JSON.parse(queued!.payload).code).toBe(complaint.code);
   });
 });
+
+describe("complaint evidence", () => {
+  // 1x1 PNG
+  const PNG =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  it("accepts an image and returns metadata without the storage key", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+
+    const res = await agent
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: PNG })
+      .expect(201);
+
+    expect(res.body.evidence.mimeType).toBe("image/png");
+    expect(res.body.evidence.sizeBytes).toBeGreaterThan(0);
+    // The guide says storage references stay server-side.
+    expect(res.body.evidence.storageKey).toBeUndefined();
+  });
+
+  it("serves the bytes back to the owner", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    const up = await agent
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: PNG })
+      .expect(201);
+
+    const res = await agent
+      .get(`/api/complaints/${complaint.id}/evidence/${up.body.evidence.id}`)
+      .expect(200);
+    expect(res.headers["content-type"]).toContain("image/png");
+    // Never rendered inline in our own origin.
+    expect(res.headers["content-disposition"]).toBe("attachment");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+  });
+
+  it("refuses a file type that isn't allowed", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    await agent
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==" })
+      .expect(415);
+  });
+
+  it("refuses something that isn't a data URL", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    await agent
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: "https://example.com/evil.png?padding=aaaaaaaaaaaaaaaaaaaaaaaa" })
+      .expect(400);
+  });
+
+  it("never lets another user upload to or read someone else's complaint", async () => {
+    const { agent } = await authedAgent();
+    const complaint = await raise(agent);
+    const up = await agent
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: PNG })
+      .expect(201);
+
+    const { agent: other } = await authedAgent();
+    await other
+      .post(`/api/complaints/${complaint.id}/evidence`)
+      .send({ dataUrl: PNG })
+      .expect(404);
+    await other
+      .get(`/api/complaints/${complaint.id}/evidence/${up.body.evidence.id}`)
+      .expect(404);
+  });
+});

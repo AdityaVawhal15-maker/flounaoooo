@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, json as expressJson } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
@@ -10,6 +10,7 @@ import {
   decideResolution,
   escalateComplaint,
 } from "./complaints.service.js";
+import { addEvidence, readEvidence } from "./evidence.service.js";
 
 // Customer-facing complaint API (ONDC IGM 2.0).
 //
@@ -146,6 +147,50 @@ complaintsRouter.post(
     }
   },
 );
+
+// Evidence.
+//
+// The global body limit is 100kb, which is right for the rest of the API and
+// far too small for a photo. The larger limit is applied to this one route
+// rather than raised globally, so nothing else gains a bigger attack surface.
+// 8mb of JSON accommodates the 5mb file cap plus base64's overhead.
+complaintsRouter.post(
+  "/:id/evidence",
+  expressJson({ limit: "8mb" }),
+  validateBody(z.object({ dataUrl: z.string().min(32).max(8_000_000) })),
+  async (req, res, next) => {
+    try {
+      const { dataUrl } = req.body as { dataUrl: string };
+      const evidence = await addEvidence({
+        userId: req.userId!,
+        complaintId: req.params.id!,
+        dataUrl,
+      });
+      res.status(201).json({ evidence });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Bytes come back only here, behind auth and an ownership check. There is no
+// static path to the upload directory.
+complaintsRouter.get("/:id/evidence/:evidenceId", async (req, res, next) => {
+  try {
+    const { bytes, mimeType } = await readEvidence(
+      req.userId!,
+      req.params.evidenceId!,
+    );
+    res.setHeader("Content-Type", mimeType);
+    // Never render an upload inline in the app's own origin.
+    res.setHeader("Content-Disposition", "attachment");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=300");
+    res.send(bytes);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Refund status, read from the refund records rather than inferred from the
 // complaint state. An accepted resolution is a promise; this reports money.

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, CircleAlert, Mail, Clock } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, Mail, Clock, ImagePlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -38,10 +38,30 @@ export default function OrderHelpPage() {
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoName, setPhotoName] = useState("");
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [complaintId, setComplaintId] = useState<string | null>(null);
 
   const chosen = PROBLEMS.find((p) => p.code === problem);
+
+  function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    // Checked here as well as on the server so the customer finds out before
+    // spending an upload on a file that will be refused.
+    if (file.size > 5 * 1024 * 1024) {
+      setError("That file is larger than 5 MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(typeof reader.result === "string" ? reader.result : null);
+      setPhotoName(file.name);
+      setError("");
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function submit() {
     setBusy(true);
@@ -61,6 +81,18 @@ export default function OrderHelpPage() {
           },
         },
       );
+
+      // Evidence needs the complaint to exist, so it follows rather than being
+      // sent with it. A failed photo must not lose the complaint the customer
+      // just wrote — they land on the confirmation either way and can attach it
+      // from the tracking screen.
+      if (photo) {
+        await api(`/api/complaints/${d.complaint.id}/evidence`, {
+          method: "POST",
+          json: { dataUrl: photo },
+        }).catch(() => setPhotoFailed(true));
+      }
+
       setCode(d.complaint.code);
       setComplaintId(d.complaint.id);
       setStep("submitted");
@@ -184,10 +216,33 @@ export default function OrderHelpPage() {
               </span>
             </label>
 
-            {/* The design offers an optional photo here. It is deliberately not
-                shown yet: evidence needs a storage backend and a metadata
-                record, and a picker that silently discarded the file would be
-                worse than not offering one. Next change. */}
+            {/* Optional evidence — step 3 of the ONDC walkthrough. */}
+            <div className="mt-5">
+              <p className="text-[15px] font-bold text-acct-ink">
+                Add a photo{" "}
+                <span className="font-normal text-acct-muted">(optional)</span>
+              </p>
+              <label className="mt-2 flex cursor-pointer items-center gap-3 rounded-[14px] border border-dashed border-igm-accent/40 bg-igm-tint/50 px-4 py-4 transition-colors hover:bg-igm-tint">
+                <ImagePlus size={20} className="shrink-0 text-igm-accent" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-semibold text-igm-accent">
+                    {photoName || "Choose a photo"}
+                  </span>
+                  <span className="block text-[12px] text-acct-muted">
+                    JPEG, PNG, WebP or PDF · up to 5 MB
+                  </span>
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="sr-only"
+                  onChange={(e) => pickPhoto(e.target.files?.[0])}
+                />
+              </label>
+              <p className="mt-1.5 text-[12px] text-acct-muted">
+                A photo helps the seller resolve this faster.
+              </p>
+            </div>
 
             {error && (
               <p role="alert" className="mt-3 text-[14px] text-danger">
@@ -220,6 +275,12 @@ export default function OrderHelpPage() {
             <p className="mt-1 max-w-[320px] text-[14px] text-acct-muted">
               We&apos;ll update you as the seller responds.
             </p>
+            {photoFailed && (
+              <p className="mt-3 max-w-[320px] text-[13px] text-igm-wait">
+                Your photo didn&apos;t upload, but the complaint was raised. You
+                can attach it from the tracking screen.
+              </p>
+            )}
 
             <div className="mt-8 w-full overflow-hidden rounded-[16px] bg-white shadow-soft">
               <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3.5 text-left">
