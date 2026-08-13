@@ -3,7 +3,16 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, MapPin, Star, Clock, CircleDot, Plus, LocateFixed, Loader2 } from "lucide-react";
+import {
+  Search,
+  MapPin,
+  Star,
+  Clock,
+  CircleDot,
+  Plus,
+  LocateFixed,
+  Loader2,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
@@ -17,7 +26,12 @@ import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 const RideMap = dynamic(
   () => import("@/components/rides/RideMap").then((m) => m.RideMap),
-  { ssr: false, loading: () => <div className="size-full min-h-[260px] animate-pulse bg-beige/50" /> },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="size-full min-h-[260px] animate-pulse bg-beige/50" />
+    ),
+  },
 );
 
 type Place = { name: string; area: string; lat: number; lng: number };
@@ -93,7 +107,9 @@ function PlaceSearch({
       <div className="flex items-center gap-2 rounded-[14px] border border-line bg-card px-3 py-2.5">
         {icon ?? <Search size={15} className="shrink-0 text-cocoa/50" />}
         <input
-          value={value ? `${value.name}${value.area ? `, ${value.area}` : ""}` : text}
+          value={
+            value ? `${value.name}${value.area ? `, ${value.area}` : ""}` : text
+          }
           onChange={(e) => {
             onSelect(null);
             setText(e.target.value);
@@ -118,8 +134,12 @@ function PlaceSearch({
             >
               <MapPin size={14} className="shrink-0 text-accent" />
               <span className="min-w-0">
-                <span className="block truncate font-medium text-ink">{p.name}</span>
-                <span className="block truncate text-[11px] text-cocoa">{p.area}</span>
+                <span className="block truncate font-medium text-ink">
+                  {p.name}
+                </span>
+                <span className="block truncate text-[11px] text-cocoa">
+                  {p.area}
+                </span>
               </span>
             </button>
           ))}
@@ -171,11 +191,12 @@ function RidesInner() {
       .toISOString()
       .slice(0, 16),
   );
-  // Start in "locating" if the browser can geolocate; the async callbacks below
-  // resolve it (no synchronous setState inside the effect).
-  const [locating, setLocating] = useState(
-    () => typeof navigator !== "undefined" && !!navigator.geolocation,
-  );
+  // Auto-detect is off until the Share My Location preference says otherwise,
+  // so "locating" starts false and the effect below turns it on if it runs.
+  const [locating, setLocating] = useState(false);
+  // null while the preference is loading — the effect waits rather than reading
+  // the device position and then discovering it wasn't allowed to.
+  const [shareLocation, setShareLocation] = useState<boolean | null>(null);
   // "Suggested locations" (Figma) — the user's saved places with coordinates.
   const [saved, setSaved] = useState<Place[]>([]);
   // Which endpoint the next map tap sets (null = tapping does nothing).
@@ -200,7 +221,8 @@ function RidesInner() {
           const d = await api<{ place: Place }>(
             `/api/rides/reverse?lat=${lat}&lng=${lng}`,
           );
-          if (d.place) place = { ...d.place, area: d.place.area || "Your live location" };
+          if (d.place)
+            place = { ...d.place, area: d.place.area || "Your live location" };
         } catch {
           /* keep the generic label */
         }
@@ -263,40 +285,68 @@ function RidesInner() {
       .catch(() => setSaved([]));
   }, []);
 
+  // Privacy & Security -> Share My Location gates the automatic read below.
+  // Defaults to on when the request fails, matching the server default.
+  useEffect(() => {
+    api<{ shareLocation: boolean }>("/api/users/preferences")
+      .then((p) => setShareLocation(p.shareLocation))
+      .catch(() => setShareLocation(true));
+  }, []);
+
   // Auto-fill pickup from the device's live location on first load. Falls back
   // silently to manual entry if permission is denied or GPS is unavailable.
+  // Skipped entirely when the rider has turned Share My Location off — they can
+  // still tap the locate control, which is an explicit request rather than a
+  // silent read.
   useEffect(() => {
+    if (shareLocation !== true) return;
     if (!navigator.geolocation) return;
     let cancelled = false;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (cancelled) return;
-        const { latitude: lat, longitude: lng } = pos.coords;
-        // Don't override a pickup already chosen (e.g. carried from chat).
-        setPickup((prev) => prev ?? { name: "Current location", area: "Your live location", lat, lng });
-        setLocating(false);
-        // Name the GPS point so the rider sees an actual street/area rather
-        // than the generic "Current location" label.
-        api<{ place: Place }>(`/api/rides/reverse?lat=${lat}&lng=${lng}`)
-          .then((d) => {
-            if (cancelled || !d.place) return;
-            setPickup((prev) =>
-              prev && prev.name === "Current location"
-                ? { ...d.place, area: d.place.area || "Your live location" }
-                : prev,
-            );
-          })
-          .catch(() => {
-            /* keep the generic label */
-          });
-      },
-      () => !cancelled && setLocating(false),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-    );
+    // Deferred a tick so the "locating" flag isn't set synchronously during the
+    // effect, and so it can never land after a fast GPS fix has already
+    // cleared it.
+    const start = setTimeout(() => {
+      if (cancelled) return;
+      setLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return;
+          const { latitude: lat, longitude: lng } = pos.coords;
+          // Don't override a pickup already chosen (e.g. carried from chat).
+          setPickup(
+            (prev) =>
+              prev ?? {
+                name: "Current location",
+                area: "Your live location",
+                lat,
+                lng,
+              },
+          );
+          setLocating(false);
+          // Name the GPS point so the rider sees an actual street/area rather
+          // than the generic "Current location" label.
+          api<{ place: Place }>(`/api/rides/reverse?lat=${lat}&lng=${lng}`)
+            .then((d) => {
+              if (cancelled || !d.place) return;
+              setPickup((prev) =>
+                prev && prev.name === "Current location"
+                  ? { ...d.place, area: d.place.area || "Your live location" }
+                  : prev,
+              );
+            })
+            .catch(() => {
+              /* keep the generic label */
+            });
+        },
+        () => !cancelled && setLocating(false),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+      );
+    }, 0);
     return () => {
       cancelled = true;
+      clearTimeout(start);
     };
-  }, []);
+  }, [shareLocation]);
 
   // Carried from chat ("book a cab to X"): resolve the destination and set it as
   // the drop — so the screen opens ready, no asking. A saved place ("home" /
@@ -428,7 +478,9 @@ function RidesInner() {
       });
       router.push(`/rides/group/${cart.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start a shared ride");
+      setError(
+        e instanceof Error ? e.message : "Could not start a shared ride",
+      );
       setBusy(false);
     }
   }
@@ -474,255 +526,269 @@ function RidesInner() {
         {/* Booking panel — mobile: floating bottom sheet; desktop: LEFT panel
             (Figma desktop places the location panel left of the map) */}
         <div className="absolute inset-x-0 bottom-0 z-10 order-2 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-white px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:order-1 lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-l-[18px] lg:rounded-tr-none lg:border lg:border-line lg:px-5 lg:shadow-card">
-        <FadeIn y={8}>
-          <div className="flex items-center justify-between">
-            <h1 className="text-[17px] font-bold text-[#1a1a2e]">Select your location</h1>
-            <button
-              type="button"
-              onClick={() => setDrop(null)}
-              title="Choose a different destination"
-              className="rounded-[17px] bg-[#f0e8e0] px-3.5 py-1.5 text-[13px] font-semibold text-[#2d2d2d] transition-colors hover:bg-[#e6dccf]"
-            >
-              Change drop
-            </button>
-          </div>
-        </FadeIn>
-
-        {/* Pickup → drop with the Figma connector line */}
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center pt-3.5">
-            <CircleDot size={15} className="shrink-0 text-success" />
-            <span className="my-1 w-px flex-1 bg-line" />
-            <MapPin size={15} className="shrink-0 text-accent" />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-            <PlaceSearch
-              label={locating ? "Locating you…" : "Pickup location"}
-              value={pickup}
-              onSelect={setPickup}
-              near={mapPoints.pickup}
-              action={
-                <button
-                  type="button"
-                  onClick={detectPickup}
-                  disabled={locating}
-                  aria-label="Use my current location"
-                  title="Use my current location"
-                  className="shrink-0 rounded-full p-1.5 text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
-                >
-                  {locating ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <LocateFixed size={15} />
-                  )}
-                </button>
-              }
-            />
-            <PlaceSearch
-              label="Search for a location…"
-              value={drop}
-              onSelect={setDrop}
-              near={mapPoints.pickup}
-            />
-          </div>
-        </div>
-
-        {/* Select on map / Add stops — Figma action row */}
-        <div className="flex gap-2.5">
-          <button
-            type="button"
-            onClick={() => setPicking((p) => (p ? null : pickup ? "drop" : "pickup"))}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2.5 text-[13px] font-semibold transition-colors",
-              picking
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-line bg-card text-ink hover:bg-beige/40",
-            )}
-          >
-            <MapPin size={15} className="text-accent" />
-            {picking
-              ? `Tap the map to set ${picking === "pickup" ? "pickup" : "drop"}`
-              : "Select on map"}
-          </button>
-          <button
-            type="button"
-            disabled
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[13px] font-semibold text-cocoa/60"
-          >
-            <Plus size={15} /> Add stops
-          </button>
-        </div>
-
-        {/* Suggested locations — saved places, one tap to set as drop (Figma) */}
-        {!drop && saved.length > 0 && (
-          <div>
-            <p className="text-[13px] font-bold text-ink">Suggested locations</p>
-            <div className="mt-0.5 flex flex-col divide-y divide-line/70">
-              {saved.slice(0, 5).map((p) => (
-                <button
-                  key={`${p.lat}-${p.lng}`}
-                  onClick={() => setDrop(p)}
-                  className="flex items-center gap-2.5 py-2.5 text-left transition-colors hover:bg-beige/30"
-                >
-                  <MapPin size={15} className="shrink-0 text-cocoa/60" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-medium capitalize text-ink">
-                      {p.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-cocoa">{p.area}</span>
-                  </span>
-                  {pickup && (
-                    <span className="shrink-0 text-[12px] text-cocoa">
-                      {Math.max(1, Math.round(haversineKm(pickup, p)))} km
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {route && (
-          <p className="text-[12px] text-cocoa">
-            {route.distanceKm.toFixed(1)} km · about {route.rideMinutes} min
-          </p>
-        )}
-
-        {quotes.length > 0 && (
-          <>
-            {advice && <AdviceBanner advice={advice} />}
-            <div className="flex gap-2">
-              {VEHICLES.map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setVehicle(v)}
-                  className={cn(
-                    "flex-1 rounded-pill border px-3 py-2 text-[12px] font-semibold capitalize transition-colors",
-                    v === vehicle
-                      ? "border-accent bg-accent-soft text-accent"
-                      : "border-line bg-card text-cocoa hover:bg-beige/40",
-                  )}
-                >
-                  {v === "any" ? "All" : v}
-                </button>
-              ))}
-            </div>
-
-            <Stagger className="flex flex-col gap-2">
-              {quotes.map((q) => (
-                <StaggerItem key={`${q.provider}-${q.productName}`}>
-                <button
-                  onClick={() => setSelected(q)}
-                  className="w-full text-left"
-                >
-                  <Card
-                    className={cn(
-                      "py-3 transition-all hover:-translate-y-0.5 hover:shadow-card",
-                      selected === q && "border-accent/70 ring-1 ring-accent/30",
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-                          {q.displayName}
-                          {q.badge && (
-                            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
-                              {q.badge}
-                            </span>
-                          )}
-                        </p>
-                        <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cocoa">
-                          <span className="flex items-center gap-0.5">
-                            <Clock size={12} /> {q.pickupEtaMinutes} min
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <Star size={12} className="fill-accent text-accent" />
-                            {q.driverRating}
-                          </span>
-                        </p>
-                        {q.offers[0] && (
-                          <p className="text-[11px] text-success">{q.offers[0].label}</p>
-                        )}
-                      </div>
-                      <p className="shrink-0 text-[16px] font-bold text-ink">
-                        {rupees(q.effectivePaise)}
-                      </p>
-                    </div>
-                  </Card>
-                </button>
-                </StaggerItem>
-              ))}
-            </Stagger>
-          </>
-        )}
-
-        {error && <p className="text-[13px] text-danger">{error}</p>}
-
-        <div className="sticky bottom-0 mt-auto bg-white pb-1 pt-2">
-          {/* Ride now vs schedule for later */}
-          {pickup && drop && (
-            <div className="mb-2 flex items-center gap-2">
+          <FadeIn y={8}>
+            <div className="flex items-center justify-between">
+              <h1 className="text-[17px] font-bold text-[#1a1a2e]">
+                Select your location
+              </h1>
               <button
-                onClick={() => setScheduledAt(null)}
-                className={cn(
-                  "rounded-pill px-3 py-1.5 text-[12px] font-semibold transition-colors",
-                  !scheduledAt
-                    ? "bg-accent-soft text-accent"
-                    : "bg-beige/50 text-cocoa hover:text-ink",
-                )}
+                type="button"
+                onClick={() => setDrop(null)}
+                title="Choose a different destination"
+                className="rounded-[17px] bg-[#f0e8e0] px-3.5 py-1.5 text-[13px] font-semibold text-[#2d2d2d] transition-colors hover:bg-[#e6dccf]"
               >
-                {t("rides.now")}
+                Change drop
               </button>
-              <input
-                type="datetime-local"
-                aria-label="Schedule for later"
-                value={
-                  scheduledAt
-                    ? new Date(
-                        Date.parse(scheduledAt) -
-                          new Date().getTimezoneOffset() * 60_000,
-                      )
-                        .toISOString()
-                        .slice(0, 16)
-                    : ""
+            </div>
+          </FadeIn>
+
+          {/* Pickup → drop with the Figma connector line */}
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center pt-3.5">
+              <CircleDot size={15} className="shrink-0 text-success" />
+              <span className="my-1 w-px flex-1 bg-line" />
+              <MapPin size={15} className="shrink-0 text-accent" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+              <PlaceSearch
+                label={locating ? "Locating you…" : "Pickup location"}
+                value={pickup}
+                onSelect={setPickup}
+                near={mapPoints.pickup}
+                action={
+                  <button
+                    type="button"
+                    onClick={detectPickup}
+                    disabled={locating}
+                    aria-label="Use my current location"
+                    title="Use my current location"
+                    className="shrink-0 rounded-full p-1.5 text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
+                  >
+                    {locating ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <LocateFixed size={15} />
+                    )}
+                  </button>
                 }
-                min={minSchedule}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setScheduledAt(v ? new Date(v).toISOString() : null);
-                }}
-                className={cn(
-                  "flex-1 rounded-pill border px-3 py-1.5 text-[12px] font-medium outline-none transition-colors",
-                  scheduledAt
-                    ? "border-accent bg-accent-soft/50 text-accent"
-                    : "border-line bg-card text-cocoa",
-                )}
+              />
+              <PlaceSearch
+                label="Search for a location…"
+                value={drop}
+                onSelect={setDrop}
+                near={mapPoints.pickup}
               />
             </div>
-          )}
-          <Button
-            onClick={confirmRide}
-            disabled={!selected || busy}
-            className="h-[59px] w-full rounded-[25px] text-[15px]"
-          >
-            {busy
-              ? t("rides.booking")
-              : selected
-                ? `${scheduledAt ? t("rides.schedule") : t("rides.confirm")} ${selected.displayName} · ${rupees(selected.effectivePaise)}`
-                : pickup && drop
-                  ? t("rides.chooseRide")
-                  : t("rides.selectDrop")}
-          </Button>
-          {/* Fare-splitting: autos/cabs only, and a scheduled group is booked now */}
-          {selected && !scheduledAt && selected.vehicle !== "bike" && (
+          </div>
+
+          {/* Select on map / Add stops — Figma action row */}
+          <div className="flex gap-2.5">
             <button
-              onClick={splitWithFriends}
-              disabled={busy}
-              className="mt-2 w-full text-center text-[13px] font-semibold text-accent hover:underline disabled:opacity-50"
+              type="button"
+              onClick={() =>
+                setPicking((p) => (p ? null : pickup ? "drop" : "pickup"))
+              }
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2.5 text-[13px] font-semibold transition-colors",
+                picking
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-line bg-card text-ink hover:bg-beige/40",
+              )}
             >
-              {t("rides.splitFare")}
+              <MapPin size={15} className="text-accent" />
+              {picking
+                ? `Tap the map to set ${picking === "pickup" ? "pickup" : "drop"}`
+                : "Select on map"}
             </button>
+            <button
+              type="button"
+              disabled
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-line bg-card py-2.5 text-[13px] font-semibold text-cocoa/60"
+            >
+              <Plus size={15} /> Add stops
+            </button>
+          </div>
+
+          {/* Suggested locations — saved places, one tap to set as drop (Figma) */}
+          {!drop && saved.length > 0 && (
+            <div>
+              <p className="text-[13px] font-bold text-ink">
+                Suggested locations
+              </p>
+              <div className="mt-0.5 flex flex-col divide-y divide-line/70">
+                {saved.slice(0, 5).map((p) => (
+                  <button
+                    key={`${p.lat}-${p.lng}`}
+                    onClick={() => setDrop(p)}
+                    className="flex items-center gap-2.5 py-2.5 text-left transition-colors hover:bg-beige/30"
+                  >
+                    <MapPin size={15} className="shrink-0 text-cocoa/60" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium capitalize text-ink">
+                        {p.name}
+                      </span>
+                      <span className="block truncate text-[11px] text-cocoa">
+                        {p.area}
+                      </span>
+                    </span>
+                    {pickup && (
+                      <span className="shrink-0 text-[12px] text-cocoa">
+                        {Math.max(1, Math.round(haversineKm(pickup, p)))} km
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
+
+          {route && (
+            <p className="text-[12px] text-cocoa">
+              {route.distanceKm.toFixed(1)} km · about {route.rideMinutes} min
+            </p>
+          )}
+
+          {quotes.length > 0 && (
+            <>
+              {advice && <AdviceBanner advice={advice} />}
+              <div className="flex gap-2">
+                {VEHICLES.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setVehicle(v)}
+                    className={cn(
+                      "flex-1 rounded-pill border px-3 py-2 text-[12px] font-semibold capitalize transition-colors",
+                      v === vehicle
+                        ? "border-accent bg-accent-soft text-accent"
+                        : "border-line bg-card text-cocoa hover:bg-beige/40",
+                    )}
+                  >
+                    {v === "any" ? "All" : v}
+                  </button>
+                ))}
+              </div>
+
+              <Stagger className="flex flex-col gap-2">
+                {quotes.map((q) => (
+                  <StaggerItem key={`${q.provider}-${q.productName}`}>
+                    <button
+                      onClick={() => setSelected(q)}
+                      className="w-full text-left"
+                    >
+                      <Card
+                        className={cn(
+                          "py-3 transition-all hover:-translate-y-0.5 hover:shadow-card",
+                          selected === q &&
+                            "border-accent/70 ring-1 ring-accent/30",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
+                              {q.displayName}
+                              {q.badge && (
+                                <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
+                                  {q.badge}
+                                </span>
+                              )}
+                            </p>
+                            <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cocoa">
+                              <span className="flex items-center gap-0.5">
+                                <Clock size={12} /> {q.pickupEtaMinutes} min
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <Star
+                                  size={12}
+                                  className="fill-accent text-accent"
+                                />
+                                {q.driverRating}
+                              </span>
+                            </p>
+                            {q.offers[0] && (
+                              <p className="text-[11px] text-success">
+                                {q.offers[0].label}
+                              </p>
+                            )}
+                          </div>
+                          <p className="shrink-0 text-[16px] font-bold text-ink">
+                            {rupees(q.effectivePaise)}
+                          </p>
+                        </div>
+                      </Card>
+                    </button>
+                  </StaggerItem>
+                ))}
+              </Stagger>
+            </>
+          )}
+
+          {error && <p className="text-[13px] text-danger">{error}</p>}
+
+          <div className="sticky bottom-0 mt-auto bg-white pb-1 pt-2">
+            {/* Ride now vs schedule for later */}
+            {pickup && drop && (
+              <div className="mb-2 flex items-center gap-2">
+                <button
+                  onClick={() => setScheduledAt(null)}
+                  className={cn(
+                    "rounded-pill px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                    !scheduledAt
+                      ? "bg-accent-soft text-accent"
+                      : "bg-beige/50 text-cocoa hover:text-ink",
+                  )}
+                >
+                  {t("rides.now")}
+                </button>
+                <input
+                  type="datetime-local"
+                  aria-label="Schedule for later"
+                  value={
+                    scheduledAt
+                      ? new Date(
+                          Date.parse(scheduledAt) -
+                            new Date().getTimezoneOffset() * 60_000,
+                        )
+                          .toISOString()
+                          .slice(0, 16)
+                      : ""
+                  }
+                  min={minSchedule}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setScheduledAt(v ? new Date(v).toISOString() : null);
+                  }}
+                  className={cn(
+                    "flex-1 rounded-pill border px-3 py-1.5 text-[12px] font-medium outline-none transition-colors",
+                    scheduledAt
+                      ? "border-accent bg-accent-soft/50 text-accent"
+                      : "border-line bg-card text-cocoa",
+                  )}
+                />
+              </div>
+            )}
+            <Button
+              onClick={confirmRide}
+              disabled={!selected || busy}
+              className="h-[59px] w-full rounded-[25px] text-[15px]"
+            >
+              {busy
+                ? t("rides.booking")
+                : selected
+                  ? `${scheduledAt ? t("rides.schedule") : t("rides.confirm")} ${selected.displayName} · ${rupees(selected.effectivePaise)}`
+                  : pickup && drop
+                    ? t("rides.chooseRide")
+                    : t("rides.selectDrop")}
+            </Button>
+            {/* Fare-splitting: autos/cabs only, and a scheduled group is booked now */}
+            {selected && !scheduledAt && selected.vehicle !== "bike" && (
+              <button
+                onClick={splitWithFriends}
+                disabled={busy}
+                className="mt-2 w-full text-center text-[13px] font-semibold text-accent hover:underline disabled:opacity-50"
+              >
+                {t("rides.splitFare")}
+              </button>
+            )}
           </div>
         </div>
 
