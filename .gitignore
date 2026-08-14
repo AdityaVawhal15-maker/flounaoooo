@@ -35,3 +35,7 @@ Thumbs.db
 # scaffold-generated agent notes (kept local)
 AGENTS.md
 
+
+# Runtime upload storage (complaint evidence) — never committed
+uploads/
+server/uploads/

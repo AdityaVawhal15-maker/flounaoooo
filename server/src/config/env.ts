@@ -5,6 +5,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+  // Root for uploaded complaint evidence. Relative paths resolve from the
+  // server working directory. Tests point this at a temp dir so a run never
+  // writes into the working tree.
+  UPLOAD_DIR: z.string().default("uploads"),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),

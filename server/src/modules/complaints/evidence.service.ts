@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../../lib/prisma.js";
+import { env } from "../../config/env.js";
 import { ApiError } from "../../middleware/error.js";
 
 // Evidence for ONDC IGM complaints — the photo the walkthrough attaches at
@@ -31,7 +32,7 @@ const ALLOWED: Record<string, string> = {
 /** 5 MB of actual file. Phone photos land well under this. */
 const MAX_BYTES = 5 * 1024 * 1024;
 
-const UPLOAD_ROOT = path.resolve(process.cwd(), "uploads", "complaints");
+const UPLOAD_ROOT = path.resolve(process.cwd(), env.UPLOAD_DIR, "complaints");
 
 /**
  * Decode a `data:<mime>;base64,<payload>` URL.
