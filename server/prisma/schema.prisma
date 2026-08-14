@@ -756,3 +756,37 @@ model OrderRating {
   @@index([domain, itemKey])
   @@index([userId])
 }
+
+// A per-search record of how a recommendation was reached.
+//
+// ONDC's buyer-app disclosure asks a buyer app to account for its listing and
+// ranking behaviour. Price observations tell us what a thing cost; they do not
+// tell us why one option was placed above another. Without this table a past
+// recommendation cannot be reconstructed after the fact — which was the honest
+// answer given at section 17 of the developer questionnaire.
+//
+// Written fire-and-forget on the quote path, so a failure here never affects a
+// user's request. Retained for a bounded window by the maintenance job.
+model DecisionLog {
+  id      String  @id @default(cuid())
+  userId  String? // null for unauthenticated or demo traffic
+  domain  String // "food" | "ride"
+  query   String // the user's search text, or a route summary for rides
+
+  // The ranking configuration actually applied to this search.
+  priority     String // "price" | "rating" | "speed" | "balanced"
+  weights      String // JSON {price,rating,speed} AFTER any personalisation
+  personalized Boolean @default(false)
+
+  // What the engine saw and what it did with it.
+  candidateCount Int // options scored
+  excludedCount  Int // options removed by filters before scoring
+  exclusions     String? // JSON [{rule,count}] — why results were dropped
+  results        String // JSON [{key,pricePaise,rating,etaMinutes,score}], best first
+  chosenKey      String // the option presented as the recommendation
+
+  createdAt DateTime @default(now())
+
+  @@index([domain, createdAt])
+  @@index([userId])
+}
