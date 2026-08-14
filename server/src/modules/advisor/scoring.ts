@@ -25,6 +25,32 @@ export function reasonForPriority(priority: Priority): PickReason {
 
 export type Weights = { price: number; rating: number; speed: number };
 
+/** Why results were dropped before scoring. Reported by each domain's search. */
+export type Exclusion = { rule: string; count: number };
+
+/**
+ * An auditable account of one ranking decision: what was excluded and why,
+ * which weights were applied, and what every surviving option scored.
+ * Shared by food and rides so a decision log entry means the same thing in
+ * both domains.
+ */
+export type DecisionTrace = {
+  priority: Priority;
+  weights: Weights;
+  personalized: boolean;
+  candidateCount: number;
+  excludedCount: number;
+  exclusions: Exclusion[];
+  scores: {
+    key: string;
+    pricePaise: number;
+    rating: number;
+    etaMinutes: number;
+    score: number;
+  }[];
+  chosenKey: string;
+};
+
 // Weight presets per priority. They always sum to 1 so scores stay comparable.
 const WEIGHTS: Record<Priority, Weights> = {
   price: { price: 0.7, rating: 0.2, speed: 0.1 },
@@ -85,17 +111,26 @@ function normalizeWeights(w: Weights): Weights {
 // the score attached. Pure ranking — callers map their own quote shape in.
 // Optional `personal` applies the user's profile (only meaningful for the
 // balanced priority; an explicit "cheapest" still dominates).
+// The weights a given search will actually be scored with, after any profile
+// adjustment. Exported so a decision can be logged with the same numbers the
+// scorer used, rather than a re-derived guess at them.
+export function appliedWeights(
+  priority: Priority,
+  personal?: Personalization,
+): Weights {
+  // Profile only adjusts the *unstated* preference; explicit priority wins.
+  return priority === "balanced"
+    ? personalizeWeights(weightsFor(priority), personal)
+    : weightsFor(priority);
+}
+
 export function scoreOptions<T extends Scorable>(
   items: T[],
   priority: Priority,
   personal?: Personalization,
 ): { item: T; score: number }[] {
   if (items.length === 0) return [];
-  // Profile only adjusts the *unstated* preference; explicit priority wins.
-  const w =
-    priority === "balanced"
-      ? personalizeWeights(weightsFor(priority), personal)
-      : weightsFor(priority);
+  const w = appliedWeights(priority, personal);
 
   const prices = items.map((i) => i.pricePaise);
   const ratings = items.map((i) => i.rating);

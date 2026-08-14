@@ -1,10 +1,13 @@
 import { dishes, type Dish, type Listing } from "../../data/restaurants.js";
 import {
   scoreOptions,
+  appliedWeights,
   reasonForPriority,
   type Priority,
   type PickReason,
   type Personalization,
+  type DecisionTrace,
+  type Exclusion,
 } from "../advisor/scoring.js";
 
 export type FoodQuote = {
@@ -30,7 +33,14 @@ export type FoodRecommendation = {
   alternatives: FoodQuote[];
   why: string;
   pickReason: PickReason;
+  /** How this pick was reached — consumed by the decision log, not the UI. */
+  trace: DecisionTrace;
 };
+
+/** Stable identity of a food option: which dish, on which listing. */
+function quoteKey(q: FoodQuote): string {
+  return `${q.dishId}@${q.platform}`;
+}
 
 function effectivePrice(listing: Listing): number {
   const discounts = listing.offers.reduce((sum, o) => sum + o.discountPaise, 0);
@@ -114,11 +124,28 @@ const FILLER_WORDS = new Set([
   "today", "now", "please", "can", "could", "will",
 ]);
 
-export function searchFood(opts: {
+export type SearchOpts = {
   query: string;
   budgetPaise?: number | null;
   dietary?: "veg" | "nonveg" | "any";
-}): FoodQuote[] {
+};
+
+export function searchFood(opts: SearchOpts): FoodQuote[] {
+  return searchFoodTraced(opts).quotes;
+}
+
+// Same search, but also reports what each filter removed. Kept as the single
+// implementation so the logged explanation can never drift from the behaviour
+// it claims to describe.
+export function searchFoodTraced(opts: SearchOpts): {
+  quotes: FoodQuote[];
+  exclusions: Exclusion[];
+} {
+  const exclusions: Exclusion[] = [];
+  const note = (rule: string, count: number) => {
+    if (count > 0) exclusions.push({ rule, count });
+  };
+
   const rawTerms = opts.query.toLowerCase().split(/\s+/).filter(Boolean);
   const direct = rawTerms.filter((t) => !FILLER_WORDS.has(t));
   const terms = [...direct, ...direct.flatMap((t) => DESCRIPTOR_KEYWORDS[t] ?? [])];
@@ -145,30 +172,46 @@ export function searchFood(opts: {
     // top pick. Desserts stay fully reachable when actually asked for (the
     // "sweet"/"cake"/"dessert" descriptors above match them directly).
     matched = dishes.filter((d) => !d.keywords.includes("dessert"));
+    note("generic_query_dessert_exclusion", dishes.length - matched.length);
+  } else {
+    note("keyword_no_match", dishes.length - matched.length);
   }
 
   if (opts.dietary && opts.dietary !== "any") {
+    const before = matched.length;
     matched = matched.filter((d) => d.dietary === opts.dietary);
+    note("dietary_filter", before - matched.length);
   }
 
   let quotes = matched.flatMap(toQuotes);
   if (opts.budgetPaise) {
     const within = quotes.filter((q) => q.effectivePaise <= opts.budgetPaise!);
-    if (within.length > 0) quotes = within;
+    // The budget is deliberately non-binding: if nothing fits, it is discarded
+    // rather than returning an empty screen. Both outcomes are recorded, since
+    // "over budget but shown anyway" is exactly the behaviour worth disclosing.
+    if (within.length > 0) {
+      note("budget_ceiling", quotes.length - within.length);
+      quotes = within;
+    } else {
+      note("budget_ceiling_waived", quotes.length);
+    }
   }
-  return quotes.sort((a, b) => a.effectivePaise - b.effectivePaise);
+  return {
+    quotes: quotes.sort((a, b) => a.effectivePaise - b.effectivePaise),
+    exclusions,
+  };
 }
 
 // The "decision" step: score every option on price, rating and speed weighted
 // by what the user asked for (priority), then pick the highest-scoring one.
 // This is the ratings-aware engine — "top-rated" genuinely changes the winner.
 export function recommendFood(
-  opts: Parameters<typeof searchFood>[0] & {
+  opts: SearchOpts & {
     priority?: Priority;
     personal?: Personalization;
   },
 ): FoodRecommendation | null {
-  const quotes = searchFood(opts);
+  const { quotes, exclusions } = searchFoodTraced(opts);
   if (quotes.length === 0) return null;
 
   const priority = opts.priority ?? "balanced";
@@ -218,5 +261,26 @@ export function recommendFood(
     why += `. Want the highest rated? ${topRated.restaurant} is ${topRated.rating}★`;
   }
 
-  return { best, alternatives, why, pickReason: reasonForPriority(priority) };
+  return {
+    best,
+    alternatives,
+    why,
+    pickReason: reasonForPriority(priority),
+    trace: {
+      priority,
+      weights: appliedWeights(priority, opts.personal),
+      personalized: priority === "balanced" && Boolean(opts.personal),
+      candidateCount: quotes.length,
+      excludedCount: exclusions.reduce((s, e) => s + e.count, 0),
+      exclusions,
+      scores: ranked.map((r) => ({
+        key: quoteKey(r.item.quote),
+        pricePaise: r.item.quote.effectivePaise,
+        rating: r.item.quote.rating,
+        etaMinutes: r.item.quote.etaMinutes,
+        score: r.score,
+      })),
+      chosenKey: quoteKey(best),
+    },
+  };
 }
