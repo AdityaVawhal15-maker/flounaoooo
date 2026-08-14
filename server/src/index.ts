@@ -1,5 +1,6 @@
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
+import { pruneDecisionLogs } from "./modules/advisor/decisionLog.service.js";
 import { prisma } from "./lib/prisma.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
@@ -64,6 +65,9 @@ void runLifecycle();
 const plusSweep = setInterval(runPlusSweep, 24 * 60 * 60_000);
 const lifecycleSweep = setInterval(runLifecycle, 24 * 60 * 60_000);
 
+/** How long a ranking decision stays queryable before housekeeping drops it. */
+const DECISION_LOG_RETENTION_DAYS = 90;
+
 // Hourly housekeeping: expired OTP codes and dead refresh tokens never pile up.
 const cleanup = setInterval(
   async () => {
@@ -77,6 +81,10 @@ const cleanup = setInterval(
           OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { lt: dayAgo } }],
         },
       });
+      // Ranking decisions are kept long enough to answer "why was I shown
+      // this?" and to satisfy an audit, then dropped — one row per search
+      // would otherwise grow without bound.
+      await pruneDecisionLogs(DECISION_LOG_RETENTION_DAYS);
     } catch (err) {
       console.error("[cleanup] failed:", err);
     }

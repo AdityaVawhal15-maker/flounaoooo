@@ -9,11 +9,12 @@ import { checkMessage, FIREWALL_REPLIES } from "./firewall.js";
 import { llm, demoFallback } from "./llm/index.js";
 import type { Intent } from "./llm/types.js";
 import { recommendFood } from "../food/food.service.js";
-import { quoteRides } from "../rides/rides.service.js";
+import { quoteRidesTraced } from "../rides/rides.service.js";
 import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { recommendProduct } from "../shop/shop.service.js";
 import { adviseFood, adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
+import { recordDecision } from "../advisor/decisionLog.service.js";
 import { weeklyFoodBudget } from "../users/budget.service.js";
 import {
   buildDecisionProfile,
@@ -128,7 +129,7 @@ async function buildAssistantPayload(
       dietary: intent.food.dietary,
       priority: intent.food.priority,
     });
-    const baseRideQuotes = quoteRides({
+    const { quotes: baseRideQuotes, trace: comboRideTrace } = quoteRidesTraced({
       distanceKm: 8,
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
@@ -137,6 +138,14 @@ async function buildAssistantPayload(
     const rideQuotes = await withCommunityRatings("ride", baseRideQuotes, (q) => q.provider);
     if (foodRec) recordObservation("food", foodRec.best.dishId, foodRec.best.effectivePaise);
     if (rideQuotes[0]) recordObservation("ride", rideQuotes[0].vehicle, rideQuotes[0].effectivePaise);
+    // A combo is two rankings in one message; both are logged so neither half
+    // of the decision is unexplainable after the fact.
+    if (foodRec) {
+      recordDecision({ userId, domain: "food", query: message, trace: foodRec.trace });
+    }
+    if (comboRideTrace) {
+      recordDecision({ userId, domain: "ride", query: message, trace: comboRideTrace });
+    }
     const comboScheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
     return {
       reply: intent.reply,
@@ -184,6 +193,7 @@ async function buildAssistantPayload(
     });
     if (rec) {
       recordObservation("food", rec.best.dishId, rec.best.effectivePaise);
+      recordDecision({ userId, domain: "food", query: message, trace: rec.trace });
       // If the best in-budget pick still exceeds what's left, the engine returns
       // the cheapest option anyway — we surface that honestly via the note
       // rather than hiding it or refusing.
@@ -210,7 +220,7 @@ async function buildAssistantPayload(
   if (intent.domain === "ride" && intent.ride) {
     // Without live geocoding in chat we quote a typical city trip;
     // exact fares come from the rides screen once locations are picked.
-    const baseQuotes = quoteRides({
+    const { quotes: baseQuotes, trace: rideTrace } = quoteRidesTraced({
       distanceKm: 8,
       rideMinutes: 24,
       vehicle: intent.ride.vehicle,
@@ -218,6 +228,9 @@ async function buildAssistantPayload(
     });
     const quotes = await withCommunityRatings("ride", baseQuotes, (q) => q.provider);
     if (quotes[0]) recordObservation("ride", quotes[0].vehicle, quotes[0].effectivePaise);
+    if (rideTrace) {
+      recordDecision({ userId, domain: "ride", query: message, trace: rideTrace });
+    }
     // Send the full spread so the chat's Bike/Cab/Auto switcher always has
     // every available vehicle type (we only cap when a specific type was asked).
     const sent =
