@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 
 // Lightweight app-wide toast. One consistent way to confirm an action ("Added
 // to cart", "Rating saved") or surface a soft error, instead of every screen
-// inventing its own inline feedback. Themed with the Radiues tokens.
+// inventing its own inline feedback. Themed with the Flouna tokens.
 
 type ToastKind = "success" | "error" | "info";
 type Toast = { id: number; kind: ToastKind; message: string };

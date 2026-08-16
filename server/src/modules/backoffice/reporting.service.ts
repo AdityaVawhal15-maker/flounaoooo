@@ -222,6 +222,104 @@ export async function decisionLogs(limit = 50) {
   return { logs, total };
 }
 
+// ---- Ranking decisions ---------------------------------------------------
+// The recorded account of how a recommendation was reached. decisionLogs above
+// answers "what did the user ask for"; this answers "why did that option win",
+// which is the question the ONDC buyer-app disclosure commits us to being able
+// to answer after the fact.
+
+export type RankingDecision = {
+  time: Date;
+  domain: string;
+  query: string;
+  priority: string;
+  weights: { price: number; rating: number; speed: number } | null;
+  personalized: boolean;
+  candidateCount: number;
+  excludedCount: number;
+  exclusions: { rule: string; count: number }[];
+  chosenKey: string;
+  /** Scored options, best first — the ordering that produced the pick. */
+  results: {
+    key: string;
+    pricePaise: number;
+    rating: number;
+    etaMinutes: number;
+    score: number;
+  }[];
+  /** Plain-language account of why the top option won, built from the record. */
+  explanation: string;
+};
+
+// Turns a stored decision into the sentence an operator actually needs. Derived
+// from the row, never from re-running the engine — re-running could disagree
+// with what the user was shown, which would defeat the point of logging it.
+function explain(d: {
+  priority: string;
+  weights: { price: number; rating: number; speed: number } | null;
+  results: RankingDecision["results"];
+}): string {
+  const [top, next] = d.results;
+  if (!top) return "No options were scored.";
+  if (!next) return "Only one option was available, so it was returned by default.";
+
+  const w = d.weights;
+  const heaviest = w
+    ? (["price", "rating", "speed"] as const).reduce((a, b) => (w[a] >= w[b] ? a : b))
+    : null;
+
+  const parts = [`Scored ${top.score} against ${next.score} for the next option.`];
+  if (top.pricePaise < next.pricePaise) {
+    parts.push(`It was ₹${Math.round((next.pricePaise - top.pricePaise) / 100)} cheaper.`);
+  } else if (top.pricePaise > next.pricePaise) {
+    parts.push(`It cost ₹${Math.round((top.pricePaise - next.pricePaise) / 100)} more, but won on other factors.`);
+  }
+  if (top.rating > next.rating) parts.push(`Rated higher (${top.rating} vs ${next.rating}).`);
+  if (top.etaMinutes < next.etaMinutes) parts.push(`Faster by ${next.etaMinutes - top.etaMinutes} min.`);
+  if (heaviest && w) {
+    parts.push(`The "${d.priority}" preference weighted ${heaviest} highest at ${w[heaviest].toFixed(2)}.`);
+  }
+  return parts.join(" ");
+}
+
+export async function rankingDecisions(limit = 50) {
+  const rows = await prisma.decisionLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  const decisions: RankingDecision[] = rows.map((r) => {
+    // Stored as JSON strings; a malformed row must not take the page down.
+    const safe = <T,>(raw: string | null, fallback: T): T => {
+      if (!raw) return fallback;
+      try {
+        return JSON.parse(raw) as T;
+      } catch {
+        return fallback;
+      }
+    };
+    const weights = safe<RankingDecision["weights"]>(r.weights, null);
+    const results = safe<RankingDecision["results"]>(r.results, []);
+    return {
+      time: r.createdAt,
+      domain: r.domain,
+      query: r.query,
+      priority: r.priority,
+      weights,
+      personalized: r.personalized,
+      candidateCount: r.candidateCount,
+      excludedCount: r.excludedCount,
+      exclusions: safe<RankingDecision["exclusions"]>(r.exclusions, []),
+      chosenKey: r.chosenKey,
+      results,
+      explanation: explain({ priority: r.priority, weights, results }),
+    };
+  });
+
+  const total = await prisma.decisionLog.count();
+  return { decisions, total };
+}
+
 // ---- Coupon engine ------------------------------------------------------
 // Real coupons: the offers attached to paid orders. We tally how often each
 // label was applied and the savings it generated.

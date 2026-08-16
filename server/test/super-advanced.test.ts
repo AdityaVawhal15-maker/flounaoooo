@@ -105,7 +105,7 @@ describe("super-admin broadcast", () => {
     const sup = await consoleAgent("super_admin");
     const res = await sup.agent
       .post("/api/console/super/broadcast")
-      .send({ title: "Radiues update", body: "New features are live — take a look!" })
+      .send({ title: "Flouna update", body: "New features are live — take a look!" })
       .expect(200);
     expect(res.body.configured).toBe(false);
     expect(res.body.sent).toBe(0);

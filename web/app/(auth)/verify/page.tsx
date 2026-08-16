@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/Button";
 import { useAuth, type User } from "@/components/auth/AuthContext";
 import { AccountSetup } from "@/components/auth/AccountSetup";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
-const RESEND_SECONDS = 50;
+const RESEND_SECONDS = 45;
 
+// Figma "OTP Verify" (2177:7484): back button, lotus, the same headline the
+// entry screen carries, six boxes, and a resend countdown. No submit button is
+// drawn, so the code submits itself once the sixth digit lands — guarded so a
+// rejected code can't resubmit in a loop while the boxes are still full.
 export default function VerifyEmailPage() {
   const router = useRouter();
   const { setUser } = useAuth();
@@ -20,6 +25,7 @@ export default function VerifyEmailPage() {
   const [settingUp, setSettingUp] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
+  const attempted = useRef<string>("");
 
   useEffect(() => {
     // Deferred a tick: sessionStorage is an external store, and the state
@@ -37,6 +43,38 @@ export default function VerifyEmailPage() {
     const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [secondsLeft]);
+
+  const verify = useCallback(async () => {
+    const code = digits.join("");
+    if (code.length !== 6 || !email || busy) return;
+    attempted.current = code;
+    setError("");
+    setBusy(true);
+    try {
+      const d = await api<{ user: User }>("/api/auth/verify-email", {
+        method: "POST",
+        json: { email, code },
+      });
+      sessionStorage.removeItem("pendingEmail");
+      setUser(d.user);
+      setSettingUp(true); // themed transition handles the redirect
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+      setBusy(false);
+      // Clear so the next attempt is a fresh six digits, and put the caret back
+      // at the start — otherwise the boxes stay full with a code already known
+      // to be wrong.
+      setDigits(Array(6).fill(""));
+      inputs.current[0]?.focus();
+    }
+  }, [digits, email, busy, setUser]);
+
+  useEffect(() => {
+    const code = digits.join("");
+    if (code.length === 6 && code !== attempted.current && email && !busy) {
+      void verify();
+    }
+  }, [digits, email, busy, verify]);
 
   function setDigit(i: number, value: string) {
     const v = value.replace(/\D/g, "").slice(-1);
@@ -63,31 +101,17 @@ export default function VerifyEmailPage() {
     }
   }
 
-  async function verify() {
-    const code = digits.join("");
-    if (code.length !== 6 || !email) return;
-    setError("");
-    setBusy(true);
-    try {
-      const d = await api<{ user: User }>("/api/auth/verify-email", {
-        method: "POST",
-        json: { email, code },
-      });
-      sessionStorage.removeItem("pendingEmail");
-      setUser(d.user);
-      setSettingUp(true); // themed transition handles the redirect
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Verification failed");
-      setBusy(false);
-    }
-  }
-
   async function resend() {
     if (secondsLeft > 0 || !email) return;
     setError("");
     try {
       await api("/api/auth/resend-otp", { method: "POST", json: { email } });
       setSecondsLeft(RESEND_SECONDS);
+      // A fresh code invalidates the old one — clear the boxes so stale digits
+      // can't auto-submit against it.
+      setDigits(Array(6).fill(""));
+      attempted.current = "";
+      inputs.current[0]?.focus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not resend code");
     }
@@ -98,58 +122,79 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="mt-10">
-      <h1 className="text-[26px] font-bold text-ink">Verify Email</h1>
-      <p className="mt-3 text-[14px] text-cocoa">
-        We have sent a 6-digit code to{" "}
-        <span className="font-semibold text-ink">{email ?? "…"}</span>
-      </p>
-      <Link href="/signup" className="mt-1 inline-block text-[13px] font-semibold text-accent">
-        Change email address
-      </Link>
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
+        <Link
+          href="/signup"
+          aria-label="Back"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+        >
+          <ArrowLeft size={20} />
+        </Link>
 
-      <div className="mt-8 flex justify-between gap-2" onPaste={onPaste}>
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              inputs.current[i] = el;
-            }}
-            inputMode="numeric"
-            autoComplete={i === 0 ? "one-time-code" : "off"}
-            aria-label={`Digit ${i + 1}`}
-            value={d}
-            onChange={(e) => setDigit(i, e.target.value)}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            className="h-14 w-12 rounded-[12px] border border-line bg-card text-center text-[20px] font-semibold text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
-          />
-        ))}
-      </div>
+        <div className="mt-6 flex flex-col items-center text-center">
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            Log in or sign up
+          </h1>
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            You&apos;ll get smarter responses and can book rides, order food and
+            more.
+          </p>
+        </div>
 
-      <p className="mt-5 text-center text-[13px] text-cocoa">
-        {secondsLeft > 0 ? (
-          <>
-            Resend OTP in{" "}
-            <span className="font-bold text-ink">
-              00:{String(secondsLeft).padStart(2, "0")}
+        <div
+          className="mt-10 flex justify-center gap-2.5"
+          onPaste={onPaste}
+          aria-label="Verification code"
+          role="group"
+        >
+          {digits.map((d, i) => (
+            <input
+              key={i}
+              ref={(el) => {
+                inputs.current[i] = el;
+              }}
+              inputMode="numeric"
+              autoComplete={i === 0 ? "one-time-code" : "off"}
+              aria-label={`Digit ${i + 1}`}
+              value={d}
+              disabled={busy}
+              autoFocus={i === 0}
+              onChange={(e) => setDigit(i, e.target.value)}
+              onKeyDown={(e) => onKeyDown(i, e)}
+              className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12 disabled:opacity-60"
+            />
+          ))}
+        </div>
+
+        <p className="mt-7 text-center text-[16px] text-auth-muted">
+          Didn&apos;t receive code?{" "}
+          {secondsLeft > 0 ? (
+            <span className="font-bold text-auth-accent">
+              Resend in 00:{String(secondsLeft).padStart(2, "0")}
             </span>
-          </>
-        ) : (
-          <button onClick={resend} className="font-semibold text-accent hover:underline">
-            Resend OTP
-          </button>
+          ) : (
+            <button
+              onClick={resend}
+              className="font-bold text-auth-accent hover:underline"
+            >
+              Resend now
+            </button>
+          )}
+        </p>
+
+        {busy && (
+          <p className="mt-4 text-center text-[15px] text-auth-muted">
+            Verifying…
+          </p>
         )}
-      </p>
-
-      {error && <p className="mt-3 text-center text-[13px] text-danger">{error}</p>}
-
-      <Button
-        onClick={verify}
-        disabled={busy || digits.join("").length !== 6}
-        className="mt-8 w-full"
-      >
-        {busy ? "Verifying…" : "Verify & Login"}
-      </Button>
+        {error && (
+          <p role="alert" className="mt-4 text-center text-[15px] text-danger">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -401,7 +401,7 @@ function HelpInner() {
       </div>
 
       <a
-        href="mailto:support@radiues.app"
+        href="mailto:support@flouna.app"
         className="mt-5 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
       >
         <Mail size={16} className="text-accent" /> Contact support

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { FadeIn } from "@/components/ui/motion";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 import { useI18n } from "@/components/i18n/I18nContext";
 
 // Public landing — matches the Figma "intial landing page" frame. The static
@@ -17,14 +17,13 @@ export default function LandingPage() {
           composition up so a wide screen doesn't show a narrow phone strip. */}
       <div className="flex w-full max-w-sm flex-col items-center text-center lg:max-w-2xl">
         <FadeIn y={16}>
-          <Image
-            src="/logo.png"
-            alt="Radiues"
-            width={230}
-            height={230}
-            priority
-            className="lg:h-[280px] lg:w-[280px]"
-            style={{ filter: "drop-shadow(0 6px 14px rgba(61,28,0,0.18))" }}
+          {/* Vector mark, so the hairline petals stay crisp at the 280px the
+              desktop layout blows it up to. No drop shadow — the design floats
+              the outline directly on the cream. */}
+          <FlounaLogo
+            size={230}
+            strokeWidth={4}
+            className="text-ink lg:h-[280px] lg:w-[280px]"
           />
         </FadeIn>
 

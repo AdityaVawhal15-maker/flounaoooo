@@ -6,6 +6,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireRole } from "../../middleware/auth.js";
+import {
+  listComplaintsForOps,
+  getComplaintForOps,
+  simulateSellerAcknowledgement,
+  simulateInformationRequest,
+  simulateResolutionProposal,
+  simulateRefundCompleted,
+} from "../complaints/complaints.admin.js";
 import { validateBody } from "../../middleware/validate.js";
 import { auditFromReq } from "./audit.service.js";
 import {
@@ -28,6 +36,7 @@ import {
   cityReport,
   vendorReport,
   decisionLogs,
+  rankingDecisions,
   couponStats,
   priceAlertsOverview,
   gmvByDomain,
@@ -72,6 +81,17 @@ adminRouter.get("/vendors", async (_req, res, next) => {
 adminRouter.get("/decisions", async (_req, res, next) => {
   try {
     res.json(await decisionLogs(50));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Why a recommendation ranked the way it did — the record behind the answer we
+// give ONDC on ranking auditability. Distinct from /decisions above, which
+// reports what users asked for rather than how the engine chose.
+adminRouter.get("/ranking-decisions", async (_req, res, next) => {
+  try {
+    res.json(await rankingDecisions(50));
   } catch (err) {
     next(err);
   }
@@ -239,3 +259,62 @@ adminRouter.patch(
     }
   },
 );
+
+// ---------- ONDC IGM complaints (operator view) ----------
+//
+// The live walkthrough asks us to show the backend record and the ONDC message
+// log beside the customer's screen, so the verifier can connect the two.
+
+adminRouter.get("/complaints", async (req, res, next) => {
+  try {
+    const status = typeof req.query.status === "string" ? req.query.status : undefined;
+    res.json({ complaints: await listComplaintsForOps({ status }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get("/complaints/:id", async (req, res, next) => {
+  try {
+    res.json({ complaint: await getComplaintForOps(req.params.id!) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Seller-side rehearsal. Refused in production — see complaints.admin.ts.
+adminRouter.post("/complaints/:id/simulate/:step", async (req, res, next) => {
+  try {
+    const id = req.params.id!;
+    switch (req.params.step) {
+      case "acknowledge":
+        res.json(await simulateSellerAcknowledgement(id));
+        return;
+      case "request-info":
+        res.json(
+          await simulateInformationRequest(
+            id,
+            typeof req.body?.message === "string"
+              ? req.body.message
+              : "Please share a photo of what you received",
+          ),
+        );
+        return;
+      case "propose":
+        res.json(
+          await simulateResolutionProposal(id, [
+            { type: "REFUND", amountPaise: 35000, description: "Full refund" },
+            { type: "REPLACEMENT", description: "Send a replacement" },
+          ]),
+        );
+        return;
+      case "complete-refund":
+        res.json(await simulateRefundCompleted(id, `RFND-${Date.now()}`));
+        return;
+      default:
+        res.status(400).json({ error: "Unknown simulation step" });
+    }
+  } catch (err) {
+    next(err);
+  }
+});

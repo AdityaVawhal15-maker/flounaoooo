@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { app, authedAgent } from "./helpers.js";
 
-// Settings → notification preferences. All flags default on, persist per
-// user, and reject empty/invalid updates.
+// Settings → notification preferences, plus the Privacy & Security flags that
+// ride on the same endpoint. All default on, persist per user, and reject
+// empty/invalid updates.
 
 const DEFAULTS = {
   emailUpdates: true,
   smartSuggestions: true,
   emailMoneyUpdates: true,
   emailTips: true,
+  // Privacy & Security → Share My Location. Gates the rides screen
+  // auto-detecting the rider's position.
+  shareLocation: true,
 };
 
 describe("user preferences", () => {

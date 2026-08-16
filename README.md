@@ -1,8 +1,8 @@
-# Radiues
+# Flouna
 
 **Stop Searching. Start Deciding.**
 
-Radiues is an AI decision engine by [Algorithec](https://github.com/Algorithec). Instead of switching between apps and comparing prices yourself, you tell Radiues what you need — it searches across ONDC and partner platforms, applies the best offers, reads the reviews, and gives you one clear answer. Food and rides today; more domains on the roadmap.
+Flouna is an AI decision engine by [Algorithec](https://github.com/Algorithec). Instead of switching between apps and comparing prices yourself, you tell Flouna what you need — it searches across ONDC and partner platforms, applies the best offers, reads the reviews, and gives you one clear answer. Food and rides today; more domains on the roadmap.
 
 ---
 
@@ -14,9 +14,40 @@ Radiues is an AI decision engine by [Algorithec](https://github.com/Algorithec).
 - **Order timing advisor** — tells you when waiting will get you a better price ("₹100 off expected after 8 PM") and when it won't.
 - **Rides comparison** — live map, route and ETA, fares compared across providers with best-price and fastest badges.
 - **In-app checkout** for ONDC orders (Cashfree), tracking timeline, invoices, and order history.
-- **Savings ledger** — every order records what Radiues saved you; your lifetime total lives on the Rewards screen.
+- **Savings ledger** — every order records what Flouna saved you; your lifetime total lives on the Rewards screen.
 - **Budget guardian** — set a weekly food budget and get warned before an order takes you over it.
 - **Smart reorder** — one tap to reorder your usual at today's best price.
+
+## How the recommendation is made
+
+Flouna's pick is arithmetic, not a black box. Every option is scored on three
+parameters, normalised across the current result set so they're comparable:
+
+| What you ask for | Price | Rating | Speed |
+|---|---|---|---|
+| *(no preference)* — balanced | 0.45 | 0.35 | 0.20 |
+| "cheapest" | 0.70 | 0.20 | 0.10 |
+| "top-rated" | 0.20 | 0.65 | 0.15 |
+| "fastest" | 0.25 | 0.20 | 0.55 |
+
+Price and delivery time are inverted (lower is better), rating is direct, and
+the weights always sum to 1. Where every option ties on a parameter, that
+parameter stops discriminating between them.
+
+**The language model never ranks anything.** It classifies intent — deciding
+whether you asked for cheap, fast or highly rated — and returns one of those
+four labels. The ordering itself is deterministic: the same inputs always
+produce the same result, and the model cannot move an option up the list.
+
+Personalisation applies only when you stated no preference, and only after
+three paid orders: your spend band shifts a weight by 0.15, and a dish you
+reorder gets a small bonus capped at 0.12. It adjusts weights and nothing else
+— it never touches a price, and seller identity is not an input to the scorer
+at all.
+
+Every search writes a **decision log**: the filters that excluded results and
+why, the weights applied, and what each option scored. So "why was I shown
+this?" has an answer after the fact, not just a plausible-sounding story.
 
 ## Tech stack
 
@@ -28,7 +59,7 @@ Radiues is an AI decision engine by [Algorithec](https://github.com/Algorithec).
 | Database | Prisma ORM — SQLite in development, PostgreSQL in production |
 | AI | Pluggable intent engine: Anthropic Claude / DeepSeek / built-in rule-based mode |
 | Payments | Cashfree (sandbox and production) |
-| Tests | Vitest + Supertest — 30 tests across auth, chat firewall, orders, payments |
+| Tests | Vitest + Supertest — 312 tests across auth, chat firewall, ranking, orders, payments, complaints |
 
 ## Project structure
 
@@ -98,7 +129,7 @@ Add keys whenever they're ready — the adapters detect them and switch over wit
 
 ```bash
 cd server
-npm test        # 30 tests: auth, OTP limits, chat firewall, order pricing, webhooks
+npm test        # 312 tests: auth, OTP limits, chat firewall, ranking decisions, order pricing, webhooks
 npm run lint    # type check
 ```
 
@@ -117,14 +148,17 @@ npm run build
 - Payment webhooks verified with a timing-safe HMAC signature over the raw bytes
 - Identical responses for existing and non-existing accounts (no enumeration)
 - Chat is scope-locked to food and rides: fixed response schema, restricted system prompt, injection pre-filter, per-user rate limits
+- Ranking is deterministic and has no administrative override: weights are compile-time constants, so no console, API or database field can promote, demote or hide a result
+- Uploaded complaint evidence is never served statically — bytes come back only through an authenticated route that re-checks ownership
 
 ## Production notes
 
-- Switch the Prisma datasource to `postgresql` and run `npx prisma migrate deploy`
+- Create the production schema with `npm run db:deploy` (preview it first with `npm run db:deploy:check`). This baselines Postgres from `schema.prisma` rather than replaying the migration history — those migrations were generated against SQLite and contain `PRAGMA`/`DATETIME`, which Postgres rejects. After the baseline, normal `prisma migrate` works as usual.
 - Set `NODE_ENV=production` and `WEB_ORIGIN` to the deployed frontend URL
-- Host the web app and API on the same domain (e.g. `radiues.app` + `api.radiues.app`) — session cookies require it
+- Host the web app and API on the same domain (e.g. `flouna.app` + `api.flouna.app`) — session cookies require it
 - Register the Cashfree webhook: `https://<api-host>/api/payments/webhook/cashfree`
 - Put both services behind Cloudflare
+- Decision logs are pruned to 90 days by the hourly housekeeping job; raise `UPLOAD_DIR` onto durable storage if the API runs on ephemeral disk
 
 ---
 

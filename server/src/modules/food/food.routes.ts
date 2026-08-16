@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
+import { recordDecision } from "../advisor/decisionLog.service.js";
 import { recommendFood, searchFood, quotesForDish, allQuotes } from "./food.service.js";
 import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { dishes } from "../../data/restaurants.js";
@@ -75,6 +76,14 @@ foodRouter.get("/recommend", (req, res, next) => {
       budgetPaise: parsed.budget ? parsed.budget * 100 : null,
       dietary: parsed.dietary,
     });
+    if (rec) {
+      recordDecision({
+        userId: req.userId,
+        domain: "food",
+        query: parsed.q,
+        trace: rec.trace,
+      });
+    }
     res.json({ recommendation: rec });
   } catch (err) {
     next(err);

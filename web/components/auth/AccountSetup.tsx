@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 const STEPS = [
   "Verifying your email",
@@ -27,13 +27,10 @@ export function AccountSetup({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream px-8">
-      <Image
-        src="/logo.png"
-        alt="Radiues"
-        width={110}
-        height={110}
-        priority
-        className="animate-logo-glow"
+      <FlounaLogo
+        size={110}
+        strokeWidth={5}
+        className="animate-logo-glow text-ink"
       />
 
       <p className="mt-8 text-[18px] font-bold text-ink">

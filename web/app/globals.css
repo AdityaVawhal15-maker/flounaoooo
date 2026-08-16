@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Radiues design tokens — extracted from the Algorithec Figma (page "Algorithec (FINAL)") */
+/* Flouna design tokens — extracted from the Algorithec Figma (page "Algorithec (FINAL)") */
 @theme {
   --color-cream: #fff9f6; /* app background */
   --color-ink: #3d1c00; /* headings / primary text (deep brown) */
@@ -18,6 +18,41 @@
   --color-terracotta: #c8855a; /* hero heading line 2 */
   --color-chip: #e5ddd5; /* flat quick-chip background */
   --color-chip-ink: #2d2d2d; /* quick-chip label */
+
+  /* Auth palette — the "Log in or sign up" flow (Figma 2177:71xx–74xx) is drawn
+     on its own set rather than the brand tokens above: a near-black navy for
+     headings instead of the brown ink, a marginally hotter orange, and a
+     cooler off-white ground. Kept as separate tokens so the flow can be
+     reunified with the brand set later by editing these four lines. */
+  --color-auth-ink: #1a1a2e; /* headings */
+  --color-auth-accent: #e8531a; /* labels, links, primary button */
+  --color-auth-bg: #fff8f5; /* screen ground */
+  --color-auth-line: #edd9d3; /* input borders */
+  --color-auth-muted: #8b7b72; /* subtitles, placeholders */
+  --color-auth-disabled: #f8d7c8; /* primary button, inactive */
+  --color-auth-disabled-ink: #d97757; /* its label */
+
+  /* Account palette — the profile set (Figma 2195:5xx–17xx) is drawn on a
+     neutral grey scale rather than either palette above: near-black text on an
+     off-white page, grey secondary copy, and a deeper burnt orange. Same
+     reasoning as the auth tokens — isolated here so the set can be pulled back
+     onto the brand later without touching the screens. */
+  --color-acct-ink: #111827; /* titles and values */
+  --color-acct-muted: #9ca3af; /* section labels, row subtitles */
+  --color-acct-bg: #f9fafb; /* page ground */
+  --color-acct-accent: #b33b06; /* premium badge, row icons */
+  --color-acct-tint: #fff6f1; /* icon badges, premium pill */
+
+  /* Complaint / grievance palette (Figma 2286:*, 2290:*). The ONDC IGM screens
+     are drawn on a blue primary with semantic green for a processed refund and
+     amber for a pending timeline, over the same greys as the account set.
+     Isolated like the others so it can be reconciled with the brand later. */
+  --color-igm-accent: #2563eb;
+  --color-igm-tint: #eff6ff;
+  --color-igm-good: #16a34a;
+  --color-igm-good-tint: #dcfce7;
+  --color-igm-wait: #f59e0b;
+  --color-igm-body: #374151; /* body copy, one step darker than acct-muted */
   --color-send: #e8a060; /* ask-bar send button */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */

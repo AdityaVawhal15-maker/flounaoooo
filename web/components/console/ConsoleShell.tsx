@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Receipt,
   LifeBuoy,
+  Scale,
   Settings,
   MapPin,
   Store,
@@ -73,6 +74,7 @@ const NAV: NavSection[] = [
     items: [
       { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
       { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
+      { href: "/console/admin/complaints", label: "ONDC complaints", icon: Scale, need: "admin" },
       { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
       { href: "/console/super/broadcast", label: "Broadcast", icon: Megaphone, need: "super_admin" },
       { href: "/console/super/api-keys", label: "API keys", icon: KeyRound, need: "super_admin" },

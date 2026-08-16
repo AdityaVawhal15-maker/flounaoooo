@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Nightly database backup for Radiues. Detects the engine from DATABASE_URL:
+// Nightly database backup for Flouna. Detects the engine from DATABASE_URL:
 //   - SQLite  (file:...)        → copies the .db file (with WAL checkpoint)
 //   - Postgres (postgresql://)  → runs pg_dump to a timestamped .sql.gz
 //
 // Usage (cron, e.g. 2am daily):
-//   0 2 * * *  cd /srv/radiues/server && node scripts/backup-db.mjs >> backup.log 2>&1
+//   0 2 * * *  cd /srv/flouna/server && node scripts/backup-db.mjs >> backup.log 2>&1
 //
 // Backups are written to ./backups (override with BACKUP_DIR). Old backups
 // beyond RETENTION_DAYS (default 14) are pruned.
@@ -32,12 +32,12 @@ try {
   if (url.startsWith("file:")) {
     // SQLite — checkpoint WAL then copy the file.
     const dbPath = join(serverDir, "prisma", url.replace(/^file:/, ""));
-    const dest = join(backupDir, `radiues-${stamp}.db`);
+    const dest = join(backupDir, `flouna-${stamp}.db`);
     copyFileSync(dbPath, dest);
     console.log(`SQLite backup written: ${dest}`);
   } else if (url.startsWith("postgres")) {
     // PostgreSQL — pg_dump, gzipped.
-    const dest = join(backupDir, `radiues-${stamp}.sql.gz`);
+    const dest = join(backupDir, `flouna-${stamp}.sql.gz`);
     execSync(`pg_dump "${url}" | gzip > "${dest}"`, { stdio: "inherit", shell: "/bin/sh" });
     console.log(`PostgreSQL backup written: ${dest}`);
   } else {

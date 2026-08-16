@@ -1,19 +1,13 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Home, MessageSquareText } from "lucide-react";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 // Branded 404 — shown for any unknown route.
 export default function NotFound() {
   return (
     <div className="flex min-h-dvh flex-1 flex-col items-center justify-center bg-cream px-6 text-center">
       <div className="flex w-full max-w-sm flex-col items-center">
-        <Image
-          src="/logo.png"
-          alt="Radiues"
-          width={64}
-          height={64}
-          style={{ filter: "drop-shadow(0 6px 18px rgba(240,101,0,0.25))" }}
-        />
+        <FlounaLogo size={64} className="text-ink" />
         <p className="mt-6 text-[52px] font-bold leading-none tracking-tight text-accent">
           404
         </p>
@@ -36,7 +30,7 @@ export default function NotFound() {
             href="/home"
             className="flex h-13 items-center justify-center gap-2 rounded-pill border border-line bg-card text-[15px] font-semibold text-ink transition-colors hover:bg-beige/40"
           >
-            <MessageSquareText size={16} className="text-accent" /> Ask Radiues
+            <MessageSquareText size={16} className="text-accent" /> Ask Flouna
           </Link>
         </div>
       </div>

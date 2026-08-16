@@ -1,4 +1,4 @@
-// Radiues data model.
+// Flouna data model.
 // Dev runs on SQLite; production runs on PostgreSQL. Fields below avoid
 // SQLite-only or Postgres-only types so the same schema compiles on both.
 // Enum-like fields are strings validated by zod at the API boundary.
@@ -32,6 +32,10 @@ model User {
   // Collected at sign-up (optional). Stored so the account actually keeps what
   // the user typed — previously the form asked for it and threw it away.
   dateOfBirth   String? // ISO yyyy-mm-dd
+  // Free text rather than an enum: the Personal Information screen offers a
+  // short list, but a fixed set in the database would make adding an option a
+  // migration, and would force users whose answer isn't listed into a wrong one.
+  gender        String?
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
   // Notification preferences (Settings). OTP/security mail always sends;
   // emailUpdates gates non-essential mail (receipts, announcements) and
@@ -42,7 +46,11 @@ model User {
   // emailUpdates keeps gating order/receipt mail.
   emailMoneyUpdates Boolean @default(true) // savings, price drops, Plus ROI
   emailTips         Boolean @default(true) // lifecycle nudges & announcements
-  // Radiues Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
+  // Privacy & Security. Gates the rides screen auto-detecting the rider's
+  // position on load; they can still pick a pickup by hand or tap the locate
+  // control, which is an explicit request rather than a silent read.
+  shareLocation     Boolean @default(true)
+  // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive    Boolean   @default(false)
   plusSince     DateTime?
@@ -72,6 +80,223 @@ model User {
   priceAlerts   PriceAlert[]
   supportTickets SupportTicket[]
   notifications Notification[]
+  complaints    Complaint[]
+}
+
+// ---------------------------------------------------------------------------
+// ONDC IGM 2.0 — issue & grievance management.
+//
+// This is a case-management model, not a contact form. ONDC verifies it in a
+// live walkthrough, so every customer-facing event has to be reconstructable
+// from a backend record.
+//
+// Two rules shape the design:
+//
+//   1. The internal model is kept separate from ONDC protocol payloads. Nothing
+//      here mirrors a wire schema — an adapter maps between the two, so a spec
+//      version bump touches the adapter and not the database or the UI.
+//   2. Enum-like fields are plain strings validated at the API boundary, the
+//      same convention the rest of this schema uses for SQLite/Postgres parity.
+//      The ONDC-controlled vocabularies (category, sub-category, action codes)
+//      are deliberately NOT hard-coded as Prisma enums: the integration guide is
+//      explicit that inventing enum values is wrong, and the real ones must come
+//      from the live spec.
+//
+// Deliberately separate from SupportTicket. That model is a simple internal
+// helpdesk ticket with no action trail, actors, resolutions or protocol log;
+// bending it into IGM shape would lose both.
+model Complaint {
+  id     String @id @default(cuid())
+  // Human/network-facing reference shown to the customer and sent as the issue
+  // id (e.g. "ALG-000123"). Distinct from the cuid primary key.
+  code   String @unique
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A complaint can be about the whole order, specific items, or a fulfilment —
+  // the guide is explicit that order-level is not the only case. itemIds is a
+  // JSON array of strings (SQLite has no array type).
+  orderId       String?
+  fulfillmentId String?
+  itemIds       String  @default("[]")
+
+  // ONDC-controlled vocabulary; validated against the spec at the boundary.
+  category    String
+  subCategory String?
+  // "ISSUE" | "GRIEVANCE" — grievance is the escalated form.
+  issueType   String  @default("ISSUE")
+  description String
+
+  // Customer-visible state: OPEN | PROCESSING | RESOLVED | CLOSED. The richer
+  // protocol events live in ComplaintAction so the audit trail is never
+  // flattened into these four.
+  status String @default("OPEN")
+
+  // 0 = none, 1 = GRO, 2 = ONDC CARE/dispute.
+  escalationLevel Int @default(0)
+
+  // Identifiers assigned by the network once the issue is sent. Null until then,
+  // which is also how "not yet transmitted" is represented.
+  ondcIssueId     String? @unique
+  ondcTransactionId String?
+
+  // Set when the seller asks for more information, cleared when it is supplied —
+  // this is what the UI reads to show the "reply" state.
+  infoRequestedAt DateTime?
+  infoRequest     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  actors      ComplaintActor[]
+  actions     ComplaintAction[]
+  messages    ComplaintMessage[]
+  evidence    ComplaintEvidence[]
+  resolutions ComplaintResolution[]
+  escalations ComplaintEscalation[]
+  refunds     ComplaintRefund[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([orderId])
+}
+
+// CONSUMER | INTERFACING-NP | SELLER-NP | GRO | ONDC. IGM 2.0 replaced the old
+// complainant_info with explicit actors, so they are first-class rows here.
+model ComplaintActor {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  actorId     String // network-facing id, e.g. "CUST-001"
+  actorType   String
+  name        String?
+  // JSON blob for the optional actor_details the spec allows.
+  details     String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([complaintId, actorId])
+  @@index([complaintId])
+}
+
+// The audit trail. Every state change — ours or the network's — appends a row;
+// nothing is ever mutated in place. lastActionId chains actions so the case can
+// be replayed in order, which is what ONDC asks to see.
+model ComplaintAction {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  // Protocol action id where one exists; ours otherwise. Unique so a replayed
+  // callback cannot append the same action twice.
+  actionId     String   @unique
+  // ACKNOWLEDGED | INFO_REQUESTED | INFO_PROVIDED | RESOLUTION_PROPOSED |
+  // RESOLUTION_ACCEPTED | RESOLUTION_REJECTED | ESCALATED | REFUND_INITIATED |
+  // REFUND_COMPLETED | CREATED | STATUS_REQUESTED
+  code         String
+  // Customer-safe sentence. Raw protocol JSON never reaches the UI.
+  description  String
+  actionBy     String // actor type that performed it
+  actorId      String?
+  lastActionId String?
+  createdAt    DateTime @default(now())
+
+  @@index([complaintId, createdAt])
+}
+
+// Raw protocol traffic, kept apart from the customer-facing trail above so the
+// UI never depends on wire format. Payloads are stored for audit and debugging
+// and are never served to the app.
+model ComplaintMessage {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  direction   String // "outbound" | "inbound"
+  action      String // issue | on_issue | issue_status | on_issue_status
+  // Protocol message id — the idempotency key for inbound callbacks.
+  messageId   String?   @unique
+  payload     String // raw JSON as received/sent
+  status      String    @default("pending") // pending | acked | failed
+  error       String?
+  sentAt      DateTime?
+  receivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId, createdAt])
+}
+
+// File metadata only. The guide is explicit that private storage URLs must not
+// be exposed, so the app is handed an id and the server resolves a short-lived
+// link when one is actually needed.
+model ComplaintEvidence {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  storageKey  String
+  mimeType    String
+  sizeBytes   Int
+  // Which side supplied it — the customer, or the network.
+  uploadedBy  String    @default("CONSUMER")
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+// Resolutions are a list, not a field: IGM 2.0 lets a seller propose several,
+// and different ones per item. Modelling this as a single column on Complaint
+// would make item-specific proposals unrepresentable.
+model ComplaintResolution {
+  id           String    @id @default(cuid())
+  complaintId  String
+  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  resolutionId String    @unique // protocol id
+  itemId       String? // null = applies to the whole order
+  // REFUND | REPLACEMENT | PARTIAL_REFUND | NO_ACTION — from the spec.
+  type         String
+  // Integer paise, like every other money value in this schema. Null when the
+  // resolution isn't financial.
+  amountPaise  Int?
+  description  String
+  proposedBy   String    @default("SELLER-NP")
+  // null = awaiting the customer, then "accepted" | "rejected".
+  customerDecision String?
+  decidedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+// Refund tracking, kept apart from the IGM conversation on purpose. An accepted
+// resolution is a promise; money moving is a separate fact with its own
+// reference and status, and the guide warns against conflating them.
+model ComplaintRefund {
+  id               String    @id @default(cuid())
+  complaintId      String
+  complaint        Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  orderId          String?
+  amountPaise      Int
+  paymentReference String?
+  refundReference  String?
+  // initiated | processing | completed | failed. Never set to completed just
+  // because a resolution was accepted — only on authoritative confirmation.
+  status           String    @default("initiated")
+  initiatedAt      DateTime  @default(now())
+  completedAt      DateTime?
+
+  @@index([complaintId])
+}
+
+model ComplaintEscalation {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  level       Int // 1 = GRO, 2 = ONDC
+  reason      String
+  targetActor String
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([complaintId])
 }
 
 // Email-notification outbox: every user-facing email (except time-critical
@@ -426,7 +651,7 @@ model ApiKey {
   @@index([revokedAt])
 }
 
-// ONDC transaction log (developer console). Radiues is a BAP: every order is a
+// ONDC transaction log (developer console). Flouna is a BAP: every order is a
 // Beckn flow of signed request/callback pairs (search→on_search, select→
 // on_select, confirm→on_confirm, status→on_status). Until participant
 // registration these are SIMULATED from real orders but recorded in the exact
@@ -529,5 +754,39 @@ model OrderRating {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([domain, itemKey])
+  @@index([userId])
+}
+
+// A per-search record of how a recommendation was reached.
+//
+// ONDC's buyer-app disclosure asks a buyer app to account for its listing and
+// ranking behaviour. Price observations tell us what a thing cost; they do not
+// tell us why one option was placed above another. Without this table a past
+// recommendation cannot be reconstructed after the fact — which was the honest
+// answer given at section 17 of the developer questionnaire.
+//
+// Written fire-and-forget on the quote path, so a failure here never affects a
+// user's request. Retained for a bounded window by the maintenance job.
+model DecisionLog {
+  id      String  @id @default(cuid())
+  userId  String? // null for unauthenticated or demo traffic
+  domain  String // "food" | "ride"
+  query   String // the user's search text, or a route summary for rides
+
+  // The ranking configuration actually applied to this search.
+  priority     String // "price" | "rating" | "speed" | "balanced"
+  weights      String // JSON {price,rating,speed} AFTER any personalisation
+  personalized Boolean @default(false)
+
+  // What the engine saw and what it did with it.
+  candidateCount Int // options scored
+  excludedCount  Int // options removed by filters before scoring
+  exclusions     String? // JSON [{rule,count}] — why results were dropped
+  results        String // JSON [{key,pricePaise,rating,etaMinutes,score}], best first
+  chosenKey      String // the option presented as the recommendation
+
+  createdAt DateTime @default(now())
+
+  @@index([domain, createdAt])
   @@index([userId])
 }

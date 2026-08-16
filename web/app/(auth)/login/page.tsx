@@ -2,40 +2,69 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Phone, Mail, Lock, Eye, EyeOff, Apple } from "lucide-react";
+import { ArrowLeft, Mail, Phone, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { useAuth, type User } from "@/components/auth/AuthContext";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import {
+  AuthField,
+  AuthButton,
+  AuthAltButton,
+  AuthOr,
+} from "@/components/auth/AuthField";
+
+// Figma "Log in or sign up" (2177:7108 email / 2177:7168 phone). One screen in
+// two modes, each offering to continue with the other.
+//
+// The password step is the one thing the frames don't draw: they stop at
+// "Continue". Accounts here are password-backed, so the field is revealed in
+// place after Continue rather than on a screen of its own — same surface, same
+// treatment, no invented navigation.
+const COUNTRIES = [
+  { label: "India (+91)", dial: "+91" },
+  { label: "United States (+1)", dial: "+1" },
+  { label: "United Kingdom (+44)", dial: "+44" },
+  { label: "United Arab Emirates (+971)", dial: "+971" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
+  const [mode, setMode] = useState<"email" | "phone">("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [askPassword, setAskPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [dial, setDial] = useState(COUNTRIES[0].dial);
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showPw, setShowPw] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneValid = phone.replace(/\D/g, "").length >= 7;
+
+  async function onEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!askPassword) {
+      setAskPassword(true);
+      return;
+    }
     setBusy(true);
     try {
       const d = await api<{ user: User }>("/api/auth/login", {
         method: "POST",
-        json: { email, password },
+        json: { email: email.trim(), password },
       });
       setUser(d.user);
       router.push("/home");
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 403) {
         // Account exists but email unverified — backend has re-sent a code.
-        sessionStorage.setItem("pendingEmail", email);
+        sessionStorage.setItem("pendingEmail", email.trim());
         router.push("/verify");
         return;
       }
@@ -45,131 +74,205 @@ export default function LoginPage() {
     }
   }
 
+  async function onPhoneSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setInfo("");
+    setBusy(true);
+    try {
+      await api("/api/auth/phone/send-otp", {
+        method: "POST",
+        json: { phone: `${dial}${phone.replace(/\D/g, "")}` },
+      });
+      sessionStorage.setItem("pendingPhone", `${dial}${phone.replace(/\D/g, "")}`);
+      router.push("/verify");
+    } catch (err) {
+      // The backend returns 501 until an SMS provider is contracted. Say so
+      // plainly and point at the path that does work, rather than failing mute.
+      setError(
+        err instanceof ApiClientError && err.status === 501
+          ? "Phone sign-in isn't available yet — continue with email or Google."
+          : err instanceof Error
+            ? err.message
+            : "Could not send the code",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8 lg:max-w-none lg:flex-row lg:px-0 lg:py-0">
-      {/* Left hero — desktop only (Figma: brand, big Welcome, illustration) */}
-      <div className="hidden lg:flex lg:min-h-dvh lg:flex-1 lg:flex-col lg:px-16 lg:py-10 xl:px-24">
-        <div className="flex items-center gap-2">
-          <Image src="/logo.png" alt="" width={28} height={28} className="size-7" />
-          <span className="text-[16px] font-bold text-ink">Radiues</span>
-        </div>
-        <h1 className="mt-12 text-[64px] font-bold leading-none tracking-tight text-ink">
-          Welcome
-        </h1>
-        <p className="mt-5 max-w-sm text-[17px] leading-relaxed text-cocoa">
-          You&apos;ll get smarter responses and can upload files, images, and
-          more.
-        </p>
-        <Image
-          src="/illustrations/login-hero.png"
-          alt=""
-          width={569}
-          height={530}
-          priority
-          className="mt-6 w-full max-w-[540px] self-center"
-        />
-      </div>
-
-      {/* Form column */}
-      <div className="flex w-full flex-col lg:min-h-dvh lg:w-[600px] lg:justify-center lg:px-16 lg:pb-16">
-        <div className="flex justify-center lg:hidden">
-          <Image
-            src="/logo.png"
-            alt="Radiues"
-            width={56}
-            height={56}
-            priority
-            className="h-14 w-14"
-          />
-        </div>
-
-        <h1 className="mt-6 text-center text-[30px] font-bold text-ink lg:hidden">
-          Welcome
-        </h1>
-        <p className="mt-2 text-center text-[13px] leading-relaxed text-cocoa lg:hidden">
-          You&apos;ll get smarter responses and can upload files, images, and more.
-        </p>
-
-        <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-4 lg:mt-0">
-        <Input
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          placeholder="admin@gmail.com"
-          icon={<Mail size={17} />}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <Input
-          label="Password"
-          type={showPw ? "text" : "password"}
-          autoComplete="current-password"
-          placeholder="••••••••••"
-          icon={<Lock size={17} />}
-          trailing={
-            <button
-              type="button"
-              onClick={() => setShowPw((v) => !v)}
-              aria-label={showPw ? "Hide password" : "Show password"}
-              className="rounded-full p-1.5 text-cocoa/60 hover:text-cocoa"
-            >
-              {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-            </button>
-          }
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
         <Link
-          href="/forgot"
-          className="-mt-2 self-end text-[13px] font-semibold text-accent hover:underline"
+          href="/"
+          aria-label="Back"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
         >
-          Forgot password?
+          <ArrowLeft size={20} />
         </Link>
 
-        {error && <p className="text-[13px] text-danger">{error}</p>}
-        {info && <p className="text-[13px] text-cocoa">{info}</p>}
-
-        <Button type="submit" disabled={busy} className="mt-2 w-full">
-          {busy ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
-
-      <div className="mt-7 flex items-center gap-3 text-[12px] text-cocoa/70">
-        <span className="h-px flex-1 bg-line" />
-        Or continue with
-        <span className="h-px flex-1 bg-line" />
-      </div>
-
-      <div className="mt-5 flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={() => setInfo("Phone sign-in is coming soon — use email for now.")}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
-        >
-          <Phone size={16} className="text-cocoa" />
-          Continue with phone
-        </button>
-        <div className="grid grid-cols-2 gap-3">
-          <GoogleButton onError={setError} />
-          <button
-            type="button"
-            onClick={() => setInfo("Apple sign-in is coming soon — use email for now.")}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
-          >
-            <Apple size={17} className="text-ink" /> Apple
-          </button>
+        <div className="mt-6 flex flex-col items-center text-center">
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            Log in or sign up
+          </h1>
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            You&apos;ll get smarter responses and can book rides, order food and
+            more.
+          </p>
         </div>
-      </div>
 
-      <p className="mt-9 text-center text-[13px] text-cocoa">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-bold text-ink hover:text-accent">
-          Create an account
-        </Link>
-      </p>
+        {mode === "email" ? (
+          <form onSubmit={onEmailSubmit} className="mt-9 flex flex-col gap-4">
+            <AuthField
+              label="Email"
+              type="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setAskPassword(false);
+              }}
+              required
+            />
+            {askPassword && (
+              <AuthField
+                label="Password"
+                type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                autoFocus
+                icon={<Lock size={18} />}
+                trailing={
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                    className="rounded-full p-1 text-auth-muted transition-colors hover:text-auth-ink"
+                  >
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            )}
+            {error && (
+              <p role="alert" className="text-[14px] text-danger">
+                {error}
+              </p>
+            )}
+            <AuthButton
+              type="submit"
+              disabled={busy || !emailValid || (askPassword && !password)}
+            >
+              {busy ? "Signing in…" : askPassword ? "Log In" : "Continue"}
+            </AuthButton>
+            {askPassword && (
+              <Link
+                href="/forgot"
+                className="-mt-1 self-center text-[15px] font-semibold text-auth-accent hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
+          </form>
+        ) : (
+          <form onSubmit={onPhoneSubmit} className="mt-9 flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="country"
+                className="text-[14px] font-medium text-auth-accent"
+              >
+                Country/Region
+              </label>
+              <div className="relative">
+                <select
+                  id="country"
+                  value={dial}
+                  onChange={(e) => setDial(e.target.value)}
+                  className="h-[60px] w-full appearance-none rounded-[16px] border border-auth-line bg-white px-4 pr-11 text-[17px] text-auth-ink outline-none focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.dial} value={c.dial}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={20}
+                  aria-hidden
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-auth-muted"
+                />
+              </div>
+            </div>
+            <AuthField
+              label="Phone number"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+            {error && (
+              <p role="alert" className="text-[14px] text-danger">
+                {error}
+              </p>
+            )}
+            <AuthButton type="submit" disabled={busy || !phoneValid}>
+              {busy ? "Sending…" : "Send Verification code"}
+            </AuthButton>
+          </form>
+        )}
+
+        {info && <p className="mt-3 text-center text-[14px] text-auth-muted">{info}</p>}
+
+        <div className="mt-7">
+          <AuthOr />
+        </div>
+
+        <div className="mt-7 flex flex-col gap-4">
+          <GoogleButton onError={setError} label="Continue with Google" />
+          <AuthAltButton
+            type="button"
+            onClick={() => {
+              setMode(mode === "email" ? "phone" : "email");
+              setError("");
+              setAskPassword(false);
+            }}
+          >
+            {mode === "email" ? (
+              <>
+                <Phone size={20} /> Continue with phone
+              </>
+            ) : (
+              <>
+                <Mail size={20} /> Continue with email
+              </>
+            )}
+          </AuthAltButton>
+        </div>
+
+        <p className="mt-7 text-center text-[15px] text-auth-muted">
+          New here?{" "}
+          <Link href="/signup" className="font-bold text-auth-accent hover:underline">
+            Create an account
+          </Link>
+        </p>
+
+        <p className="mt-4 pb-8 text-center text-[15px]">
+          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+            Terms of Use
+          </Link>
+          <span className="px-2 text-auth-muted">·</span>
+          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );

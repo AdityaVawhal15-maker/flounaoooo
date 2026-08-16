@@ -6,7 +6,7 @@ describe("health endpoint", () => {
   it("reports ok with a reachable database", async () => {
     const res = await request(app).get("/api/health").expect(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.service).toBe("radiues-api");
+    expect(res.body.service).toBe("flouna-api");
     expect(res.body.db).toBe("ok");
     expect(typeof res.body.uptimeSeconds).toBe("number");
     expect(typeof res.body.latencyMs).toBe("number");

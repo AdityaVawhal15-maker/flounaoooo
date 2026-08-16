@@ -1,4 +1,4 @@
-# Render blueprint for the Radiues API (server/). The web app deploys to
+# Render blueprint for the Flouna API (server/). The web app deploys to
 # Vercel separately and proxies /api/* here (web/next.config.ts rewrites),
 # so browsers only ever see the web origin and auth cookies stay first-party.
 #
@@ -6,7 +6,7 @@
 # database is a Neon Postgres connection string (DATABASE_URL).
 services:
   - type: web
-    name: radiues-api
+    name: flouna-api
     runtime: node
     region: singapore
     plan: free

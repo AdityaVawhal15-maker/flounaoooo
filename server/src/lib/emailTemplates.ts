@@ -2,7 +2,7 @@ import { env } from "../config/env.js";
 
 // Branded transactional emails. Email clients (Gmail, Outlook) strip <style>
 // blocks and modern CSS, so everything is table-layout with inline styles —
-// the same Radiues tokens as the app: cream #fff9f6, ink #3d1c00,
+// the same Flouna tokens as the app: cream #fff9f6, ink #3d1c00,
 // accent #e8651a, cocoa #8b5e3c, beige #f0e6de.
 
 const COLORS = {
@@ -31,15 +31,15 @@ function layout(bodyHtml: string, preheader: string): string {
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
 <tr><td style="padding:0 4px 16px;">
-  <span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${COLORS.ink};">Radiues</span>
+  <span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;color:${COLORS.ink};">Flouna</span>
 </td></tr>
 <tr><td style="background-color:#ffffff;border:1px solid ${COLORS.beige};border-radius:16px;padding:28px;">
 ${bodyHtml}
 </td></tr>
 <tr><td style="padding:16px 4px 0;">
   <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;color:${COLORS.cocoa};">
-    Radiues · Algorithec Pvt Ltd<br>
-    You received this email because of activity on your Radiues account.
+    Flouna · Algorithec Pvt Ltd<br>
+    You received this email because of activity on your Flouna account.
   </p>
 </td></tr>
 </table>
@@ -54,15 +54,15 @@ export type OtpPurpose = "signup" | "step_up" | "reset";
 const OTP_COPY: Record<OtpPurpose, { heading: string; lead: string }> = {
   signup: {
     heading: "Verify your email",
-    lead: "Welcome to Radiues! Enter this code to activate your account:",
+    lead: "Welcome to Flouna! Enter this code to activate your account:",
   },
   step_up: {
     heading: "Confirm it's you",
-    lead: "Use this code to finish signing in to Radiues:",
+    lead: "Use this code to finish signing in to Flouna:",
   },
   reset: {
     heading: "Reset your password",
-    lead: "Use this code to set a new Radiues password:",
+    lead: "Use this code to set a new Flouna password:",
   },
 };
 
@@ -79,10 +79,10 @@ export function otpEmail(code: string, purpose: OtpPurpose) {
 <p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:${COLORS.cocoa};">
   This code expires in <strong>10 minutes</strong>. If you didn't request it, you can safely ignore this email — your account stays untouched.
 </p>`,
-    `${code} is your Radiues verification code`,
+    `${code} is your Flouna verification code`,
   );
   const text = `${copy.heading}\n\n${copy.lead} ${code}\n\nIt expires in 10 minutes. If you didn't request this, ignore this email.`;
-  return { subject: `${code} is your Radiues verification code`, html, text };
+  return { subject: `${code} is your Flouna verification code`, html, text };
 }
 
 export function welcomeEmail(name: string) {
@@ -90,7 +90,7 @@ export function welcomeEmail(name: string) {
   const html = layout(
     `<h1 style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:19px;color:${COLORS.ink};">You're in, ${safeName} 🎉</h1>
 <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:${COLORS.cocoa};">
-  Radiues compares food and ride prices for you and always picks the best deal — you just order.
+  Flouna compares food and ride prices for you and always picks the best deal — you just order.
 </p>
 <p style="margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:${COLORS.cocoa};">
   Try asking the assistant: <em>"order a biryani"</em> or <em>"get me a cab to the airport"</em>.
@@ -100,10 +100,10 @@ export function welcomeEmail(name: string) {
   <a href="${env.WEB_ORIGIN}/chat" style="display:inline-block;padding:12px 28px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">Start saving</a>
 </td></tr>
 </table>`,
-    "Your Radiues account is ready",
+    "Your Flouna account is ready",
   );
-  const text = `You're in, ${name || "there"}!\n\nRadiues compares food and ride prices and always picks the best deal.\n\nStart here: ${env.WEB_ORIGIN}/chat`;
-  return { subject: "Welcome to Radiues — your account is ready", html, text };
+  const text = `You're in, ${name || "there"}!\n\nFlouna compares food and ride prices and always picks the best deal.\n\nStart here: ${env.WEB_ORIGIN}/chat`;
+  return { subject: "Welcome to Flouna — your account is ready", html, text };
 }
 
 export function receiptEmail(order: {

@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { RateOrder } from "@/components/orders/RateOrder";
+import { CancelOrderSheet } from "@/components/orders/CancelOrderSheet";
 import { TrackingTimeline } from "@/components/orders/TrackingTimeline";
 import { DecisionReceipt } from "@/components/orders/DecisionReceipt";
 import { RideTracker } from "@/components/orders/RideTracker";
@@ -65,6 +66,7 @@ export default function OrderDetailPage({
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  const [cancelling, setCancelling] = useState(false);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -252,12 +254,44 @@ export default function OrderDetailPage({
         </div>
       </Card>
 
-      {/* Something wrong? Straight into the support flow with this order linked. */}
+      {/* Cancel — only while the order is still cancellable. The server owns
+          the real policy (food can't be cancelled once out for delivery), so
+          this hides the obvious cases and lets the server refuse the rest with
+          its own message rather than duplicating the rules here. */}
+      {order.status !== "cancelled" && order.status !== "completed" && !allDone && (
+        <button
+          onClick={() => setCancelling(true)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill border border-danger/30 bg-card py-3 text-[14px] font-semibold text-danger transition-colors hover:bg-danger/5"
+        >
+          Cancel {order.domain === "ride" ? "booking" : "order"}
+        </button>
+      )}
+
+      {cancelling && (
+        <CancelOrderSheet
+          orderId={order.id}
+          domain={order.domain}
+          onClose={() => setCancelling(false)}
+          onCancelled={() =>
+            setOrder((o) => (o ? { ...o, status: "cancelled" } : o))
+          }
+        />
+      )}
+
+      {/* Need Help opens the ONDC IGM complaint flow — a tracked grievance case
+          with a complaint ID, not a helpdesk message. The older support link
+          stays beneath it for questions that aren't a formal complaint. */}
+      <Link
+        href={`/orders/${order.id}/help`}
+        className="mt-4 flex items-center justify-center gap-2 rounded-pill bg-ink py-3.5 text-[14px] font-bold text-white transition-opacity hover:opacity-90"
+      >
+        <LifeBuoy size={16} /> Need Help
+      </Link>
       <Link
         href={`/profile/help?order=${order.id}`}
-        className="mt-4 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-cocoa transition-colors hover:bg-beige/40"
+        className="mt-3 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-cocoa transition-colors hover:bg-beige/40"
       >
-        <LifeBuoy size={15} className="text-accent" /> {t("order.reportIssue")}
+        {t("order.reportIssue")}
       </Link>
     </div>
   );

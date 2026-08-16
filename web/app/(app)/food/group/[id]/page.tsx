@@ -125,7 +125,7 @@ export default function GroupCartPage({
 
   async function shareUpi(share: Share) {
     if (!share.upiLink) return;
-    const text = `Hi ${share.name}, your share of our Radiues group order is ${rupees(share.sharePaise)}. Pay here: ${share.upiLink}`;
+    const text = `Hi ${share.name}, your share of our Flouna group order is ${rupees(share.sharePaise)}. Pay here: ${share.upiLink}`;
     if (navigator.share) {
       await navigator.share({ text }).catch(() => {});
       return;
@@ -135,7 +135,7 @@ export default function GroupCartPage({
 
   async function shareCode() {
     if (!cart) return;
-    const text = `Join my Radiues group order — code ${cart.code}`;
+    const text = `Join my Flouna group order — code ${cart.code}`;
     if (navigator.share) {
       await navigator.share({ text }).catch(() => {});
       return;

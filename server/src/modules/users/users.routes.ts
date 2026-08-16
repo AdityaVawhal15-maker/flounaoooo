@@ -66,11 +66,23 @@ usersRouter.patch(
         .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number")
         .nullable()
         .optional(),
+      // Stored as the browser's date-input format so it round-trips exactly.
+      dateOfBirth: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+        .nullable()
+        .optional(),
+      gender: z.string().trim().max(32).nullable().optional(),
     }),
   ),
   async (req, res, next) => {
     try {
-      const data = req.body as { name?: string; phone?: string | null };
+      const data = req.body as {
+        name?: string;
+        phone?: string | null;
+        dateOfBirth?: string | null;
+        gender?: string | null;
+      };
       const user = await prisma.user.update({
         where: { id: req.userId! },
         data: {
@@ -79,6 +91,10 @@ usersRouter.patch(
           ...(data.phone !== undefined
             ? { phone: data.phone, phoneVerified: false }
             : {}),
+          ...(data.dateOfBirth !== undefined
+            ? { dateOfBirth: data.dateOfBirth }
+            : {}),
+          ...(data.gender !== undefined ? { gender: data.gender } : {}),
         },
         select: {
           id: true,
@@ -88,6 +104,8 @@ usersRouter.patch(
           emailVerified: true,
           phoneVerified: true,
           avatarUrl: true,
+          dateOfBirth: true,
+          gender: true,
         },
       });
       res.json({ user });
@@ -143,6 +161,7 @@ usersRouter.get("/preferences", async (req, res, next) => {
         smartSuggestions: true,
         emailMoneyUpdates: true,
         emailTips: true,
+        shareLocation: true,
       },
     });
     res.json(user);
@@ -160,6 +179,7 @@ usersRouter.put(
         smartSuggestions: z.boolean().optional(),
         emailMoneyUpdates: z.boolean().optional(),
         emailTips: z.boolean().optional(),
+        shareLocation: z.boolean().optional(),
       })
       .refine((b) => Object.keys(b).length > 0, { message: "Nothing to update" }),
   ),
@@ -170,6 +190,7 @@ usersRouter.put(
         smartSuggestions?: boolean;
         emailMoneyUpdates?: boolean;
         emailTips?: boolean;
+        shareLocation?: boolean;
       };
       const user = await prisma.user.update({
         where: { id: req.userId! },
@@ -179,6 +200,7 @@ usersRouter.put(
           smartSuggestions: true,
           emailMoneyUpdates: true,
           emailTips: true,
+          shareLocation: true,
         },
       });
       res.json(user);
@@ -187,6 +209,32 @@ usersRouter.put(
     }
   },
 );
+
+// ---------- Login activity (Privacy & Security) ----------
+//
+// Backed by the refresh tokens that already represent sessions, so this is the
+// real list rather than a display: revoking here genuinely ends those sessions
+// at their next refresh. The current session is identified by its own cookie so
+// the caller can't accidentally sign themselves out of the device they're on.
+
+usersRouter.get("/sessions", async (req, res, next) => {
+  try {
+    const sessions = await prisma.refreshToken.findMany({
+      where: { userId: req.userId!, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    // Counted separately — the list above is capped, so its length would
+    // under-report anyone with more than 50 live sessions.
+    const count = await prisma.refreshToken.count({
+      where: { userId: req.userId!, revokedAt: null, expiresAt: { gt: new Date() } },
+    });
+    res.json({ sessions, count });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Decision profile — the user's learned taste, spend behaviour and routines.
 // Powers personalized recommendations and proactive nudges.

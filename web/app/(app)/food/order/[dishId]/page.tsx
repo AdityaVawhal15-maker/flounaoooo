@@ -134,10 +134,10 @@ export default function FoodOrderPage({
         “{selected.reviewSummary}”
       </p>
 
-      {/* The engine's pick. Radiues compared this dish across sources and locked
+      {/* The engine's pick. Flouna compared this dish across sources and locked
           the best deal — users see one price and an anonymous comparison, never
           which networks were checked. */}
-      <h2 className="mt-6 text-[14px] font-bold text-ink">{t("foodOrder.radiuesPrice")}</h2>
+      <h2 className="mt-6 text-[14px] font-bold text-ink">{t("foodOrder.flounaPrice")}</h2>
       <Card className="mt-2 border-accent/70 ring-1 ring-accent/30">
         <div className="flex items-center justify-between gap-3">
           <div>

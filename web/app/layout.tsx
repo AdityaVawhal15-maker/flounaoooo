@@ -11,12 +11,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Radiues — Stop Searching, Start Deciding",
-    template: "%s · Radiues",
+    default: "Flouna — Stop Searching, Start Deciding",
+    template: "%s · Flouna",
   },
   description:
-    "Radiues is your AI decision engine that finds the single best option across food, rides and more — all in one place.",
-  appleWebApp: { capable: true, title: "Radiues", statusBarStyle: "default" },
+    "Flouna is your AI decision engine that finds the single best option across food, rides and more — all in one place.",
+  appleWebApp: { capable: true, title: "Flouna", statusBarStyle: "default" },
 };
 
 export const viewport = {

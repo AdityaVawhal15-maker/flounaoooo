@@ -20,6 +20,8 @@ import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
 import { couponsRouter } from "./modules/coupons/coupons.routes.js";
+import { complaintsRouter } from "./modules/complaints/complaints.routes.js";
+import { igmWebhookRouter } from "./modules/complaints/igm.webhooks.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
 import { superRouter } from "./modules/backoffice/super.routes.js";
@@ -84,7 +86,7 @@ export function createApp() {
       await prisma.$queryRaw`SELECT 1`;
       res.json({
         ok: true,
-        service: "radiues-api",
+        service: "flouna-api",
         db: "ok",
         uptimeSeconds: Math.round(process.uptime()),
         latencyMs: Date.now() - started,
@@ -93,7 +95,7 @@ export function createApp() {
     } catch {
       res.status(503).json({
         ok: false,
-        service: "radiues-api",
+        service: "flouna-api",
         db: "unreachable",
         timestamp: new Date().toISOString(),
       });
@@ -106,6 +108,9 @@ export function createApp() {
   app.use("/api/chat", chatRouter);
   app.use("/api/food", foodRouter);
   app.use("/api/orders", ordersRouter);
+  app.use("/api/complaints", complaintsRouter);
+  // ONDC network callbacks. Outside /api on purpose: no session, no cookies.
+  app.use("/webhooks/ondc/igm", igmWebhookRouter);
   app.use("/api/rides", ridesRouter);
   app.use("/api/payments", paymentsRouter);
   app.use("/api/users", usersRouter);

@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../middleware/auth.js";
+import { recordDecision } from "../advisor/decisionLog.service.js";
 import { env } from "../../config/env.js";
-import { quoteRides, fetchRoute } from "./rides.service.js";
+import { quoteRides, quoteRidesTraced, fetchRoute } from "./rides.service.js";
 import { withCommunityRatings } from "../ratings/ratings.service.js";
 import { adviseRide } from "../advisor/advisor.service.js";
 import { recordObservation } from "../advisor/priceHistory.service.js";
@@ -196,10 +197,18 @@ ridesRouter.get("/quotes", async (req, res, next) => {
         vehicle: z.enum(["bike", "auto", "cab", "any"]).default("any"),
       })
       .parse(req.query);
-    const baseQuotes = quoteRides(parsed);
+    const { quotes: baseQuotes, trace } = quoteRidesTraced(parsed);
     const quotes = await withCommunityRatings("ride", baseQuotes, (q) => q.provider);
     const cheapest = quotes[0];
     if (cheapest) recordObservation("ride", cheapest.vehicle, cheapest.effectivePaise);
+    if (trace) {
+      recordDecision({
+        userId: req.userId,
+        domain: "ride",
+        query: `${parsed.vehicle} · ${parsed.distanceKm.toFixed(1)}km`,
+        trace,
+      });
+    }
     res.json({
       quotes,
       advice: await adviseRide(cheapest?.vehicle ?? null),

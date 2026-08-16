@@ -187,7 +187,7 @@ export function RideTracker({
     const text = tr("track.shareText");
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Radiues", text, url });
+        await navigator.share({ title: "Flouna", text, url });
       } else {
         await navigator.clipboard.writeText(`${text} ${url}`);
         setCopied(true);

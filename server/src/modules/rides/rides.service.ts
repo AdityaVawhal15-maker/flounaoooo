@@ -1,6 +1,11 @@
 // Simulated ride-provider quotes (Uber/Ola/Rapido/ONDC). Same adapter shape
 // real provider/ONDC-mobility integrations will implement later.
-import { scoreOptions, type Priority } from "../advisor/scoring.js";
+import {
+  scoreOptions,
+  appliedWeights,
+  type Priority,
+  type DecisionTrace,
+} from "../advisor/scoring.js";
 
 // Great-circle distance between two coordinates.
 export function haversineKm(
@@ -137,7 +142,7 @@ type ProviderConfig = {
 
 // `name` is the internal product id (stable — order matching + tests key on it).
 // `displayName` is what users see: neutral service tiers with NO network brand —
-// users book with Radiues; ONDC routes to whichever registered partner fulfils.
+// users book with Flouna; ONDC routes to whichever registered partner fulfils.
 const providers: ProviderConfig[] = [
   {
     provider: "uber",
@@ -171,12 +176,23 @@ const providers: ProviderConfig[] = [
   },
 ];
 
-export function quoteRides(opts: {
+export type QuoteRidesOpts = {
   distanceKm: number;
   rideMinutes: number;
   vehicle?: VehicleType | "any";
   priority?: Priority;
-}): RideQuote[] {
+};
+
+export function quoteRides(opts: QuoteRidesOpts): RideQuote[] {
+  return quoteRidesTraced(opts).quotes;
+}
+
+// Same quoting, but also reporting how the ordering was reached. Kept as the
+// single implementation so a logged explanation cannot drift from behaviour.
+export function quoteRidesTraced(opts: QuoteRidesOpts): {
+  quotes: RideQuote[];
+  trace: DecisionTrace | null;
+} {
   const wanted = opts.vehicle && opts.vehicle !== "any" ? opts.vehicle : null;
 
   const quotes = providers.flatMap((p) =>
@@ -211,6 +227,7 @@ export function quoteRides(opts: {
 
   // Order by the user's priority (driver rating, fare, or pickup ETA weighted);
   // defaults to balanced. The best-scoring quote is presented first.
+  const priority = opts.priority ?? "balanced";
   const ranked = scoreOptions(
     quotes.map((q) => ({
       pricePaise: q.effectivePaise,
@@ -218,7 +235,36 @@ export function quoteRides(opts: {
       etaMinutes: q.pickupEtaMinutes,
       quote: q,
     })),
-    opts.priority ?? "balanced",
+    priority,
   );
-  return ranked.map((r) => r.item.quote);
+  const ordered = ranked.map((r) => r.item.quote);
+
+  // Vehicle filtering is the only rule that removes a ride option before
+  // scoring; everything configured for that type is quoted.
+  const totalProducts = providers.reduce((n, p) => n + p.products.length, 0);
+  const excludedCount = totalProducts - quotes.length;
+
+  return {
+    quotes: ordered,
+    trace:
+      ordered.length === 0
+        ? null
+        : {
+            priority,
+            // Rides pass no personalisation, so applied weights are the preset.
+            weights: appliedWeights(priority),
+            personalized: false,
+            candidateCount: quotes.length,
+            excludedCount,
+            exclusions: excludedCount > 0 ? [{ rule: "vehicle_type", count: excludedCount }] : [],
+            scores: ranked.map((r) => ({
+              key: r.item.quote.productName,
+              pricePaise: r.item.quote.effectivePaise,
+              rating: r.item.quote.driverRating,
+              etaMinutes: r.item.quote.pickupEtaMinutes,
+              score: r.score,
+            })),
+            chosenKey: ordered[0]!.productName,
+          },
+  };
 }

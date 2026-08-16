@@ -158,7 +158,7 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.font = "700 50px Inter, system-ui, sans-serif";
-  ctx.fillText("Radiues", centerX, cardY + bandH - 38);
+  ctx.fillText("Flouna", centerX, cardY + bandH - 38);
 
   // ---- Body ----
   // Hero block (label / figure / sublabel) sits in the upper area.
@@ -178,11 +178,11 @@ export async function renderReceiptImage(data: ReceiptData): Promise<Blob | null
 
     ctx.fillStyle = INK;
     ctx.font = "600 40px Inter, system-ui, sans-serif";
-    ctx.fillText("with Radiues", centerX, heroTop + 310);
+    ctx.fillText("with Flouna", centerX, heroTop + 310);
   } else {
     ctx.fillStyle = MUTED;
     ctx.font = "500 40px Inter, system-ui, sans-serif";
-    ctx.fillText("Radiues picked", centerX, heroTop + 100);
+    ctx.fillText("Flouna picked", centerX, heroTop + 100);
 
     ctx.fillStyle = ACCENT;
     ctx.font = "800 104px Inter, system-ui, sans-serif";

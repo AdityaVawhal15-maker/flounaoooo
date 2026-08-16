@@ -1,4 +1,4 @@
-/* Radiues service worker — handles incoming web-push notifications. */
+/* Flouna service worker — handles incoming web-push notifications. */
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -6,9 +6,9 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "Radiues", body: event.data.text() };
+    payload = { title: "Flouna", body: event.data.text() };
   }
-  const { title = "Radiues", body = "", url = "/home" } = payload;
+  const { title = "Flouna", body = "", url = "/home" } = payload;
 
   event.waitUntil(
     self.registration.showNotification(title, {

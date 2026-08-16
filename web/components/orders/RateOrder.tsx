@@ -54,7 +54,7 @@ export function RateOrder({
           Thanks for rating
         </p>
         <p className="mt-1 text-[12px] text-cocoa">
-          Your {stars}-star rating helps Radiues pick better next time.
+          Your {stars}-star rating helps Flouna pick better next time.
         </p>
       </Card>
     );

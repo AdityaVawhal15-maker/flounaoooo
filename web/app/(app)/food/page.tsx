@@ -39,6 +39,7 @@ import { useI18n } from "@/components/i18n/I18nContext";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import type { FoodQuote } from "@/components/chat/types";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
 
 // Fixed category set matching the Figma food landing. `value` is the search
 // term sent to the backend ("" = All / unfiltered).
@@ -119,9 +120,8 @@ export default function FoodLandingPage() {
       <FadeIn y={8}>
         <div className="hidden items-center justify-between lg:flex">
           <span className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon.png" alt="" className="size-8 rounded-[8px]" />
-            <span className="text-[22px] font-bold text-accent">Radiues</span>
+            <FlounaLogo size={32} className="text-accent" />
+            <span className="text-[22px] font-bold text-accent">Flouna</span>
           </span>
           <span className="flex items-center gap-2">
             <Link
@@ -296,7 +296,7 @@ export default function FoodLandingPage() {
                   href="/home"
                   className="rounded-pill border border-accent px-3 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent-soft"
                 >
-                  Ask Radiues
+                  Ask Flouna
                 </Link>
               </div>
               <Stagger className="mt-3 flex flex-col gap-2.5">
@@ -329,7 +329,7 @@ export default function FoodLandingPage() {
                 />
                 <ExploreTile
                   icon={Sparkles}
-                  title="New on Radiues"
+                  title="New on Flouna"
                   subtitle="Fresh & fastest arrivals"
                   active={sort === "new"}
                   onClick={() => setSort(sort === "new" ? "default" : "new")}

@@ -152,7 +152,7 @@ export default function RewardsPage() {
         <StaggerItem>
           <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
             <p className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-              <BadgePercent size={15} className="text-accent" /> Radiues launch offer
+              <BadgePercent size={15} className="text-accent" /> Flouna launch offer
             </p>
             <p className="mt-1 text-[12px] text-cocoa">
               Extra savings on in-app orders — applied automatically at checkout.

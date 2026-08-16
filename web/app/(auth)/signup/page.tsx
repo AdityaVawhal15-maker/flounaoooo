@@ -3,34 +3,39 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  UserRound,
-  Camera,
-  User,
-  Phone,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  Calendar,
-} from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { GoogleButton } from "@/components/auth/GoogleButton";
+import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import {
+  AuthField,
+  AuthButton,
+  AuthOr,
+} from "@/components/auth/AuthField";
 
+// Figma "Create Account Light" (2177:7394): the identifier carried from the
+// entry screen shown read-only with an Edit link, then Create Password,
+// Re-Enter the Password, Continue, an OR rule and Continue with Google.
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [dob, setDob] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Shown on the field itself, beside the box that has to change, rather than
+  // only in the summary line at the foot of the form.
+  const mismatch = confirm.length > 0 && password !== confirm;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const ready =
+    name.trim().length >= 2 &&
+    emailValid &&
+    password.length >= 8 &&
+    password === confirm;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,17 +48,9 @@ export default function SignupPage() {
     try {
       await api("/api/auth/signup", {
         method: "POST",
-        json: {
-          name,
-          email,
-          password,
-          // Optional, but the form asks for them — so they must be saved,
-          // not silently discarded.
-          ...(mobile.trim() ? { phone: mobile.trim() } : {}),
-          ...(dob ? { dateOfBirth: dob } : {}),
-        },
+        json: { name: name.trim(), email: email.trim(), password },
       });
-      sessionStorage.setItem("pendingEmail", email);
+      sessionStorage.setItem("pendingEmail", email.trim());
       router.push("/verify");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed");
@@ -67,119 +64,109 @@ export default function SignupPage() {
       type="button"
       onClick={toggle}
       aria-label={shown ? "Hide password" : "Show password"}
-      className="rounded-full p-1.5 text-cocoa/60 hover:text-cocoa"
+      className="rounded-full p-1 text-auth-muted transition-colors hover:text-auth-ink"
     >
-      {shown ? <EyeOff size={17} /> : <Eye size={17} />}
+      {shown ? <EyeOff size={20} /> : <Eye size={20} />}
     </button>
   );
 
   return (
-    <div className="mt-2">
-      <div className="relative flex items-center justify-center py-3">
+    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+      <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/login"
-          aria-label="Back to login"
-          className="absolute left-0 rounded-full p-2 text-ink hover:bg-beige"
+          aria-label="Back"
+          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
         >
-          <ChevronLeft size={22} />
+          <ArrowLeft size={20} />
         </Link>
-        <h1 className="text-[22px] font-bold text-ink">Create Account</h1>
-      </div>
 
-      {/* Avatar with camera badge */}
-      <div className="mt-4 flex justify-center">
-        <div className="relative">
-          <span className="flex size-20 items-center justify-center rounded-full bg-beige">
-            <UserRound size={36} className="text-cocoa" />
-          </span>
-          {/* Decorative until avatar upload exists — a button here looked
-              clickable but did nothing when tapped. */}
-          <span
-            aria-hidden
-            className="absolute -bottom-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full border-2 border-cream bg-accent text-white"
-          >
-            <Camera size={14} />
-          </span>
+        <div className="mt-6 flex flex-col items-center text-center">
+          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+            Log in or sign up
+          </h1>
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+            You&apos;ll get smarter responses and can book rides, order food and
+            more.
+          </p>
         </div>
+
+        <form onSubmit={onSubmit} className="mt-9 flex flex-col gap-5">
+          <AuthField
+            label="Full name"
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            minLength={2}
+            required
+          />
+          <AuthField
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <AuthField
+            label="Create Password"
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            trailing={eye(showPw, () => setShowPw((v) => !v))}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
+          <AuthField
+            label="Re-Enter the Password"
+            type={showConfirm ? "text" : "password"}
+            autoComplete="new-password"
+            trailing={eye(showConfirm, () => setShowConfirm((v) => !v))}
+            error={mismatch ? "Passwords do not match" : undefined}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            minLength={8}
+            required
+          />
+
+          {error && (
+            <p role="alert" className="text-[14px] text-danger">
+              {error}
+            </p>
+          )}
+
+          <AuthButton type="submit" disabled={busy || !ready}>
+            {busy ? "Creating account…" : "Continue"}
+          </AuthButton>
+        </form>
+
+        <div className="mt-7">
+          <AuthOr />
+        </div>
+
+        <div className="mt-7">
+          <GoogleButton onError={setError} label="Continue with Google" />
+        </div>
+
+        <p className="mt-7 text-center text-[15px] text-auth-muted">
+          Already have an account?{" "}
+          <Link href="/login" className="font-bold text-auth-accent hover:underline">
+            Log In
+          </Link>
+        </p>
+
+        <p className="mt-4 pb-8 text-center text-[15px]">
+          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+            Terms of Use
+          </Link>
+          <span className="px-2 text-auth-muted">·</span>
+          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
-
-      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-        <Input
-          label="Full Name"
-          autoComplete="name"
-          placeholder="Enter your full name"
-          icon={<User size={17} />}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          minLength={2}
-          required
-        />
-        <Input
-          label="Mobile Number"
-          type="tel"
-          autoComplete="tel"
-          placeholder="Enter mobile number"
-          icon={<Phone size={17} />}
-          value={mobile}
-          onChange={(e) => setMobile(e.target.value)}
-        />
-        <Input
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          placeholder="Enter your email"
-          icon={<Mail size={17} />}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <Input
-          label="Password"
-          type={showPw ? "text" : "password"}
-          autoComplete="new-password"
-          placeholder="Password"
-          icon={<Lock size={17} />}
-          trailing={eye(showPw, () => setShowPw((v) => !v))}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          minLength={8}
-          required
-        />
-        <Input
-          label="Confirm"
-          type={showConfirm ? "text" : "password"}
-          autoComplete="new-password"
-          placeholder="Confirm"
-          icon={<Lock size={17} />}
-          trailing={eye(showConfirm, () => setShowConfirm((v) => !v))}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          minLength={8}
-          required
-        />
-        <Input
-          label="Date of Birth"
-          type="date"
-          autoComplete="bday"
-          max={new Date().toISOString().slice(0, 10)}
-          icon={<Calendar size={17} />}
-          value={dob}
-          onChange={(e) => setDob(e.target.value)}
-        />
-
-        {error && <p className="text-[13px] text-danger">{error}</p>}
-
-        <Button type="submit" disabled={busy} className="mt-3 w-full">
-          {busy ? "Creating account…" : "Create Account"}
-        </Button>
-      </form>
-
-      <p className="mt-5 text-center text-[13px] text-cocoa">
-        Already have an account?{" "}
-        <Link href="/login" className="font-bold text-ink hover:text-accent">
-          Back to Login
-        </Link>
-      </p>
     </div>
   );
 }

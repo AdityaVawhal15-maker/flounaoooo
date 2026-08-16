@@ -17,6 +17,8 @@ export type User = {
   emailVerified: boolean;
   phoneVerified: boolean;
   avatarUrl: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
 };
 
 type AuthState = {

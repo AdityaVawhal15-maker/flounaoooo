@@ -1,4 +1,4 @@
-// Thin client for the Radiues API. All authenticated requests rely on
+// Thin client for the Flouna API. All authenticated requests rely on
 // httpOnly cookies (credentials: "include") — tokens are never stored in JS.
 // NEXT_PUBLIC_API_URL="/" means same-origin: the host proxies /api/* to the
 // API service (see next.config.ts rewrites) so cookies stay first-party.
