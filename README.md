@@ -153,7 +153,7 @@ npm run build
 
 ## Production notes
 
-- Switch the Prisma datasource to `postgresql` and run `npx prisma migrate deploy`
+- Create the production schema with `npm run db:deploy` (preview it first with `npm run db:deploy:check`). This baselines Postgres from `schema.prisma` rather than replaying the migration history — those migrations were generated against SQLite and contain `PRAGMA`/`DATETIME`, which Postgres rejects. After the baseline, normal `prisma migrate` works as usual.
 - Set `NODE_ENV=production` and `WEB_ORIGIN` to the deployed frontend URL
 - Host the web app and API on the same domain (e.g. `flouna.app` + `api.flouna.app`) — session cookies require it
 - Register the Cashfree webhook: `https://<api-host>/api/payments/webhook/cashfree`
