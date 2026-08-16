@@ -77,14 +77,34 @@ if (!apply) {
   process.exit(0);
 }
 
-// 3. Refuse to touch a database that already has our tables — this script
-//    creates a schema, it does not migrate an existing one.
-let existing = "";
+// 3. Refuse to touch a database that already contains anything. This script
+//    CREATES a schema; it is not a migration path for a populated database,
+//    and the push below is allowed to drop columns. Asking Prisma to diff the
+//    live database down to empty tells us what is there without needing a
+//    driver: any DROP means the database is not blank.
+let dropCheck;
 try {
-  existing = run(["db", "execute", "--stdin"], { capture: true });
+  dropCheck = run(["migrate", "diff", "--from-url", url, "--to-empty", "--script"], {
+    capture: true,
+  });
 } catch {
-  /* handled below by the push attempt */
+  // Almost always an unreachable host or bad credentials. Fail here, before
+  // anything touches the database.
+  die(
+    "Could not reach the database to check whether it is empty.\n" +
+      "  Verify DATABASE_URL, that the server is running, and that it accepts\n" +
+      "  connections from this host. Nothing has been changed.",
+  );
 }
+const drops = (dropCheck.match(/DROP TABLE/gi) ?? []).length;
+if (drops > 0 && !process.argv.includes("--force")) {
+  die(
+    `Refusing to run: the target database already has ${drops} table(s).\n` +
+      `  This script creates a fresh schema and may drop columns to do it.\n` +
+      `  If you are certain the data is disposable, re-run with --force.`,
+  );
+}
+console.log(`  target database is empty (${drops} existing tables)`);
 
 if (existsSync(migDir)) {
   console.log("  0_init already exists — leaving it as is");
@@ -97,7 +117,16 @@ if (existsSync(migDir)) {
 // 4. Apply the schema, then mark the baseline as applied so subsequent
 //    `prisma migrate deploy` runs pick up from here.
 console.log("\n  applying schema to the database...");
-run(["db", "push", "--skip-generate", "--accept-data-loss"]);
+// --accept-data-loss only when the operator has explicitly forced past the
+// emptiness check above. On a blank database there is no data to lose, so the
+// flag is unnecessary — and leaving it on by default is how a rerun destroys
+// a live database.
+run([
+  "db",
+  "push",
+  "--skip-generate",
+  ...(process.argv.includes("--force") ? ["--accept-data-loss"] : []),
+]);
 try {
   run(["migrate", "resolve", "--applied", "0_init"]);
   console.log("  recorded 0_init as applied");
