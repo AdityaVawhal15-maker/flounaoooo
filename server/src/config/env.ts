@@ -100,9 +100,48 @@ if (isProd) {
   if (!env.WEB_ORIGIN.startsWith("https://")) {
     problems.push("WEB_ORIGIN must be https:// in production (secure cookies require it)");
   }
+  // The simulation adapter runs the whole booking flow — it invents a captain,
+  // an OTP and a moving vehicle. That is exactly right in development and
+  // indefensible in production, where a rider would be shown a driver who does
+  // not exist. Nothing downstream can tell the difference, so the gate is here.
+  if (env.PROVIDER_MODE === "simulation") {
+    problems.push(
+      "PROVIDER_MODE=simulation fabricates drivers, OTPs and live tracking — " +
+        "set PROVIDER_MODE=ondc with ONDC_* credentials before serving real riders",
+    );
+  }
+  if (env.PROVIDER_MODE === "ondc" && !env.ONDC_SUBSCRIBER_ID) {
+    problems.push("PROVIDER_MODE=ondc but ONDC_SUBSCRIBER_ID is unset — the adapter cannot sign requests");
+  }
+  // Simulated payments are refused in production (see payments routes), so
+  // without gateway credentials checkout has nowhere to go: the user reaches
+  // the payment step and cannot complete it. Fail at boot instead.
+  if (!env.CASHFREE_APP_ID || !env.CASHFREE_SECRET_KEY) {
+    problems.push(
+      "CASHFREE_APP_ID/CASHFREE_SECRET_KEY are unset — simulated payment is disabled " +
+        "in production, so checkout would dead-end with no way to pay",
+    );
+  }
   if (problems.length > 0) {
     console.error("Refusing to start: unsafe production configuration:");
     for (const p of problems) console.error(`  - ${p}`);
     process.exit(1);
+  }
+
+  // Degraded but honest: worth saying out loud at boot, not worth refusing to
+  // start over. Each leaves a real feature quietly switched off.
+  const warnings: string[] = [];
+  if (env.LLM_PROVIDER === "demo") {
+    warnings.push("LLM_PROVIDER=demo — chat runs on the rule-based engine, not a model");
+  }
+  if (env.CASHFREE_ENV === "sandbox") {
+    warnings.push("CASHFREE_ENV=sandbox — payments are not real money");
+  }
+  if (!env.VAPID_PUBLIC_KEY) {
+    warnings.push("VAPID_PUBLIC_KEY unset — web push notifications are disabled");
+  }
+  if (warnings.length > 0) {
+    console.warn("Starting with reduced functionality:");
+    for (const w of warnings) console.warn(`  - ${w}`);
   }
 }
