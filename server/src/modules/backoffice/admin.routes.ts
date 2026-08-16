@@ -36,6 +36,7 @@ import {
   cityReport,
   vendorReport,
   decisionLogs,
+  rankingDecisions,
   couponStats,
   priceAlertsOverview,
   gmvByDomain,
@@ -80,6 +81,17 @@ adminRouter.get("/vendors", async (_req, res, next) => {
 adminRouter.get("/decisions", async (_req, res, next) => {
   try {
     res.json(await decisionLogs(50));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Why a recommendation ranked the way it did — the record behind the answer we
+// give ONDC on ranking auditability. Distinct from /decisions above, which
+// reports what users asked for rather than how the engine chose.
+adminRouter.get("/ranking-decisions", async (_req, res, next) => {
+  try {
+    res.json(await rankingDecisions(50));
   } catch (err) {
     next(err);
   }
