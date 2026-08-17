@@ -12,6 +12,10 @@ import {
   ChevronDown,
   Clock,
   MapPin,
+  X,
+  AlertCircle,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -44,8 +48,11 @@ type Status = {
 
 type AddressSummary = { label: string; line1: string; city: string; isDefault: boolean };
 
-type Stage = "select" | "processing" | "done";
+type Stage = "select" | "processing" | "done" | "failed";
 type Method = "upi" | "cash" | "card";
+
+/** What was attempted, so the failure screen can name it rather than guess. */
+type FailedAttempt = { method: Method; at: Date; message: string };
 
 declare global {
   interface Window {
@@ -68,6 +75,7 @@ export default function PayPage({
   const [method, setMethod] = useState<Method>("upi");
   const [showSummary, setShowSummary] = useState(true);
   const [error, setError] = useState("");
+  const [failed, setFailed] = useState<FailedAttempt | null>(null);
   const [address, setAddress] = useState<AddressSummary | null>(null);
 
   // Delivery address for the confirmation card (food orders).
@@ -97,6 +105,7 @@ export default function PayPage({
 
   async function pay() {
     setError("");
+    setFailed(null);
     setStage("processing");
     try {
       const d = await api<{
@@ -145,8 +154,16 @@ export default function PayPage({
       });
       setStage("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Payment failed");
-      setStage("select");
+      // Every failure path lands here: a declined card, an abandoned gateway
+      // page, an SDK that never loaded. The buyer gets the same account of it
+      // — what was tried, when, and that a debited amount comes back — rather
+      // than a single red line above the method picker.
+      setFailed({
+        method,
+        at: new Date(),
+        message: e instanceof Error ? e.message : t("pay.failed.generic"),
+      });
+      setStage("failed");
     }
   }
 
@@ -286,6 +303,87 @@ export default function PayPage({
           >
             Taking too long? Go back to payment options
           </button>
+        </FadeIn>
+      )}
+
+      {stage === "failed" && failed && (
+        <FadeIn className="mt-8 flex flex-col items-center text-center">
+          {/* Figma "payment failed" (2453:2102) */}
+          <span className="relative flex size-20 items-center justify-center">
+            <span className="absolute inset-0 rounded-full bg-danger/10" />
+            <span className="absolute inset-2 rounded-full bg-danger/15" />
+            <span className="relative flex size-12 items-center justify-center rounded-full bg-danger">
+              <X size={26} strokeWidth={3} className="text-white" />
+            </span>
+          </span>
+
+          <h2 className="mt-5 flex items-center gap-2 text-[19px] font-bold text-danger">
+            <AlertCircle size={19} />
+            {t("pay.failed.title")}
+          </h2>
+          <p className="mt-1.5 text-[14px] text-cocoa">{t("pay.failed.sub")}</p>
+
+          {/* What was actually attempted — named, not guessed at. */}
+          <div className="mt-6 flex w-full items-center gap-3 rounded-2xl bg-danger-soft p-4 text-left">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-danger/10">
+              {failed.method === "card" ? (
+                <CreditCard size={18} className="text-danger" />
+              ) : failed.method === "cash" ? (
+                <Wallet size={18} className="text-danger" />
+              ) : (
+                <Smartphone size={18} className="text-danger" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-semibold text-ink">
+                {t(`pay.${failed.method}`)}
+              </span>
+              <span className="block text-[12px] text-cocoa">
+                {t("pay.failed.at")}{" "}
+                {failed.at.toLocaleTimeString("en-IN", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="text-[15px] font-bold text-danger">{rupees(status.amount)}</span>
+              <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-semibold text-danger">
+                {t("pay.failed.pill")}
+              </span>
+            </span>
+          </div>
+
+          {/* The buyer's first worry is their money, so it is answered before
+              anything asks them to try again. */}
+          <p className="mt-3 flex w-full items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-left text-[13px] text-warning">
+            <Info size={15} className="mt-0.5 shrink-0" />
+            {t("pay.failed.refundNote")}
+          </p>
+
+          {/* The gateway's own reason, when it gave one worth showing. */}
+          {failed.message && (
+            <p className="mt-3 text-[12px] text-cocoa/80">{failed.message}</p>
+          )}
+
+          <Button onClick={pay} className="mt-6 w-full bg-danger hover:bg-danger/90">
+            <RefreshCw size={17} /> {t("pay.failed.retry")}
+          </Button>
+          <button
+            onClick={() => {
+              setFailed(null);
+              setStage("select");
+            }}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-card py-3 text-[14px] font-semibold text-ink hover:bg-beige/40"
+          >
+            <CreditCard size={17} /> {t("pay.failed.another")}
+          </button>
+          <Link
+            href={`/orders/${orderId}`}
+            className="mt-4 text-[13px] text-cocoa underline hover:text-ink"
+          >
+            {t("pay.failed.back")}
+          </Link>
         </FadeIn>
       )}
 
