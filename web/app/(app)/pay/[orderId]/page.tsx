@@ -21,7 +21,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FadeIn } from "@/components/ui/motion";
+import { FadeIn, SlideIn } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
 
@@ -307,7 +307,7 @@ export default function PayPage({
       )}
 
       {stage === "failed" && failed && (
-        <FadeIn className="mt-8 flex flex-col items-center text-center">
+        <SlideIn from="top" className="mt-8 flex flex-col items-center text-center">
           {/* Figma "payment failed" (2453:2102) */}
           <span className="relative flex size-20 items-center justify-center">
             <span className="absolute inset-0 rounded-full bg-danger/10" />
@@ -384,11 +384,11 @@ export default function PayPage({
           >
             {t("pay.failed.back")}
           </Link>
-        </FadeIn>
+        </SlideIn>
       )}
 
       {stage === "done" && (
-        <FadeIn className="mt-8 flex flex-col items-center">
+        <SlideIn from="top" className="mt-8 flex flex-col items-center">
           {/* Success header — Figma "Order Confirmation" */}
           <span className="flex size-16 items-center justify-center rounded-full bg-success/10">
             <CheckCircle2 size={40} className="text-success" />
@@ -491,7 +491,7 @@ export default function PayPage({
               {t("pay.viewInvoice")}
             </Button>
           </div>
-        </FadeIn>
+        </SlideIn>
       )}
     </div>
   );
