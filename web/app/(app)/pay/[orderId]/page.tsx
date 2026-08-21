@@ -393,11 +393,18 @@ export default function PayPage({
           <span className="flex size-16 items-center justify-center rounded-full bg-success/10">
             <CheckCircle2 size={40} className="text-success" />
           </span>
+          {/* Cash on delivery confirms the order without taking any money, so
+              "Payment successful" would be untrue — the amount is still owed,
+              in person, at the door. */}
           <p className="mt-4 text-center text-[18px] font-bold text-ink">
-            {t("pay.success")}
+            {status.payment?.method === "cash" ? t("pay.confirmedCash") : t("pay.success")}
           </p>
           <p className="mt-1 text-center text-[13px] text-cocoa">
-            {isFood ? t("pay.successFood") : t("pay.successRide")}
+            {status.payment?.method === "cash"
+              ? t("pay.payOnDelivery").replace("{amount}", rupees(status.amount))
+              : isFood
+                ? t("pay.successFood")
+                : t("pay.successRide")}
           </p>
           <span className="mt-3 rounded-pill border border-success/40 bg-success/5 px-3 py-1 font-mono text-[11px] font-semibold text-success">
             Order ID: #{orderId.slice(-8).toUpperCase()}
