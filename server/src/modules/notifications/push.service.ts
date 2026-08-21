@@ -2,17 +2,30 @@ import webpush from "web-push";
 import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 
-export const pushConfigured = Boolean(
-  env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
-);
-
-if (pushConfigured) {
-  webpush.setVapidDetails(
-    env.VAPID_SUBJECT,
-    env.VAPID_PUBLIC_KEY!,
-    env.VAPID_PRIVATE_KEY!,
-  );
+// web-push validates the key material and THROWS at module load, so a
+// mistyped or truncated VAPID key takes the entire API down before it can
+// serve a request — with an error from the library rather than anything that
+// names the cause. Push is a nice-to-have; the API is not. Degrade instead.
+function initPush(): boolean {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return false;
+  try {
+    webpush.setVapidDetails(
+      env.VAPID_SUBJECT,
+      env.VAPID_PUBLIC_KEY,
+      env.VAPID_PRIVATE_KEY,
+    );
+    return true;
+  } catch (err) {
+    console.error(
+      "[push] VAPID keys are set but invalid — push notifications are disabled. " +
+        "Regenerate with `npx web-push generate-vapid-keys`. " +
+        (err instanceof Error ? err.message : String(err)),
+    );
+    return false;
+  }
 }
+
+export const pushConfigured = initPush();
 
 export type PushPayload = {
   title: string;
