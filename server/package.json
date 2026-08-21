@@ -7,8 +7,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node --env-file=.env dist/index.js",
+    "build": "node scripts/set-db-provider.mjs && prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -19,7 +19,8 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",
-    "db:deploy:check": "node scripts/set-db-provider.mjs postgresql && node scripts/pg-baseline.mjs"
+    "db:deploy:check": "node scripts/set-db-provider.mjs postgresql && node scripts/pg-baseline.mjs",
+    "start:local": "node --env-file=.env dist/index.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
