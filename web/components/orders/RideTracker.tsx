@@ -274,9 +274,13 @@ export function RideTracker({
         <div className="mb-3 flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-[13px] text-warning">
           <Info size={15} className="mt-0.5 shrink-0" />
           <span>
-            <strong className="font-semibold">Demo ride.</strong> Flouna is not yet
-            connected to a live driver network, so this trip is simulated — no
-            vehicle has been dispatched.
+            <strong className="font-semibold">
+              {isFood ? "Demo delivery." : "Demo ride."}
+            </strong>{" "}
+            Flouna is not yet connected to a live{" "}
+            {isFood ? "restaurant" : "driver"} network, so this{" "}
+            {isFood ? "delivery" : "trip"} is simulated — no{" "}
+            {isFood ? "food has been prepared" : "vehicle has been dispatched"}.
           </span>
         </div>
       )}
