@@ -91,7 +91,9 @@ export function DishArt({
       }
       style={{
         ...(fill ? {} : { width: size, height: size }),
-        fontSize: Math.round((fill ? 96 : size) * 0.52),
+        // In banner use the glyph IS the image, so it should fill the frame
+        // rather than float in it. The square thumbnail keeps its tighter ratio.
+        fontSize: fill ? 104 : Math.round(size * 0.52),
         background: `linear-gradient(135deg, ${v.from}, ${v.to})`,
       }}
     >

@@ -40,7 +40,10 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <header
           className={`sticky top-0 z-20 flex h-16 items-center justify-between gap-3 px-4 backdrop-blur lg:hidden ${
-            onAccountGround ? "bg-acct-bg/90" : "bg-cream/90"
+            // Near-opaque: at 90% the chat's own chips read straight through
+            // the bar as it scrolls under, which looks like a layering fault
+            // rather than a frosted header.
+            onAccountGround ? "bg-acct-bg/97" : "bg-cream/97"
           }`}
         >
           <button

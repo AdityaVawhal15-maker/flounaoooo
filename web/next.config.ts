@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The dev route badge renders bottom-left, which is exactly where the chat
+  // composer sits — it covers the input and reads as part of the product when
+  // the app is shown from a dev server. Compile and runtime errors are still
+  // surfaced; only the route indicator is hidden.
+  devIndicators: false,
   // In hosted environments the web app proxies /api/* to the API service so
   // auth cookies stay first-party on this origin (same-origin requirement).
   // Set API_PROXY_TARGET to the API base URL (no trailing slash) and leave
