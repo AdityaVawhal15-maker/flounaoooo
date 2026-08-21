@@ -15,6 +15,7 @@ import {
   Utensils,
   Car,
   CircleCheck,
+  Info,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
@@ -148,6 +149,19 @@ export function FoodRecommendation({
       )}
 
       <PersonalNote note={rec.personalNote} />
+
+      {/* Nothing matched what was asked for. Saying so is the difference
+          between a helpful stand-in and a confidently wrong answer — ask for
+          sushi against this catalogue and a dosa arrives with no explanation. */}
+      {rec.substituted && (
+        <p className="flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">
+          <Info size={15} className="mt-0.5 shrink-0" />
+          <span>
+            We don&apos;t have that on Flouna yet — here&apos;s the closest we
+            can do right now.
+          </span>
+        </p>
+      )}
 
       <WhyBest best={rec.best} alternatives={rec.alternatives} />
 

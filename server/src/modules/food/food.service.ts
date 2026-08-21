@@ -35,6 +35,8 @@ export type FoodRecommendation = {
   pickReason: PickReason;
   /** How this pick was reached — consumed by the decision log, not the UI. */
   trace: DecisionTrace;
+  /** Nothing matched what was asked for; these are stand-ins. */
+  substituted: boolean;
 };
 
 /** Stable identity of a food option: which dish, on which listing. */
@@ -140,8 +142,15 @@ export function searchFood(opts: SearchOpts): FoodQuote[] {
 export function searchFoodTraced(opts: SearchOpts): {
   quotes: FoodQuote[];
   exclusions: Exclusion[];
+  /**
+   * True when nothing in the catalogue matched what was asked for and the
+   * whole menu was substituted. The caller has to be able to say so: without
+   * it, "sushi" is answered with a dosa and nothing admits the swap.
+   */
+  substituted: boolean;
 } {
   const exclusions: Exclusion[] = [];
+  let substituted = false;
   const note = (rule: string, count: number) => {
     if (count > 0) exclusions.push({ rule, count });
   };
@@ -173,6 +182,9 @@ export function searchFoodTraced(opts: SearchOpts): {
     // "sweet"/"cake"/"dessert" descriptors above match them directly).
     matched = dishes.filter((d) => !d.keywords.includes("dessert"));
     note("generic_query_dessert_exclusion", dishes.length - matched.length);
+    // Only a substitution when the person named something specific. "I'm
+    // hungry" has nothing to substitute for.
+    substituted = rawTerms.length > 0 && direct.length > 0;
   } else {
     note("keyword_no_match", dishes.length - matched.length);
   }
@@ -199,6 +211,7 @@ export function searchFoodTraced(opts: SearchOpts): {
   return {
     quotes: quotes.sort((a, b) => a.effectivePaise - b.effectivePaise),
     exclusions,
+    substituted,
   };
 }
 
@@ -211,7 +224,7 @@ export function recommendFood(
     personal?: Personalization;
   },
 ): FoodRecommendation | null {
-  const { quotes, exclusions } = searchFoodTraced(opts);
+  const { quotes, exclusions, substituted } = searchFoodTraced(opts);
   if (quotes.length === 0) return null;
 
   const priority = opts.priority ?? "balanced";
@@ -265,6 +278,7 @@ export function recommendFood(
     best,
     alternatives,
     why,
+    substituted,
     pickReason: reasonForPriority(priority),
     trace: {
       priority,
