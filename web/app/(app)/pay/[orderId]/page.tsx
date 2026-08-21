@@ -76,6 +76,7 @@ export default function PayPage({
   const [showSummary, setShowSummary] = useState(true);
   const [error, setError] = useState("");
   const [failed, setFailed] = useState<FailedAttempt | null>(null);
+  const [paidWithCash, setPaidWithCash] = useState(false);
   const [address, setAddress] = useState<AddressSummary | null>(null);
 
   // Delivery address for the confirmation card (food orders).
@@ -119,6 +120,10 @@ export default function PayPage({
 
       // Cash on delivery — confirmed straight away, money collected in person.
       if (d.mode === "cash") {
+        // `status` was fetched on mount, before any payment existed, so it
+        // cannot tell the confirmation screen this was cash — it would still
+        // read "Payment successful" until a reload.
+        setPaidWithCash(true);
         setStage("done");
         return;
       }
@@ -179,6 +184,8 @@ export default function PayPage({
   const discount = d.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
   const isFood = status.domain === "food";
   const fareLabel = isFood ? t("bill.totalAmount") : t("bill.totalFare");
+  // True whether the order was just paid by cash or is being revisited later.
+  const isCash = paidWithCash || status.payment?.method === "cash";
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-6 lg:py-10">
@@ -397,10 +404,10 @@ export default function PayPage({
               "Payment successful" would be untrue — the amount is still owed,
               in person, at the door. */}
           <p className="mt-4 text-center text-[18px] font-bold text-ink">
-            {status.payment?.method === "cash" ? t("pay.confirmedCash") : t("pay.success")}
+            {isCash ? t("pay.confirmedCash") : t("pay.success")}
           </p>
           <p className="mt-1 text-center text-[13px] text-cocoa">
-            {status.payment?.method === "cash"
+            {isCash
               ? t("pay.payOnDelivery").replace("{amount}", rupees(status.amount))
               : isFood
                 ? t("pay.successFood")
