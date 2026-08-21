@@ -307,7 +307,7 @@ export default function PayPage({
       )}
 
       {stage === "failed" && failed && (
-        <SlideIn from="top" className="mt-8 flex flex-col items-center text-center">
+        <SlideIn direction="top" className="mt-8 flex flex-col items-center text-center">
           {/* Figma "payment failed" (2453:2102) */}
           <span className="relative flex size-20 items-center justify-center">
             <span className="absolute inset-0 rounded-full bg-danger/10" />
@@ -388,7 +388,7 @@ export default function PayPage({
       )}
 
       {stage === "done" && (
-        <SlideIn from="top" className="mt-8 flex flex-col items-center">
+        <SlideIn direction="top" className="mt-8 flex flex-col items-center">
           {/* Success header — Figma "Order Confirmation" */}
           <span className="flex size-16 items-center justify-center rounded-full bg-success/10">
             <CheckCircle2 size={40} className="text-success" />

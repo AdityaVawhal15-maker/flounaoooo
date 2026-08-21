@@ -6,7 +6,8 @@ import { cn } from "@/lib/cn";
 // Premium, restrained motion primitives used across the app.
 // Tuned for a calm high-end feel: short, eased, never bouncy.
 
-const EASE = [0.22, 1, 0.36, 1] as const; // gentle ease-out
+// Figma EASE_OUT, the file's easing for everything that is not LINEAR.
+const EASE_OUT_C = [0, 0, 0.58, 1] as const;
 
 // Fades + lifts in on mount. Use `delay` to sequence, or wrap children in
 // <Stagger> for automatic sequencing.
@@ -15,13 +16,14 @@ export function FadeIn({
   className,
   delay = 0,
   y = 12,
+  duration = 0.3,
   ...props
-}: HTMLMotionProps<"div"> & { delay?: number; y?: number }) {
+}: HTMLMotionProps<"div"> & { delay?: number; y?: number; duration?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: EASE, delay }}
+      transition={{ duration, ease: EASE_OUT_C, delay }}
       className={className}
       {...props}
     >
@@ -42,7 +44,7 @@ export function ScrollReveal({
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.5, ease: EASE }}
+      transition={{ duration: 0.3, ease: EASE_OUT_C }}
       className={className}
       {...props}
     >
@@ -84,7 +86,7 @@ export function StaggerItem({
     <motion.div
       variants={{
         hidden: { opacity: 0, y },
-        show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: EASE } },
+        show: { opacity: 1, y: 0, transition: { duration: 0.15, ease: EASE_OUT_C } },
       }}
       className={className}
       {...props}
@@ -104,7 +106,7 @@ export function Pressable({
     <motion.div
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
-      transition={{ duration: 0.2, ease: EASE }}
+      transition={{ duration: 0.1, ease: EASE_OUT_C }}
       className={cn("will-change-transform", className)}
       {...props}
     >
@@ -138,10 +140,13 @@ export const EASE_OUT = [0, 0, 0.58, 1] as const; // Figma EASE_OUT
 export const LINEAR = [0, 0, 1, 1] as const; // Figma LINEAR
 
 const OFFSET = {
-  left: { x: -24, y: 0 },
-  right: { x: 24, y: 0 },
-  top: { x: 0, y: -24 },
-  bottom: { x: 0, y: 24 },
+  // Figma's MOVE_IN direction is the direction the incoming frame TRAVELS, so
+  // content starts at the opposite edge: "top" rises into place from below,
+  // which is what makes the payment sheet read as a sheet.
+  top: { x: 0, y: 28 },
+  bottom: { x: 0, y: -28 },
+  left: { x: 28, y: 0 },
+  right: { x: -28, y: 0 },
 } as const;
 
 /**
@@ -153,16 +158,17 @@ const OFFSET = {
 export function SlideIn({
   children,
   className,
-  from = "top",
+  direction = "top",
   duration = MOTION.base,
   delay = 0,
   ...props
 }: HTMLMotionProps<"div"> & {
-  from?: keyof typeof OFFSET;
+  /** Figma MOVE_IN direction — the way the content travels, not where it starts. */
+  direction?: keyof typeof OFFSET;
   duration?: number;
   delay?: number;
 }) {
-  const off = OFFSET[from];
+  const off = OFFSET[direction];
   return (
     <motion.div
       initial={{ opacity: 0, ...off }}
