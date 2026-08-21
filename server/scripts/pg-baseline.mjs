@@ -20,7 +20,7 @@
 // Nothing touches the database until --apply is passed.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -48,13 +48,21 @@ if (!/provider\s*=\s*"postgresql"/.test(schema)) {
   die('schema.prisma is not set to postgresql. Run `npm run db:provider postgresql` first.');
 }
 
-const run = (args, opts = {}) =>
-  execFileSync("npx", ["prisma", ...args], {
-    cwd: serverDir,
-    encoding: "utf8",
-    stdio: opts.capture ? "pipe" : "inherit",
-    shell: process.platform === "win32",
-  });
+const run = (args, opts = {}) => {
+  try {
+    return execFileSync("npx", ["prisma", ...args], {
+      cwd: serverDir,
+      encoding: "utf8",
+      stdio: opts.capture ? "pipe" : "inherit",
+      shell: process.platform === "win32",
+    });
+  } catch (err) {
+    // migrate status exits non-zero when anything is pending, which is a
+    // reading we want rather than a crash.
+    if (opts.allowFail) return String(err.stdout ?? "") + String(err.stderr ?? "");
+    throw err;
+  }
+};
 
 console.log("\nBaselining Postgres from schema.prisma\n");
 
@@ -66,9 +74,7 @@ const ddl = run(
 const tables = (ddl.match(/CREATE TABLE/g) ?? []).length;
 console.log(`  generated DDL: ${tables} tables, ${ddl.split("\n").length} lines`);
 
-// 2. Write it as the initial migration so migrate deploy has a history to
-//    continue from after this.
-const migDir = join(serverDir, "prisma", "migrations", "0_init");
+// 2. Without --apply, stop here with the SQL written out for review.
 if (!apply) {
   const preview = join(serverDir, "prisma", "pg-init.preview.sql");
   writeFileSync(preview, ddl);
@@ -106,15 +112,19 @@ if (drops > 0 && !process.argv.includes("--force")) {
 }
 console.log(`  target database is empty (${drops} existing tables)`);
 
-if (existsSync(migDir)) {
-  console.log("  0_init already exists — leaving it as is");
-} else {
-  mkdirSync(migDir, { recursive: true });
-  writeFileSync(join(migDir, "migration.sql"), ddl);
-  console.log(`  wrote ${migDir}/migration.sql`);
+// The migration history was generated against SQLite and its lock file still
+// says so, which makes Prisma refuse every migrate command against Postgres
+// (P3019). Point the lock at the provider we are actually baselining.
+const lockPath = join(serverDir, "prisma", "migrations", "migration_lock.toml");
+if (existsSync(lockPath)) {
+  const lock = readFileSync(lockPath, "utf8");
+  if (!/provider\s*=\s*"postgresql"/.test(lock)) {
+    writeFileSync(lockPath, lock.replace(/provider\s*=\s*".*"/, 'provider = "postgresql"'));
+    console.log("  migration_lock.toml -> postgresql");
+  }
 }
 
-// 4. Apply the schema, then mark the baseline as applied so subsequent
+// 4. Create the schema, then record the history so subsequent
 //    `prisma migrate deploy` runs pick up from here.
 console.log("\n  applying schema to the database...");
 // --accept-data-loss only when the operator has explicitly forced past the
@@ -127,12 +137,60 @@ run([
   "--skip-generate",
   ...(process.argv.includes("--force") ? ["--accept-data-loss"] : []),
 ]);
-try {
-  run(["migrate", "resolve", "--applied", "0_init"]);
-  console.log("  recorded 0_init as applied");
-} catch {
-  console.log("  note: 0_init was already recorded");
+// db push created the schema but recorded no history, so Prisma would treat
+// every existing migration as pending and try to replay SQLite SQL on the next
+// deploy. Mark them applied: the state they describe is present, which is what
+// baselining an existing database means.
+const migrations = readdirSync(join(serverDir, "prisma", "migrations"), {
+  withFileTypes: true,
+})
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name)
+  .sort();
+
+console.log(`\n  recording ${migrations.length} migrations as applied...`);
+const failed = [];
+for (const name of migrations) {
+  try {
+    run(["migrate", "resolve", "--applied", name], { capture: true });
+  } catch {
+    failed.push(name);
+  }
+}
+if (failed.length) {
+  // Never report success here. An unrecorded baseline looks fine until the
+  // next deploy tries to replay SQLite migrations against Postgres.
+  die(
+    `Could not record ${failed.length} of ${migrations.length} migrations:\n` +
+      failed.map((f) => `    - ${f}`).join("\n") +
+      "\n  The schema exists but its history does not, so the next migrate\n" +
+      "  deploy will fail. Resolve these before serving traffic.",
+  );
 }
 
-run(["generate"]);
+// Prove it rather than assume it — the failure this script exists to prevent
+// is a baseline that silently did not happen.
+const check = run(
+  ["migrate", "status"],
+  { capture: true, allowFail: true },
+);
+if (/have not yet been applied|pending/i.test(check)) {
+  die("Migrations still report as pending after baselining:\n" + check);
+}
+console.log(`  recorded ${migrations.length} migrations`);
+
+// The database work is finished and correct by this point. Generating the
+// client is a local build step, and on Windows it fails with EPERM whenever
+// another node process holds the query engine. Exiting non-zero here would
+// report the baseline as failed and invite a re-run — which the emptiness
+// guard would then refuse, for reasons that look unrelated.
+try {
+  run(["generate"]);
+} catch {
+  console.log(
+    "\n  NOTE: the schema and its history are in place, but `prisma generate`\n" +
+      "  did not complete — usually another node process holding the client on\n" +
+      "  Windows. Stop it and run `npx prisma generate`. Nothing needs redoing.",
+  );
+}
 console.log("\n  Done. Future schema changes use the normal migrate workflow.\n");
