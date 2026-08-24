@@ -55,11 +55,14 @@ export function DishArt({
   image,
   size = 48,
   className = "",
+  fill = false,
 }: {
   name: string;
   image?: string;
   size?: number;
   className?: string;
+  /** Drop the fixed square and let the caller size it — for banner/hero use. */
+  fill?: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
   const v = dishVisual(name);
@@ -70,8 +73,10 @@ export function DishArt({
         src={image}
         alt={name}
         onError={() => setImgError(true)}
-        className={`shrink-0 rounded-2xl object-cover ${className}`}
-        style={{ width: size, height: size }}
+        className={
+          fill ? `object-cover ${className}` : `shrink-0 rounded-2xl object-cover ${className}`
+        }
+        style={fill ? undefined : { width: size, height: size }}
       />
     );
   }
@@ -79,11 +84,16 @@ export function DishArt({
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-2xl ${className}`}
+      className={
+        fill
+          ? `flex items-center justify-center ${className}`
+          : `flex shrink-0 items-center justify-center rounded-2xl ${className}`
+      }
       style={{
-        width: size,
-        height: size,
-        fontSize: Math.round(size * 0.52),
+        ...(fill ? {} : { width: size, height: size }),
+        // In banner use the glyph IS the image, so it should fill the frame
+        // rather than float in it. The square thumbnail keeps its tighter ratio.
+        fontSize: fill ? 104 : Math.round(size * 0.52),
         background: `linear-gradient(135deg, ${v.from}, ${v.to})`,
       }}
     >

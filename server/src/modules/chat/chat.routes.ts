@@ -58,6 +58,21 @@ function budgetNoteFor(
   return `${rupees(afterPaise)} left in your weekly food budget after this.`;
 }
 
+// A model does not always return the vehicle even when the rider names it —
+// "book a cab to the airport" came back with the drop but no vehicle, so every
+// type was quoted and a bike was recommended for an airport run. If the person
+// said which one they wanted, that settles it, whichever provider is running.
+function vehicleFrom(
+  message: string,
+  extracted: "bike" | "auto" | "cab" | "any" | undefined,
+): "bike" | "auto" | "cab" | "any" | undefined {
+  if (extracted && extracted !== "any") return extracted;
+  if (/\b(bike|scooter|two[- ]?wheeler)\b/i.test(message)) return "bike";
+  if (/\b(auto|rickshaw|tuk[- ]?tuk)\b/i.test(message)) return "auto";
+  if (/\b(cab|taxi|car|sedan)\b/i.test(message)) return "cab";
+  return extracted;
+}
+
 // Personalization only kicks in when the user didn't state a preference
 // ("balanced") — an explicit "cheapest"/"top-rated" always wins as asked. Builds
 // the spend-band + taste signals from the user's own profile; returns undefined
@@ -132,7 +147,7 @@ async function buildAssistantPayload(
     const { quotes: baseRideQuotes, trace: comboRideTrace } = quoteRidesTraced({
       distanceKm: 8,
       rideMinutes: 24,
-      vehicle: intent.ride.vehicle,
+      vehicle: vehicleFrom(message, intent.ride.vehicle),
       priority: intent.ride.priority,
     });
     const rideQuotes = await withCommunityRatings("ride", baseRideQuotes, (q) => q.provider);
@@ -223,7 +238,7 @@ async function buildAssistantPayload(
     const { quotes: baseQuotes, trace: rideTrace } = quoteRidesTraced({
       distanceKm: 8,
       rideMinutes: 24,
-      vehicle: intent.ride.vehicle,
+      vehicle: vehicleFrom(message, intent.ride.vehicle),
       priority: intent.ride.priority,
     });
     const quotes = await withCommunityRatings("ride", baseQuotes, (q) => q.provider);
@@ -249,7 +264,10 @@ async function buildAssistantPayload(
         scheduledAt,
         why: scheduledAt
           ? `Cheapest effective fare is ${quotes[0]?.displayName} after offers — scheduled for ${scheduleLabel(scheduledAt)}, open Rides to confirm.`
-          : `Cheapest effective fare is ${quotes[0]?.displayName} after offers — open Rides to set exact pickup and book.`,
+          : // Chat has no pickup coordinates, so these fares price a typical
+            // 8 km city trip. Saying so keeps a short hop and an airport run
+            // from both being quoted at the same number without explanation.
+            `Cheapest effective fare is ${quotes[0]?.displayName} after offers — indicative for a typical 8 km trip. Open Rides to set your exact pickup and drop.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { useToast } from "@/components/ui/Toast";
+import { FadeIn, MOTION } from "@/components/ui/motion";
 
 type AppliedCoupon = { code: string; description: string; discountPaise: number };
 type OfferedCoupon = { code: string; description: string; minOrderPaise: number };
@@ -115,7 +116,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:max-w-5xl lg:px-6 lg:pb-10">
+    <FadeIn duration={MOTION.fast} className="mx-auto w-full max-w-xl px-4 py-6 pb-28 lg:max-w-5xl lg:px-6 lg:pb-10">
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.push("/food")}
@@ -382,6 +383,6 @@ export default function CartPage() {
           </div>
         </>
       )}
-    </div>
+    </FadeIn>
   );
 }

@@ -337,7 +337,21 @@ paymentsRouter.post(
         return res.json({ orderStatus: order.status });
       }
 
-      const cf = await getCashfreeOrder(orderId);
+      // The pay screen calls this on every load to catch a buyer returning
+      // from the gateway. For an order that has not been sent to Cashfree yet
+      // — the normal case on first view — Cashfree answers 404. That is "not
+      // paid", not a failure, and raising it made every payment page log a
+      // server error and wait on a doomed round trip.
+      let cf: Awaited<ReturnType<typeof getCashfreeOrder>>;
+      try {
+        cf = await getCashfreeOrder(orderId);
+      } catch (err) {
+        if (err instanceof Error && /\(404\)/.test(err.message)) {
+          return res.json({ orderStatus: order.status, gatewayStatus: "NOT_CREATED" });
+        }
+        throw err;
+      }
+
       if (cf.order_status === "PAID") {
         const updated = await markPaid(orderId, "cashfree", {
           paidPaise: Math.round(cf.order_amount * 100),

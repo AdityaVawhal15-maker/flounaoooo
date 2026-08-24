@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +22,7 @@ import {
   ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
@@ -130,6 +132,17 @@ export default function ProfilePage() {
   const { t } = useI18n();
   const router = useRouter();
 
+  // The badge used to read "Premium Member" for everyone. That contradicted
+  // the bill — Plus waives the convenience fee, so a non-member was told they
+  // were premium and then charged for not being one — and it argued against
+  // the upgrade it links to.
+  const [plusActive, setPlusActive] = useState(false);
+  useEffect(() => {
+    api<{ active: boolean }>("/api/subscription")
+      .then((s) => setPlusActive(Boolean(s.active)))
+      .catch(() => setPlusActive(false));
+  }, []);
+
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? "U";
 
   return (
@@ -175,8 +188,8 @@ export default function ProfilePage() {
               href="/profile/plus"
               className="mt-2 inline-flex items-center gap-1.5 rounded-pill bg-acct-tint px-3.5 py-1.5 text-[13px] font-bold text-acct-accent transition-opacity hover:opacity-85"
             >
-              <Star size={13} className="fill-acct-accent" />
-              Premium Member
+              <Star size={13} className={plusActive ? "fill-acct-accent" : ""} />
+              {plusActive ? "Premium Member" : "Upgrade to Flouna Plus"}
             </Link>
           </div>
         </FadeIn>

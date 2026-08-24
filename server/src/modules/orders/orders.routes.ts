@@ -684,7 +684,10 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
       domain: order.domain === "food" ? "food" : "ride",
     });
 
-    res.json({ tracking: assignment });
+    // A rider must be able to tell a simulated trip from a real one. When the
+    // pilot flag is on, the driver, OTP and moving vehicle below are invented,
+    // and the UI says so rather than letting them read as real.
+    res.json({ tracking: assignment, simulated: rideProvider.mode === "simulation" });
   } catch (err) {
     next(err);
   }

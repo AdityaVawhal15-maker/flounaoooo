@@ -67,6 +67,8 @@ type FoodRec = {
   budgetNote?: string;
   personalNote?: string;
   pickReason?: PickReason;
+  /** Nothing in the catalogue matched the request; these are stand-ins. */
+  substituted?: boolean;
 };
 
 type RideRec = {

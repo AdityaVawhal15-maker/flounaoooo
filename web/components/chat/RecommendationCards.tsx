@@ -15,12 +15,16 @@ import {
   Utensils,
   Car,
   CircleCheck,
+  Info,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { AdviceBanner } from "@/components/ui/AdviceBanner";
 import { FadeIn } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { DishArt } from "@/components/food/DishArt";
+import { useCart } from "@/lib/cart";
+import { FoodHeroCard } from "./FoodHeroCard";
+import { WhyBest } from "./WhyBest";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import type {
@@ -67,50 +71,6 @@ function PersonalNote({ note }: { note?: string }) {
       <Sparkles size={13} className="shrink-0" />
       {note}
     </p>
-  );
-}
-
-function FoodQuoteRow({ q, highlight }: { q: FoodQuote; highlight?: boolean }) {
-  return (
-    <Card
-      className={
-        highlight
-          ? "border-accent/60 shadow-card ring-1 ring-accent/30"
-          : "transition-all hover:-translate-y-0.5 hover:shadow-card"
-      }
-    >
-      <div className="flex items-start gap-3">
-        <DishArt name={q.name} size={46} />
-        <div className="min-w-0 flex-1">
-          <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
-            {q.tag}
-          </span>
-          <p className="mt-1.5 truncate text-[15px] font-bold text-ink">{q.name}</p>
-          <p className="truncate text-[12px] text-cocoa">{q.restaurant}</p>
-          <p className="mt-1 flex items-center gap-2 text-[12px] text-cocoa">
-            <span className="flex items-center gap-0.5">
-              <Star size={12} className="fill-accent text-accent" /> {q.rating}
-            </span>
-            <span className="flex items-center gap-0.5">
-              <Clock size={12} /> {q.etaMinutes} min
-            </span>
-
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[17px] font-bold text-ink">{rupees(q.effectivePaise)}</p>
-          {q.offers.length > 0 && (
-            <p className="text-[11px] text-success">{q.offers[0].label}</p>
-          )}
-          <Link
-            href={`/food/order/${q.dishId}?platform=${q.platform}`}
-            className="mt-2 inline-block rounded-pill bg-accent px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f] transition-colors"
-          >
-            Order now
-          </Link>
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -162,7 +122,6 @@ export function FoodRecommendation({
 }: {
   rec: Extract<Recommendation, { type: "food" }>;
 }) {
-  const [showMore, setShowMore] = useState(false);
   return (
     <FadeIn y={8} className="flex w-full flex-col gap-2.5">
       <SectionHeader
@@ -191,8 +150,32 @@ export function FoodRecommendation({
 
       <PersonalNote note={rec.personalNote} />
 
+      {/* Nothing matched what was asked for. Saying so is the difference
+          between a helpful stand-in and a confidently wrong answer — ask for
+          sushi against this catalogue and a dosa arrives with no explanation. */}
+      {rec.substituted && (
+        <p className="flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">
+          <Info size={15} className="mt-0.5 shrink-0" />
+          <span>
+            We don&apos;t have that on Flouna yet — here&apos;s the closest we
+            can do right now.
+          </span>
+        </p>
+      )}
+
+      <WhyBest best={rec.best} alternatives={rec.alternatives} />
+
+      {/* Figma: section header with the count of options the engine compared */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[15px] font-bold text-ink">Available Providers</p>
+        <span className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent">
+          <Sparkles size={11} />
+          {rec.alternatives.length + 1} option{rec.alternatives.length === 0 ? "" : "s"} found
+        </span>
+      </div>
+
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-4">
-        <FoodQuoteRow q={rec.best} highlight />
+        <FoodHeroCard q={rec.best} />
 
         {/* Right rail — insights + offers (desktop only) */}
         <div className="hidden lg:flex lg:flex-col lg:gap-3">
@@ -224,20 +207,16 @@ export function FoodRecommendation({
 
       {rec.alternatives.length > 0 && (
         <>
-          {/* Mobile: alternatives behind a toggle */}
+          {/* Mobile: the design shows these openly rather than behind a
+              toggle — the comparison is the product, so hiding it undersells
+              the thing the engine just did. */}
           <div className="flex flex-col gap-2.5 lg:hidden">
-            <button
-              onClick={() => setShowMore((v) => !v)}
-              className="self-start text-[12px] font-semibold text-accent hover:underline"
-            >
-              {showMore
-                ? "Hide other options"
-                : `See ${rec.alternatives.length} other option${rec.alternatives.length === 1 ? "" : "s"}`}
-            </button>
-            {showMore &&
-              rec.alternatives.map((q) => (
-                <FoodQuoteRow key={`${q.dishId}-${q.platform}`} q={q} />
-              ))}
+            <p className="mt-1 text-[15px] font-bold text-ink">
+              Options we think you&apos;ll like
+            </p>
+            {rec.alternatives.map((q) => (
+              <FoodAltRow key={`${q.dishId}-${q.platform}`} q={q} />
+            ))}
           </div>
 
           {/* Desktop: "Options we think you'll like" card grid (Figma) */}
@@ -254,6 +233,56 @@ export function FoodRecommendation({
         </>
       )}
     </FadeIn>
+  );
+}
+
+// Mobile alternative row — Figma "Options we think you'll like": thumbnail,
+// the platform it came from, price against its pre-offer total, and a single
+// tap to add it without leaving the conversation.
+function FoodAltRow({ q }: { q: FoodQuote }) {
+  const { add } = useCart();
+  const [added, setAdded] = useState(false);
+  const originalPaise = q.basePaise + q.deliveryFeePaise;
+
+  return (
+    <Card className="py-3">
+      <div className="flex items-center gap-3">
+        <DishArt name={q.name} image={q.image} size={44} />
+        <div className="min-w-0 flex-1">
+          <span className="inline-block rounded-full bg-beige px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cocoa">
+            {q.platform}
+          </span>
+          <p className="mt-1 truncate text-[14px] font-semibold text-ink">{q.name}</p>
+          <p className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-bold text-ink">{rupees(q.effectivePaise)}</span>
+            {originalPaise > q.effectivePaise && (
+              <span className="text-[12px] text-cocoa/70 line-through">
+                {rupees(originalPaise)}
+              </span>
+            )}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            add(
+              {
+                dishId: q.dishId,
+                platform: q.platform,
+                name: q.name,
+                restaurant: q.restaurant,
+                pricePaise: q.effectivePaise,
+              },
+              1,
+            );
+            setAdded(true);
+            setTimeout(() => setAdded(false), 2000);
+          }}
+          className="shrink-0 rounded-pill border border-accent px-3.5 py-1.5 text-[12px] font-semibold text-accent transition-colors hover:bg-accent-soft"
+        >
+          {added ? "Added" : "+ Add"}
+        </button>
+      </div>
+    </Card>
   );
 }
 

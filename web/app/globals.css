@@ -12,6 +12,11 @@
   --color-line: #eee3da; /* hairline borders */
   --color-success: #1ca65c;
   --color-danger: #d93025;
+  /* Advisory, not failure — the "your money will come back" notice on a failed
+     payment. Separate from danger so a reassurance never reads as an error. */
+  --color-warning: #a06a08;
+  --color-warning-soft: #fdf6e3;
+  --color-danger-soft: #fdeceb;
 
   /* Chat-home brand accents (exact Figma values) */
   --color-navy: #1a3a5c; /* hero heading line 1 */

@@ -14,6 +14,7 @@ import {
   X,
   LifeBuoy,
   MessageCircle,
+  Info,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -73,6 +74,9 @@ export function RideTracker({
   const isFood = domain === "food";
   const { t: tr } = useI18n();
   const [t, setT] = useState<Tracking | null>(null);
+  // True while fulfilment is simulated (pilot before ONDC onboarding). The
+  // driver, OTP and vehicle below are invented, so the rider is told.
+  const [simulated, setSimulated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelSheet, setCancelSheet] = useState(false);
@@ -84,8 +88,12 @@ export function RideTracker({
   useEffect(() => {
     let stop = false;
     const load = () =>
-      api<{ tracking: Tracking }>(`/api/orders/${orderId}/track`)
-        .then((d) => !stop && setT(d.tracking))
+      api<{ tracking: Tracking; simulated?: boolean }>(`/api/orders/${orderId}/track`)
+        .then((d) => {
+          if (stop) return;
+          setT(d.tracking);
+          setSimulated(Boolean(d.simulated));
+        })
         .catch(() => {});
     load();
     timer.current = setInterval(load, POLL_MS);
@@ -259,6 +267,24 @@ export function RideTracker({
 
   return (
     <FadeIn y={10}>
+      {/* Pilot running on simulated fulfilment: the driver and vehicle shown
+          below are not real, and saying so is the condition on which the
+          production gate allows this mode at all. */}
+      {simulated && (
+        <div className="mb-3 flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-[13px] text-warning">
+          <Info size={15} className="mt-0.5 shrink-0" />
+          <span>
+            <strong className="font-semibold">
+              {isFood ? "Demo delivery." : "Demo ride."}
+            </strong>{" "}
+            Flouna is not yet connected to a live{" "}
+            {isFood ? "restaurant" : "driver"} network, so this{" "}
+            {isFood ? "delivery" : "trip"} is simulated — no{" "}
+            {isFood ? "food has been prepared" : "vehicle has been dispatched"}.
+          </span>
+        </div>
+      )}
+
       {/* "Help us improve" cancel sheet (Figma bottom sheet) */}
       {cancelSheet && (
         <div

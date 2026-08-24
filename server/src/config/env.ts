@@ -58,6 +58,15 @@ const envSchema = z.object({
   // "ondc" switches to the real ONDC mobility adapter — requires the network
   // credentials below (your registered Buyer App). Flip this once onboarded.
   PROVIDER_MODE: z.enum(["simulation", "ondc"]).default("simulation"),
+  // Deliberate opt-in to run a production pilot on simulated fulfilment before
+  // ONDC onboarding completes. The gate below still refuses without it, and the
+  // app labels itself a demo to users when it is on. Never set this quietly:
+  // the whole point of the gate is that nobody is shown a driver who does not
+  // exist without being told.
+  ALLOW_SIMULATED_FULFILMENT: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
   ONDC_BASE_URL: z.string().url().optional(), // Buyer App gateway endpoint
   ONDC_SUBSCRIBER_ID: z.string().optional(),
   ONDC_SIGNING_PRIVATE_KEY: z.string().optional(),
@@ -104,10 +113,12 @@ if (isProd) {
   // an OTP and a moving vehicle. That is exactly right in development and
   // indefensible in production, where a rider would be shown a driver who does
   // not exist. Nothing downstream can tell the difference, so the gate is here.
-  if (env.PROVIDER_MODE === "simulation") {
+  if (env.PROVIDER_MODE === "simulation" && !env.ALLOW_SIMULATED_FULFILMENT) {
     problems.push(
       "PROVIDER_MODE=simulation fabricates drivers, OTPs and live tracking — " +
-        "set PROVIDER_MODE=ondc with ONDC_* credentials before serving real riders",
+        "set PROVIDER_MODE=ondc with ONDC_* credentials before serving real riders. " +
+        "For a pilot on simulated fulfilment, set ALLOW_SIMULATED_FULFILMENT=true — " +
+        "the app then tells users it is a demo.",
     );
   }
   if (env.PROVIDER_MODE === "ondc" && !env.ONDC_SUBSCRIBER_ID) {
@@ -131,6 +142,12 @@ if (isProd) {
   // Degraded but honest: worth saying out loud at boot, not worth refusing to
   // start over. Each leaves a real feature quietly switched off.
   const warnings: string[] = [];
+  if (env.ALLOW_SIMULATED_FULFILMENT) {
+    warnings.push(
+      "ALLOW_SIMULATED_FULFILMENT=true — rides are SIMULATED. No real driver is " +
+        "dispatched. The app shows a demo notice; do not remove it.",
+    );
+  }
   if (env.LLM_PROVIDER === "demo") {
     warnings.push("LLM_PROVIDER=demo — chat runs on the rule-based engine, not a model");
   }
