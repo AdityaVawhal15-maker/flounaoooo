@@ -26,6 +26,16 @@ services:
         value: "4000"
       - key: DB_PROVIDER
         value: postgresql
+      # Fulfilment is simulated until ONDC onboarding completes. The production
+      # boot gate refuses that by default — a rider must never be shown a
+      # captain who does not exist — so running a pilot on it has to be opted
+      # into deliberately. With the flag on, the app labels the trip a demo to
+      # the user; remove both once PROVIDER_MODE=ondc and the ONDC_* creds are
+      # in place.
+      - key: PROVIDER_MODE
+        value: simulation
+      - key: ALLOW_SIMULATED_FULFILMENT
+        value: "true"
       - key: WEB_ORIGIN
         sync: false # https://<app>.vercel.app
       - key: DATABASE_URL
