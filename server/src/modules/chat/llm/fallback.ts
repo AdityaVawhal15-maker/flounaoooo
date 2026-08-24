@@ -1,5 +1,13 @@
 import type { Intent, LlmProvider } from "./types.js";
 
+/**
+ * Which provider actually served the last request, and how far down the chain
+ * it sat. Read straight after extractIntent so the message can be stored with
+ * its provenance — the corpus is training data for our own engine later, and a
+ * mix of vendors with no labels cannot be separated after the fact.
+ */
+export type Served = { provider: string; depth: number };
+
 // Tries each provider in turn and returns the first intent one produces.
 //
 // A single provider is a single point of failure for the whole product: when it
@@ -21,6 +29,18 @@ export class FallbackProvider implements LlmProvider {
   }
 
   async extractIntent(userMessage: string): Promise<Intent> {
+    return (await this.extractIntentTraced(userMessage)).intent;
+  }
+
+  /**
+   * Same call, but says who answered. Returned rather than stashed on the
+   * instance: concurrent chats share this object, so an instance field would
+   * hand one request another request's provenance — silently mislabelling the
+   * corpus this exists to keep clean.
+   */
+  async extractIntentTraced(
+    userMessage: string,
+  ): Promise<{ intent: Intent; served: Served }> {
     let lastError: unknown;
 
     for (let i = 0; i < this.chain.length; i++) {
@@ -32,7 +52,7 @@ export class FallbackProvider implements LlmProvider {
         if (i > 0) {
           console.warn(`[llm] served by ${provider.name} after ${i} provider(s) failed`);
         }
-        return intent;
+        return { intent, served: { provider: provider.name, depth: i } };
       } catch (err) {
         lastError = err;
         const next = this.chain[i + 1];

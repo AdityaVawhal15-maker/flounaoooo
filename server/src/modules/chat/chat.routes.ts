@@ -7,6 +7,7 @@ import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
 import { checkMessage, FIREWALL_REPLIES } from "./firewall.js";
 import { llm, demoFallback } from "./llm/index.js";
+import { FallbackProvider } from "./llm/fallback.js";
 import type { Intent } from "./llm/types.js";
 import { recommendFood } from "../food/food.service.js";
 import { quoteRidesTraced } from "../rides/rides.service.js";
@@ -43,6 +44,8 @@ type AssistantPayload = {
   reply: string;
   intent: Intent;
   recommendation?: unknown;
+  /** Which model produced the intent, for the training corpus. */
+  served?: { provider: string; depth: number };
 };
 
 // A short budget line shown under a food pick — only when a budget is set.
@@ -106,12 +109,24 @@ async function buildAssistantPayload(
   userId: string,
 ): Promise<AssistantPayload> {
   let intent: Intent;
+  // Recorded per message: with a provider chain the corpus is a mix of vendors,
+  // and training on it later is only possible if each row says who wrote it.
+  let served: { provider: string; depth: number };
   try {
-    intent = await llm.extractIntent(message);
+    if (llm instanceof FallbackProvider) {
+      const traced = await llm.extractIntentTraced(message);
+      intent = traced.intent;
+      served = traced.served;
+    } else {
+      intent = await llm.extractIntent(message);
+      served = { provider: llm.name, depth: 0 };
+    }
   } catch (err) {
-    // Provider outage must never take chat down — degrade to rule-based mode.
-    console.error(`[chat] ${llm.name} provider failed, using demo fallback:`, err);
+    // Every provider failed — degrade to rule-based mode rather than dropping
+    // chat, and label the row so it is never mistaken for model output.
+    console.error(`[chat] all providers failed, using demo fallback:`, err);
     intent = await demoFallback.extractIntent(message);
+    served = { provider: "demo", depth: -1 };
   }
 
   // Faculty 3: the situation this decision is made in (time + weather). Built
@@ -165,6 +180,7 @@ async function buildAssistantPayload(
     return {
       reply: intent.reply,
       intent,
+      served,
       recommendation: {
         type: "combo",
         food: foodRec
@@ -217,6 +233,7 @@ async function buildAssistantPayload(
       return {
         reply: intent.reply,
         intent,
+        served,
         recommendation: {
           type: "food",
           ...rec,
@@ -229,6 +246,7 @@ async function buildAssistantPayload(
     return {
       reply: `I couldn't find "${intent.food.item}" near you right now — try biryani, pizza, dosa, or a thali?`,
       intent,
+      served,
     };
   }
 
@@ -256,6 +274,7 @@ async function buildAssistantPayload(
     return {
       reply: intent.reply,
       intent,
+      served,
       recommendation: {
         type: "ride",
         drop: intent.ride.drop,
@@ -287,6 +306,7 @@ async function buildAssistantPayload(
       return {
         reply: intent.reply,
         intent,
+        served,
         recommendation: {
           type: "shop",
           ...rec,
@@ -297,6 +317,7 @@ async function buildAssistantPayload(
     return {
       reply: `I couldn't find "${intent.shop.item}" right now — try a laptop, earbuds, shoes, or a smartwatch?`,
       intent,
+      served,
     };
   }
 
@@ -382,6 +403,8 @@ chatRouter.post(
             domain: payload.intent.domain,
             recommendation: payload.recommendation ?? null,
           }),
+          provider: payload.served?.provider ?? null,
+          providerDepth: payload.served?.depth ?? null,
         },
       });
 

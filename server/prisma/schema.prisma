@@ -493,9 +493,22 @@ model ChatMessage {
   role      String // "user" | "assistant"
   content   String
   intent    String? // JSON: extracted intent / recommendation payload
+
+  // Which model produced `intent`, and how far down the provider chain we had
+  // to go to get it. Recorded because the plan is to train our own decision
+  // engine on this corpus: without provenance it is a blend of three vendors
+  // and a rule-based fallback, and nothing can separate them afterwards.
+  // Retroactive labelling is impossible, so this has to be captured from the
+  // first message onward.
+  provider      String? // "anthropic" | "google" | "deepseek" | "demo"
+  providerDepth Int? // 0 = first choice served it; >0 = a fallback did
+
   createdAt DateTime    @default(now())
 
   @@index([sessionId])
+  // Training pulls select by provider and date; ops query "how often are we
+  // falling back" over the same shape.
+  @@index([provider, createdAt])
 }
 
 // Unified order for both domains; domain-specific details live in `details` JSON.
