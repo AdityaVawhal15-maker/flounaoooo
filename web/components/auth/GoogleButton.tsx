@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useAuth, type User } from "./AuthContext";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -63,6 +64,9 @@ export function GoogleButton({
         theme: "outline",
         size: "large",
         shape: "pill",
+        // Google's own copy defaults to "Sign in with Google" — "continue_with"
+        // is the one variant that reads the same as the rest of the flow.
+        text: "continue_with",
         // 400 is Google's own ceiling. Filling the slot up to it keeps this
         // button the same width as the pills stacked with it — below that cap
         // it visibly under-hangs them.
@@ -113,8 +117,12 @@ export function GoogleButton({
   }
 
   return (
-    <div className="flex w-full justify-center overflow-hidden">
-      <div ref={ref} className={ready ? "" : "h-[60px]"} />
+    // Google's rendered pill is shorter than our own (its own fixed chrome,
+    // not ours to restyle) — centering it in a slot matching the other
+    // buttons' height keeps the stack's rhythm even instead of this one
+    // looking short and adrift.
+    <div className={cn("flex h-14 w-full items-center justify-center overflow-hidden", !ready && "opacity-0")}>
+      <div ref={ref} />
     </div>
   );
 }
