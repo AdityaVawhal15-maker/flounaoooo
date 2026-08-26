@@ -127,7 +127,7 @@ export default function VerifyEmailPage() {
         <Link
           href="/signup"
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </Link>
@@ -163,7 +163,7 @@ export default function VerifyEmailPage() {
               autoFocus={i === 0}
               onChange={(e) => setDigit(i, e.target.value)}
               onKeyDown={(e) => onKeyDown(i, e)}
-              className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12 disabled:opacity-60"
+              className="size-[58px] rounded-[16px] bg-auth-well text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:ring-2 focus:ring-white/25 disabled:opacity-60"
             />
           ))}
         </div>
@@ -177,7 +177,7 @@ export default function VerifyEmailPage() {
           ) : (
             <button
               onClick={resend}
-              className="font-bold text-auth-accent hover:underline"
+              className="font-bold text-auth-ink hover:underline"
             >
               Resend now
             </button>

@@ -107,7 +107,7 @@ export default function LoginPage() {
         <Link
           href="/"
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </Link>
@@ -173,7 +173,7 @@ export default function LoginPage() {
             {askPassword && (
               <Link
                 href="/forgot"
-                className="-mt-1 self-center text-[15px] font-semibold text-auth-accent hover:underline"
+                className="-mt-1 self-center text-[15px] font-semibold text-auth-ink hover:underline"
               >
                 Forgot password?
               </Link>
@@ -184,7 +184,7 @@ export default function LoginPage() {
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="country"
-                className="text-[14px] font-medium text-auth-accent"
+                className="text-[13px] font-medium text-auth-ink"
               >
                 Country/Region
               </label>
@@ -193,7 +193,7 @@ export default function LoginPage() {
                   id="country"
                   value={dial}
                   onChange={(e) => setDial(e.target.value)}
-                  className="h-[60px] w-full appearance-none rounded-[16px] border border-auth-line bg-white px-4 pr-11 text-[17px] text-auth-ink outline-none focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                  className="h-[60px] w-full appearance-none rounded-[16px] bg-auth-well px-4 pr-11 text-[17px] text-auth-ink outline-none focus:ring-2 focus:ring-white/25"
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c.dial} value={c.dial}>
@@ -259,17 +259,17 @@ export default function LoginPage() {
 
         <p className="mt-7 text-center text-[15px] text-auth-muted">
           New here?{" "}
-          <Link href="/signup" className="font-bold text-auth-accent hover:underline">
+          <Link href="/signup" className="font-bold text-auth-ink hover:underline">
             Create an account
           </Link>
         </p>
 
         <p className="mt-4 pb-8 text-center text-[15px]">
-          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+          <Link href="/legal/terms" className="font-medium text-auth-ink hover:underline">
             Terms of Use
           </Link>
           <span className="px-2 text-auth-muted">·</span>
-          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
+          <Link href="/legal/privacy" className="font-medium text-auth-ink hover:underline">
             Privacy Policy
           </Link>
         </p>

@@ -18,24 +18,34 @@
   --color-warning-soft: #fdf6e3;
   --color-danger-soft: #fdeceb;
 
+  /* Empty / error state screens — Figma "Screen Unauthorized" set (2539:2977,
+     2551:31xx–34xx). Read from the frame rather than sampled by eye. */
+  --color-state-bg: #fdf7f2;
+  --color-state-ink: #2d1a0e;
+  --color-state-muted: #9a7060;
+  --color-state-accent: #b84a22;
+
   /* Chat-home brand accents (exact Figma values) */
   --color-navy: #1a3a5c; /* hero heading line 1 */
   --color-terracotta: #c8855a; /* hero heading line 2 */
   --color-chip: #e5ddd5; /* flat quick-chip background */
   --color-chip-ink: #2d2d2d; /* quick-chip label */
 
-  /* Auth palette — the "Log in or sign up" flow (Figma 2177:71xx–74xx) is drawn
-     on its own set rather than the brand tokens above: a near-black navy for
-     headings instead of the brown ink, a marginally hotter orange, and a
-     cooler off-white ground. Kept as separate tokens so the flow can be
-     reunified with the brand set later by editing these four lines. */
-  --color-auth-ink: #1a1a2e; /* headings */
-  --color-auth-accent: #e8531a; /* labels, links, primary button */
-  --color-auth-bg: #fff8f5; /* screen ground */
-  --color-auth-line: #edd9d3; /* input borders */
-  --color-auth-muted: #8b7b72; /* subtitles, placeholders */
-  --color-auth-disabled: #f8d7c8; /* primary button, inactive */
-  --color-auth-disabled-ink: #d97757; /* its label */
+  /* Auth palette — Figma 2527:5156 (Aug 2026). The flow was redrawn dark:
+     near-black ground, white type, dark input wells, and white pill buttons
+     with black labels. Kept as its own set so the rest of the app stays on the
+     brand cream. */
+  --color-auth-bg: #111111; /* screen ground */
+  --color-auth-ink: #ffffff; /* headings and body */
+  --color-auth-muted: #bba89f; /* "OR", placeholders, secondary copy */
+  --color-auth-line: #edd9d3; /* dividers */
+  --color-auth-well: #333333; /* input + back-button fill */
+  --color-auth-btn: #ffffff; /* primary + provider buttons */
+  --color-auth-btn-ink: #000000; /* primary button label */
+  --color-auth-alt-ink: #1a1a2e; /* Google / phone button labels */
+  --color-auth-accent: #e8531a; /* errors and the few remaining accents */
+  --color-auth-disabled: #333333; /* primary button, inactive */
+  --color-auth-disabled-ink: #6f6f6f;
 
   /* Account palette — the profile set (Figma 2195:5xx–17xx) is drawn on a
      neutral grey scale rather than either palette above: near-black text on an

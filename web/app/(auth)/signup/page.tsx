@@ -76,7 +76,7 @@ export default function SignupPage() {
         <Link
           href="/login"
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </Link>
@@ -152,17 +152,17 @@ export default function SignupPage() {
 
         <p className="mt-7 text-center text-[15px] text-auth-muted">
           Already have an account?{" "}
-          <Link href="/login" className="font-bold text-auth-accent hover:underline">
+          <Link href="/login" className="font-bold text-auth-ink hover:underline">
             Log In
           </Link>
         </p>
 
         <p className="mt-4 pb-8 text-center text-[15px]">
-          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+          <Link href="/legal/terms" className="font-medium text-auth-ink hover:underline">
             Terms of Use
           </Link>
           <span className="px-2 text-auth-muted">·</span>
-          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
+          <Link href="/legal/privacy" className="font-medium text-auth-ink hover:underline">
             Privacy Policy
           </Link>
         </p>

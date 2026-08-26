@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
           type="button"
           onClick={() => (step === "reset" ? setStep("email") : router.push("/login"))}
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </button>
@@ -172,7 +172,7 @@ export default function ForgotPasswordPage() {
                   autoFocus={i === 0}
                   onChange={(e) => setDigit(i, e.target.value)}
                   onKeyDown={(e) => onKeyDown(i, e)}
-                  className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                  className="size-[58px] rounded-[16px] bg-auth-well text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:ring-2 focus:ring-white/25"
                 />
               ))}
             </div>
@@ -214,7 +214,7 @@ export default function ForgotPasswordPage() {
                 setStep("email");
                 setDigits(Array(6).fill(""));
               }}
-              className="text-[15px] font-bold text-auth-accent hover:underline"
+              className="text-[15px] font-bold text-auth-ink hover:underline"
             >
               Didn&apos;t get it? Send again
             </button>
@@ -223,7 +223,7 @@ export default function ForgotPasswordPage() {
 
         <p className="mt-7 pb-8 text-center text-[15px] text-auth-muted">
           Remembered it?{" "}
-          <Link href="/login" className="font-bold text-auth-accent hover:underline">
+          <Link href="/login" className="font-bold text-auth-ink hover:underline">
             Log In
           </Link>
         </p>
