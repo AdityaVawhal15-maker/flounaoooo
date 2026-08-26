@@ -357,7 +357,7 @@ export default function FoodLandingPage() {
                 />
                 <SuggestionRow
                   icon={MapPin}
-                  iconBg="bg-[#e3f6ec]"
+                  iconBg="bg-success-soft"
                   iconClass="text-success"
                   title="Nearest to You"
                   subtitle="Top restaurants near your location"

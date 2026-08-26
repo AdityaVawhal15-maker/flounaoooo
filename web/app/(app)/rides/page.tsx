@@ -525,17 +525,17 @@ function RidesInner() {
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-0 lg:px-8 lg:pb-6">
         {/* Booking panel — mobile: floating bottom sheet; desktop: LEFT panel
             (Figma desktop places the location panel left of the map) */}
-        <div className="absolute inset-x-0 bottom-0 z-10 order-2 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-white px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:order-1 lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-l-[18px] lg:rounded-tr-none lg:border lg:border-line lg:px-5 lg:shadow-card">
+        <div className="absolute inset-x-0 bottom-0 z-10 order-2 flex max-h-[58dvh] min-h-0 flex-col gap-3 overflow-y-auto rounded-t-[25px] bg-card px-4 py-5 shadow-[0_-4px_24px_-6px_rgba(0,0,0,0.18)] lg:static lg:order-1 lg:max-h-none lg:w-[420px] lg:flex-none lg:rounded-l-[18px] lg:rounded-tr-none lg:border lg:border-line lg:px-5 lg:shadow-card">
           <FadeIn y={8}>
             <div className="flex items-center justify-between">
-              <h1 className="text-[17px] font-bold text-[#1a1a2e]">
+              <h1 className="text-[17px] font-bold text-ink">
                 Select your location
               </h1>
               <button
                 type="button"
                 onClick={() => setDrop(null)}
                 title="Choose a different destination"
-                className="rounded-[17px] bg-[#f0e8e0] px-3.5 py-1.5 text-[13px] font-semibold text-[#2d2d2d] transition-colors hover:bg-[#e6dccf]"
+                className="rounded-[17px] bg-beige px-3.5 py-1.5 text-[13px] font-semibold text-ink transition-colors hover:bg-beige/70"
               >
                 Change drop
               </button>
@@ -724,7 +724,7 @@ function RidesInner() {
 
           {error && <p className="text-[13px] text-danger">{error}</p>}
 
-          <div className="sticky bottom-0 mt-auto bg-white pb-1 pt-2">
+          <div className="sticky bottom-0 mt-auto bg-card pb-1 pt-2">
             {/* Ride now vs schedule for later */}
             {pickup && drop && (
               <div className="mb-2 flex items-center gap-2">
