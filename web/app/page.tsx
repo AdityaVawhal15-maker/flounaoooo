@@ -41,7 +41,7 @@ export default function LandingPage() {
 
         <FadeIn delay={0.25} className="w-full max-w-[340px] lg:max-w-[400px]">
           <div className="flex flex-col gap-3">
-            <GoogleButton onError={setGoogleError} label="Continue with Google" />
+            <GoogleButton onError={setGoogleError} label="Continue with Google" variant="surface" />
             <Link
               href="/login"
               className="flex h-14 w-full items-center justify-center rounded-pill border border-line bg-card text-[16px] font-semibold text-ink shadow-soft transition-colors hover:bg-beige/40"

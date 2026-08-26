@@ -27,15 +27,24 @@ declare global {
 export function GoogleButton({
   onError,
   label = "Google",
+  variant = "auth",
 }: {
   onError: (msg: string) => void;
   /** "Google" beside Apple on login; "Continue with Google" full-width on signup. */
   label?: string;
+  /** "auth" — the always-white pill the login/signup frames draw, even in
+   *  dark mode. "surface" — the theme-aware card tone the public landing
+   *  page's other buttons use. */
+  variant?: "auth" | "surface";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const router = useRouter();
   const { setUser } = useAuth();
+  const surface =
+    variant === "surface"
+      ? "border-line bg-card text-ink shadow-soft"
+      : "border-auth-line bg-auth-alt text-auth-alt-ink";
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !ref.current) return;
@@ -108,21 +117,32 @@ export function GoogleButton({
       <button
         type="button"
         onClick={handleDevLogin}
-        className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill bg-auth-well text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg [@media(max-width:480px)]:h-11 [@media(max-width:480px)]:text-[15px]"
+        className={cn(
+          "flex h-14 w-full items-center justify-center gap-3 rounded-pill border text-[16px] font-semibold transition-colors hover:opacity-90",
+          surface,
+        )}
       >
-        <GoogleG size={22} />
+        <GoogleG size={20} />
         {label}
       </button>
     );
   }
 
   return (
-    // Google's rendered pill is shorter than our own (its own fixed chrome,
-    // not ours to restyle) — centering it in a slot matching the other
-    // buttons' height keeps the stack's rhythm even instead of this one
-    // looking short and adrift.
-    <div className={cn("flex h-14 w-full items-center justify-center overflow-hidden", !ready && "opacity-0")}>
-      <div ref={ref} />
+    // Google won't let its button be restyled, and its own pill is shorter
+    // than ours — so this renders our real pill as the visible layer and
+    // lays Google's actual button on top at full size, invisible. The click
+    // still lands on Google's own element; only the paint is ours.
+    <div className={cn("relative flex h-14 w-full items-center justify-center gap-3 rounded-pill border text-[16px] font-semibold", surface)}>
+      <GoogleG size={20} />
+      <span aria-hidden>{label}</span>
+      <div
+        ref={ref}
+        className={cn(
+          "absolute inset-0 flex items-center justify-center overflow-hidden opacity-0",
+          !ready && "invisible",
+        )}
+      />
     </div>
   );
 }
