@@ -28,9 +28,13 @@ function petal(length: number, halfWidth: number) {
 }
 
 const PETALS = [
-  ...[0, 180].map((deg) => ({ deg, d: petal(88, 28) })), // vertical pair
-  ...[90, 270].map((deg) => ({ deg, d: petal(97, 33) })), // horizontal pair, widest
-  ...[45, 135, 225, 315].map((deg) => ({ deg, d: petal(65, 23) })), // diagonals
+  ...[0, 180].map((deg) => ({ deg, d: petal(92, 26) })), // vertical pair
+  ...[90, 270].map((deg) => ({ deg, d: petal(97, 30) })), // horizontal pair, widest
+  // Measured against the actual Figma artwork (not eyeballed): the diagonals
+  // sit at ~90% of the cardinal petals' reach, not the ~70% this had before —
+  // that gap was making the mark read as a 4-point star with stubby fill-in
+  // petals, rather than the fuller 8-petal bloom Figma draws.
+  ...[45, 135, 225, 315].map((deg) => ({ deg, d: petal(86, 22) })), // diagonals
 ];
 
 export function FlounaLogo({
