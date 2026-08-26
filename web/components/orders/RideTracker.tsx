@@ -15,8 +15,10 @@ import {
   LifeBuoy,
   MessageCircle,
   Info,
+  IndianRupee,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { FadeIn } from "@/components/ui/motion";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -62,14 +64,27 @@ export function RideTracker({
   orderId,
   pickup,
   drop,
+  pickupLabel,
   dropLabel,
+  farePaise,
   domain = "ride",
+  onCancelRequest,
+  onTrackingUpdate,
 }: {
   orderId: string;
   pickup: LatLng;
   drop: LatLng;
+  pickupLabel?: string;
   dropLabel: string;
+  farePaise?: number;
   domain?: "ride" | "food";
+  /** Cancelling is one dialog, owned by the order page (CancelOrderSheet) —
+   *  this just asks for it, so there's never a second cancel UI competing
+   *  with the page-level one. */
+  onCancelRequest?: () => void;
+  /** Reports the live driver name + pickup ETA up so the cancel dialog can
+   *  show "Driver is only 3 min away" without polling /track a second time. */
+  onTrackingUpdate?: (info: { driverName: string | null; etaMinutes: number | null }) => void;
 }) {
   const isFood = domain === "food";
   const { t: tr } = useI18n();
@@ -78,11 +93,6 @@ export function RideTracker({
   // driver, OTP and vehicle below are invented, so the rider is told.
   const [simulated, setSimulated] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
-  const [cancelSheet, setCancelSheet] = useState(false);
-  const [cancelReason, setCancelReason] = useState<string | null>(null);
-  const [justCancelled, setJustCancelled] = useState(false);
-  const [cancelError, setCancelError] = useState("");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -108,6 +118,17 @@ export function RideTracker({
     if ((t?.state === "completed" || t?.state === "cancelled") && timer.current)
       clearInterval(timer.current);
   }, [t?.state]);
+
+  useEffect(() => {
+    onTrackingUpdate?.({
+      driverName: t?.driver?.name ?? null,
+      etaMinutes: t?.pickupEtaMinutes ?? null,
+    });
+    // onTrackingUpdate intentionally excluded — the parent's setState identity
+    // isn't guaranteed stable, and re-running only when the tracking data
+    // itself changes is the correct trigger here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t?.driver?.name, t?.pickupEtaMinutes]);
 
   const done = t?.state === "completed";
   const cancelled = t?.state === "cancelled";
@@ -135,9 +156,6 @@ export function RideTracker({
         tripsNoun: tr("track.food.deliveries"),
         otpLabel: tr("track.food.otp"),
         cancelCta: tr("track.food.cancelOrder"),
-        keepCta: tr("track.food.keepOrder"),
-        confirmCancelCta: tr("track.food.confirmCancel"),
-        cancellingCta: tr("track.cancelling"),
       }
     : {
         searchingTitle: tr("track.searching"),
@@ -154,41 +172,7 @@ export function RideTracker({
         tripsNoun: tr("track.trips"),
         otpLabel: tr("track.startOtp"),
         cancelCta: tr("track.cancelRide"),
-        keepCta: tr("track.keepRide"),
-        confirmCancelCta: tr("track.confirmCancel"),
-        cancellingCta: tr("track.cancelling"),
       };
-
-  async function cancelOrder(reason?: string) {
-    setCancelling(true);
-    setCancelError("");
-    try {
-      await api(`/api/orders/${orderId}/cancel`, {
-        method: "POST",
-        json: reason ? { reason } : {},
-      });
-      const d = await api<{ tracking: Tracking }>(`/api/orders/${orderId}/track`);
-      setT(d.tracking);
-      setCancelSheet(false);
-      setJustCancelled(true); // fresh cancel → celebration panel
-    } catch (e) {
-      // Food past pickup (or any refusal): surface the server's reason.
-      setCancelError(e instanceof Error ? e.message : "Couldn't cancel — try again.");
-      setCancelSheet(false);
-    } finally {
-      setCancelling(false);
-    }
-  }
-
-  // "Help us improve" reasons (Figma bottom sheet). Sent as the free-text
-  // cancel reason; ops reads it on the order.
-  const CANCEL_REASONS = [
-    "Changed my plans",
-    "Booked by mistake",
-    "Found a better option",
-    "Taking too long",
-    "Other reason",
-  ];
 
   async function shareTrip() {
     const url = `${window.location.origin}/orders/${orderId}`;
@@ -230,41 +214,6 @@ export function RideTracker({
           ? L.searchingSub
           : t?.statusMessage ?? "…";
 
-  // Fresh cancel this session → the Figma "Booking Cancelled!" celebration.
-  if (justCancelled) {
-    return (
-      <FadeIn y={10}>
-        <Card className="flex flex-col items-center px-6 py-10 text-center">
-          <span className="relative flex size-20 items-center justify-center rounded-full bg-success">
-            <Check size={40} className="text-white" strokeWidth={3} />
-            <span className="absolute -left-2 top-1 size-2 rounded-full bg-accent" />
-            <span className="absolute -right-1 top-4 size-1.5 rounded-full bg-[#8b5cf6]" />
-            <span className="absolute -bottom-1 left-3 size-1.5 rounded-full bg-[#2e6db4]" />
-            <span className="absolute -right-2 bottom-3 size-2 rounded-full bg-[#e8a020]" />
-          </span>
-          <p className="mt-5 text-[18px] font-bold text-ink">
-            {isFood ? "Order cancelled" : "Booking cancelled"}
-          </p>
-          <p className="mt-1 text-[13px] text-cocoa">
-            {isFood
-              ? "Your order has been cancelled successfully."
-              : "Your booking has been cancelled successfully."}
-          </p>
-          <p className="mt-4 flex items-center gap-2 rounded-card border border-line bg-beige/30 px-3.5 py-2.5 text-[12px] text-cocoa">
-            <ShieldCheck size={14} className="shrink-0 text-success" />
-            Refund (if applicable) will be processed within 3–5 business hours.
-          </p>
-          <Link
-            href="/history"
-            className="mt-6 w-full rounded-pill bg-success py-3 text-center text-[14px] font-semibold text-white transition-colors hover:bg-[#15803d]"
-          >
-            Done
-          </Link>
-        </Card>
-      </FadeIn>
-    );
-  }
-
   return (
     <FadeIn y={10}>
       {/* Pilot running on simulated fulfilment: the driver and vehicle shown
@@ -285,65 +234,6 @@ export function RideTracker({
         </div>
       )}
 
-      {/* "Help us improve" cancel sheet (Figma bottom sheet) */}
-      {cancelSheet && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 lg:items-center"
-          onClick={() => !cancelling && setCancelSheet(false)}
-        >
-          <div
-            role="dialog"
-            aria-label="Help us improve"
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-card lg:rounded-3xl"
-          >
-            <span className="mx-auto block h-1 w-10 rounded-full bg-line" />
-            <p className="mt-4 text-center text-[17px] font-bold text-ink">
-              Help us improve
-            </p>
-            <p className="mt-0.5 text-center text-[13px] text-cocoa">
-              Why are you cancelling this {isFood ? "order" : "booking"}?
-            </p>
-            <div className="mt-4 flex flex-col divide-y divide-line/70">
-              {CANCEL_REASONS.map((r) => (
-                <label key={r} className="flex cursor-pointer items-center gap-3 py-3">
-                  <span
-                    className={
-                      cancelReason === r
-                        ? "flex size-5 items-center justify-center rounded-full border-[6px] border-accent"
-                        : "size-5 rounded-full border-2 border-line"
-                    }
-                  />
-                  <input
-                    type="radio"
-                    name="cancel-reason"
-                    className="sr-only"
-                    checked={cancelReason === r}
-                    onChange={() => setCancelReason(r)}
-                  />
-                  <span className="text-[14px] text-ink">{r}</span>
-                </label>
-              ))}
-            </div>
-            <div className="mt-5 flex gap-3">
-              <button
-                onClick={() => setCancelSheet(false)}
-                disabled={cancelling}
-                className="flex-1 rounded-pill border border-line bg-card py-3 text-[13px] font-semibold text-ink"
-              >
-                {L.keepCta}
-              </button>
-              <button
-                onClick={() => cancelOrder(cancelReason ?? undefined)}
-                disabled={cancelling}
-                className="flex-1 rounded-pill bg-danger py-3 text-[13px] font-semibold text-white transition-colors hover:bg-[#c0392b] disabled:opacity-60"
-              >
-                {cancelling ? L.cancellingCta : L.confirmCancelCta}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <Card className="overflow-hidden p-0">
         {/* Status header */}
         <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -387,6 +277,48 @@ export function RideTracker({
           </div>
         )}
 
+        {/* Trip Details (Figma "Ride Completed") — pickup, drop and the final
+            fare, once there's a finished trip to summarise. Rating lives in
+            RateOrder below rather than duplicated here. */}
+        {!isFood && done && (
+          <div className="mx-4 mt-3 rounded-card border border-line">
+            <p className="flex items-center gap-1.5 border-b border-line px-3.5 py-3 text-[13px] font-bold text-ink">
+              <span className="size-1.5 rounded-full bg-ink" /> Trip Details
+            </p>
+            <div className="flex items-center gap-3 border-b border-line/70 px-3.5 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                <Navigation size={14} className="text-ink" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] text-cocoa">Pickup</p>
+                <p className="truncate text-[14px] font-bold text-ink">
+                  {pickupLabel ?? "Pickup"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 border-b border-line/70 px-3.5 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                <Navigation size={14} className="rotate-180 text-ink" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] text-cocoa">Drop</p>
+                <p className="truncate text-[14px] font-bold text-ink">{dropLabel}</p>
+              </div>
+            </div>
+            {farePaise != null && (
+              <div className="flex items-center gap-3 px-3.5 py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                  <IndianRupee size={14} className="text-ink" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] text-cocoa">Total Fare (Final amount)</p>
+                  <p className="text-[14px] font-bold text-ink">{rupees(farePaise)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Searching shimmer or partner card */}
         {searching ? (
           <div className="px-4 py-4">
@@ -397,13 +329,12 @@ export function RideTracker({
                 <div className="h-3 w-1/3 animate-pulse rounded bg-beige" />
               </div>
             </div>
-            {canCancel && (
+            {canCancel && onCancelRequest && (
               <button
-                onClick={() => setCancelSheet(true)}
-                disabled={cancelling}
-                className="mt-3 w-full rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5 disabled:opacity-60"
+                onClick={onCancelRequest}
+                className="mt-3 w-full rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5"
               >
-                {cancelling ? L.cancellingCta : L.cancelCta}
+                {L.cancelCta}
               </button>
             )}
           </div>
@@ -496,12 +427,6 @@ export function RideTracker({
                 </p>
               )}
 
-              {cancelError && (
-                <p className="mt-2 rounded-card bg-danger/5 px-3 py-2 text-[12px] font-medium text-danger">
-                  {cancelError}
-                </p>
-              )}
-
               {/* Actions: food → Help (+ Cancel until pickup) · ride → Share (+ Cancel) */}
               <div className="mt-2.5 flex items-center gap-2.5">
                 {isFood ? (
@@ -521,13 +446,12 @@ export function RideTracker({
                     </button>
                   )
                 )}
-                {canCancel && (
+                {canCancel && onCancelRequest && (
                   <button
-                    onClick={() => setCancelSheet(true)}
-                    disabled={cancelling}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5 disabled:opacity-60"
+                    onClick={onCancelRequest}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-pill border border-danger/40 bg-card py-2.5 text-[12px] font-semibold text-danger transition-colors hover:bg-danger/5"
                   >
-                    <X size={14} /> {cancelling ? L.cancellingCta : L.cancelCta}
+                    <X size={14} /> {L.cancelCta}
                   </button>
                 )}
               </div>

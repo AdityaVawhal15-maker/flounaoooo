@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useAuth, type User } from "./AuthContext";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -26,15 +27,24 @@ declare global {
 export function GoogleButton({
   onError,
   label = "Google",
+  variant = "auth",
 }: {
   onError: (msg: string) => void;
   /** "Google" beside Apple on login; "Continue with Google" full-width on signup. */
   label?: string;
+  /** "auth" — the always-white pill the login/signup frames draw, even in
+   *  dark mode. "surface" — the theme-aware card tone the public landing
+   *  page's other buttons use. */
+  variant?: "auth" | "surface";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const router = useRouter();
   const { setUser } = useAuth();
+  const surface =
+    variant === "surface"
+      ? "border-line bg-card text-ink shadow-soft"
+      : "border-auth-line bg-auth-alt text-auth-alt-ink";
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || !ref.current) return;
@@ -63,6 +73,9 @@ export function GoogleButton({
         theme: "outline",
         size: "large",
         shape: "pill",
+        // Google's own copy defaults to "Sign in with Google" — "continue_with"
+        // is the one variant that reads the same as the rest of the flow.
+        text: "continue_with",
         // 400 is Google's own ceiling. Filling the slot up to it keeps this
         // button the same width as the pills stacked with it — below that cap
         // it visibly under-hangs them.
@@ -104,17 +117,32 @@ export function GoogleButton({
       <button
         type="button"
         onClick={handleDevLogin}
-        className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill bg-auth-well text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg [@media(max-width:480px)]:h-11 [@media(max-width:480px)]:text-[15px]"
+        className={cn(
+          "flex h-14 w-full items-center justify-center gap-3 rounded-pill border text-[16px] font-semibold transition-colors hover:opacity-90",
+          surface,
+        )}
       >
-        <GoogleG size={22} />
+        <GoogleG size={20} />
         {label}
       </button>
     );
   }
 
   return (
-    <div className="flex w-full justify-center overflow-hidden">
-      <div ref={ref} className={ready ? "" : "h-[60px]"} />
+    // Google won't let its button be restyled, and its own pill is shorter
+    // than ours — so this renders our real pill as the visible layer and
+    // lays Google's actual button on top at full size, invisible. The click
+    // still lands on Google's own element; only the paint is ours.
+    <div className={cn("relative flex h-14 w-full items-center justify-center gap-3 rounded-pill border text-[16px] font-semibold", surface)}>
+      <GoogleG size={20} />
+      <span aria-hidden>{label}</span>
+      <div
+        ref={ref}
+        className={cn(
+          "absolute inset-0 flex items-center justify-center overflow-hidden opacity-0",
+          !ready && "invisible",
+        )}
+      />
     </div>
   );
 }

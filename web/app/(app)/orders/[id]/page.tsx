@@ -67,6 +67,12 @@ export default function OrderDetailPage({
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [cancelling, setCancelling] = useState(false);
+  // Reported up by RideTracker so the cancel dialog can show "Driver is only
+  // N min away" without a second /track poll of its own.
+  const [tracking, setTracking] = useState<{ driverName: string | null; etaMinutes: number | null }>({
+    driverName: null,
+    etaMinutes: null,
+  });
   const { t } = useI18n();
 
   useEffect(() => {
@@ -144,7 +150,11 @@ export default function OrderDetailPage({
             domain={order.domain}
             pickup={{ lat: d.pickupLat!, lng: d.pickupLng! }}
             drop={{ lat: d.dropLat!, lng: d.dropLng! }}
+            pickupLabel={d.pickup ?? "your pickup"}
             dropLabel={order.domain === "food" ? "your address" : d.drop ?? "your drop"}
+            farePaise={d.farePaise ?? order.amount}
+            onCancelRequest={() => setCancelling(true)}
+            onTrackingUpdate={setTracking}
           />
         </div>
       )}
@@ -254,23 +264,32 @@ export default function OrderDetailPage({
         </div>
       </Card>
 
-      {/* Cancel — only while the order is still cancellable. The server owns
-          the real policy (food can't be cancelled once out for delivery), so
-          this hides the obvious cases and lets the server refuse the rest with
-          its own message rather than duplicating the rules here. */}
-      {order.status !== "cancelled" && order.status !== "completed" && !allDone && (
-        <button
-          onClick={() => setCancelling(true)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill border border-danger/30 bg-card py-3 text-[14px] font-semibold text-danger transition-colors hover:bg-danger/5"
-        >
-          Cancel {order.domain === "ride" ? "booking" : "order"}
-        </button>
-      )}
+      {/* Cancel — only while the order is still cancellable, and only here
+          when RideTracker isn't already showing its own contextual cancel
+          button (live tracking has one built into the driver card; before
+          that, or for orders with no trackable coords, this is the only
+          entry point). The server owns the real policy (food can't be
+          cancelled once out for delivery), so this hides the obvious cases
+          and lets the server refuse the rest with its own message rather
+          than duplicating the rules here. */}
+      {!hasTrackingCoords &&
+        order.status !== "cancelled" &&
+        order.status !== "completed" &&
+        !allDone && (
+          <button
+            onClick={() => setCancelling(true)}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-pill border border-danger/30 bg-card py-3 text-[14px] font-semibold text-danger transition-colors hover:bg-danger/5"
+          >
+            Cancel {order.domain === "ride" ? "booking" : "order"}
+          </button>
+        )}
 
       {cancelling && (
         <CancelOrderSheet
           orderId={order.id}
           domain={order.domain}
+          driverName={tracking.driverName}
+          etaMinutes={tracking.etaMinutes}
           onClose={() => setCancelling(false)}
           onCancelled={() =>
             setOrder((o) => (o ? { ...o, status: "cancelled" } : o))

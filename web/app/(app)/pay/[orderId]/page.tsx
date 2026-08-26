@@ -246,19 +246,24 @@ export default function PayPage({
 
       {stage === "select" && (
         <>
-          {/* Payment pending */}
-          <p className="mt-5 text-[14px] font-bold text-accent">{t("pay.pending")}</p>
+          {/* Payment pending — Figma prefixes the heading with the same
+              circled alert used on the failed screen below. */}
+          <p className="mt-5 flex items-center gap-1.5 text-[14px] font-bold text-accent">
+            <AlertCircle size={16} /> {t("pay.pending")}
+          </p>
           <p className="mt-0.5 text-[12px] text-cocoa">
             {isFood ? t("pay.pendingFoodSub") : t("pay.pendingRideSub")}
           </p>
 
-          {/* Choose payment method */}
+          {/* Choose payment method — squared tiles tinted per method (Figma),
+              not the generic circular badge every other icon row uses. */}
           <h2 className="mt-6 text-[14px] font-bold text-ink">{t("pay.chooseMethod")}</h2>
           <div className="mt-3 flex flex-col gap-2.5">
             <MethodRow
               active={method === "upi"}
               onClick={() => setMethod("upi")}
-              icon={<Smartphone size={18} className="text-accent" />}
+              icon={<Smartphone size={18} className="text-[#3b6fe0]" />}
+              tint="bg-[#3b6fe0]/10"
               title={t("pay.upi")}
               subtitle={t("pay.upiSub")}
             />
@@ -266,6 +271,7 @@ export default function PayPage({
               active={method === "cash"}
               onClick={() => setMethod("cash")}
               icon={<Wallet size={18} className="text-success" />}
+              tint="bg-success/10"
               title={t("pay.cash")}
               subtitle={isFood ? t("pay.cashFoodSub") : t("pay.cashRideSub")}
             />
@@ -273,6 +279,7 @@ export default function PayPage({
               active={method === "card"}
               onClick={() => setMethod("card")}
               icon={<CreditCard size={18} className="text-[#8b5cf6]" />}
+              tint="bg-[#8b5cf6]/10"
               title={t("pay.card")}
               subtitle={t("pay.cardSub")}
             />
@@ -542,12 +549,14 @@ function MethodRow({
   active,
   onClick,
   icon,
+  tint,
   title,
   subtitle,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
+  tint: string;
   title: string;
   subtitle: string;
 }) {
@@ -560,7 +569,7 @@ function MethodRow({
         )}
       >
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-full bg-beige/70">
+          <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-[10px]", tint)}>
             {icon}
           </span>
           <div className="min-w-0 flex-1">
