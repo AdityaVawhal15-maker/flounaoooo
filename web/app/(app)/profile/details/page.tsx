@@ -31,7 +31,7 @@ function formatDob(iso: string | null) {
 
 function Row({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="border-b border-black/5 px-4 py-3.5 last:border-b-0">
+    <div className="border-b border-line px-4 py-3.5 last:border-b-0">
       <p className="text-[12px] text-acct-muted">{label}</p>
       <p
         className={`mt-0.5 text-[15px] font-semibold ${
@@ -82,7 +82,7 @@ export default function ProfileDetailsPage() {
   }
 
   const field =
-    "h-[52px] w-full rounded-[12px] border border-black/10 bg-white px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent focus:ring-2 focus:ring-acct-accent/12";
+    "h-[52px] w-full rounded-[12px] border border-line bg-card px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent focus:ring-2 focus:ring-acct-accent/12";
   const label = "text-[12px] text-acct-muted";
 
   return (
@@ -92,7 +92,7 @@ export default function ProfileDetailsPage() {
           <Link
             href="/profile"
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-black/5"
+            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -103,7 +103,7 @@ export default function ProfileDetailsPage() {
 
         {editing ? (
           <form onSubmit={save} className="flex flex-col gap-4">
-            <div className="rounded-[18px] bg-white p-4 shadow-soft">
+            <div className="rounded-[18px] bg-card p-4 shadow-soft">
               <div className="flex flex-col gap-4">
                 <label className="flex flex-col gap-1.5">
                   <span className={label}>Full Name</span>
@@ -181,7 +181,7 @@ export default function ProfileDetailsPage() {
                   setGender(user?.gender ?? "");
                   setError("");
                 }}
-                className="h-[52px] flex-1 rounded-pill border border-black/10 bg-white text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
+                className="h-[52px] flex-1 rounded-pill border border-line bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
               >
                 Cancel
               </button>
@@ -196,7 +196,7 @@ export default function ProfileDetailsPage() {
           </form>
         ) : (
           <>
-            <div className="overflow-hidden rounded-[18px] bg-white shadow-soft">
+            <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
               <Row label="Full Name" value={user?.name ?? null} />
               <Row label="Email" value={user?.email ?? null} />
               <Row label="Phone Number" value={user?.phone ?? null} />
@@ -220,7 +220,7 @@ export default function ProfileDetailsPage() {
                 screen — linked rather than duplicated here. */}
             <Link
               href="/profile/addresses"
-              className="mt-3 flex h-[54px] w-full items-center justify-center rounded-pill border border-black/10 bg-white text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
+              className="mt-3 flex h-[54px] w-full items-center justify-center rounded-pill border border-line bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
             >
               Manage addresses
             </Link>

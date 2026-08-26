@@ -12,6 +12,7 @@ import {
   PanelLeft,
   ChevronRight,
   MessageSquare,
+  Plus,
   X,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -23,9 +24,11 @@ import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
-// Redesigned sidebar (Figma 2177:1233): outlined "New Conversation" pill, an
-// "AI Assistants" card whose rows carry a round icon badge and a chevron, and a
-// profile card pinned to the foot.
+// Sidebar (Figma 2177:1233): outlined "New Conversation" pill, an "AI
+// Assistants" card whose rows carry a round icon badge and a chevron, and a
+// profile card pinned to the foot. Icons and row text stay black/ink at every
+// row — the design leans on weight and the row tint to mark the active item,
+// not brand-accent colour.
 //
 // The design frame shows no recent-chats list, but it is drawn as a fresh
 // account — hence the large empty band between the nav card and the profile
@@ -142,20 +145,24 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* New conversation — outlined, per the design */}
+        {/* New conversation — outlined pill, Figma's deeper #b33b06 stroke
+            rather than the brand accent. */}
         <Link
           href="/home"
           onClick={onClose}
           title={t("nav.newChat")}
           className={cn(
-            "mt-6 flex h-[58px] items-center justify-center gap-2 rounded-pill border border-accent bg-transparent text-[17px] font-bold text-ink transition-colors hover:bg-accent-soft/60",
+            "mt-6 flex h-[58px] items-center justify-center gap-2 rounded-pill border border-send bg-transparent text-[17px] font-bold text-ink transition-colors hover:bg-accent-soft/60",
             collapsed && "lg:h-12 lg:px-0",
           )}
         >
           {collapsed ? (
-            <MessageSquare size={19} className="text-accent lg:block" />
+            <MessageSquare size={19} className="text-ink lg:block" />
           ) : (
-            "New Conversation"
+            <>
+              <Plus size={19} className="text-ink" />
+              New Conversation
+            </>
           )}
         </Link>
 
@@ -190,18 +197,13 @@ export function Sidebar({
                   collapsed && "lg:justify-center lg:px-0",
                 )}
               >
-                <span
-                  className={cn(
-                    "flex size-11 shrink-0 items-center justify-center rounded-full",
-                    active ? "bg-card" : "bg-accent-soft/60",
-                  )}
-                >
-                  <Icon size={19} className="text-accent" />
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+                  <Icon size={19} className="text-ink" />
                 </span>
                 <span
                   className={cn(
-                    "flex-1 truncate text-[16px]",
-                    active ? "font-bold text-accent" : "text-ink",
+                    "flex-1 truncate text-[16px] text-ink",
+                    active && "font-bold",
                     collapsed && "lg:hidden",
                   )}
                 >
@@ -209,11 +211,7 @@ export function Sidebar({
                 </span>
                 <ChevronRight
                   size={17}
-                  className={cn(
-                    "shrink-0",
-                    active ? "text-accent" : "text-muted/60",
-                    collapsed && "lg:hidden",
-                  )}
+                  className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
                 />
               </Link>
             );

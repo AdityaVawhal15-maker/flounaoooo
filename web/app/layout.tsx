@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { I18nProvider } from "@/components/i18n/I18nContext";
+import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,12 +31,27 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The theme script below sets data-theme before React hydrates, so the
+  // server markup and the client DOM differ by that one attribute on purpose.
+  // Suppressing is the documented pattern for theme scripts, and it applies
+  // only to this element rather than the tree beneath it.
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} h-full antialiased`}
+    >
+      <head>
+        {/* Sets the theme before first paint so dark-mode users never see a
+            white flash while React hydrates. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <I18nProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </I18nProvider>
+        <ThemeProvider>
+          <I18nProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </I18nProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

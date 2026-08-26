@@ -95,7 +95,7 @@ function Row({
   );
 
   const cls =
-    "flex w-full items-center gap-3 border-b border-black/5 px-4 py-3.5 text-left last:border-b-0";
+    "flex w-full items-center gap-3 border-b border-line px-4 py-3.5 text-left last:border-b-0";
 
   if (href) {
     return (
@@ -178,7 +178,7 @@ export default function PrivacySecurityPage() {
           <Link
             href="/profile"
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-black/5"
+            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
           </Link>
@@ -188,7 +188,7 @@ export default function PrivacySecurityPage() {
         </div>
 
         <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">Privacy</p>
-        <div className="overflow-hidden rounded-[18px] bg-white shadow-soft">
+        <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           <Row
             title="Share My Location"
             subtitle="Let Flouna detect your pickup automatically"
@@ -214,7 +214,7 @@ export default function PrivacySecurityPage() {
         <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
           Security
         </p>
-        <div className="overflow-hidden rounded-[18px] bg-white shadow-soft">
+        <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           <Row
             title="Change Password"
             subtitle="We'll email you a code to set a new one"

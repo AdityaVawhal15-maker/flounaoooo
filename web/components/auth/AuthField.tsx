@@ -29,20 +29,24 @@ export function AuthField({
   const errorId = `${inputId}-error`;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 [@media(max-width:480px)]:gap-1">
       {label && (
         <label
           htmlFor={inputId}
-          className="text-[14px] font-medium text-auth-accent"
+          className="text-[13px] font-medium text-auth-ink [@media(max-width:480px)]:text-[11px]"
         >
           {label}
         </label>
       )}
+      {/* Figma 2527:5156 — 376×56 well, radius 14, filled rather than
+          outlined. On the dark ground a border reads as a seam, so the field
+          is a lighter block instead. Shrinks to h-11 on short phones, where a
+          multi-field form (signup, reset) needs every pixel it can get. */}
       <div
         className={cn(
-          "flex h-[60px] items-center gap-3 rounded-[16px] border bg-white px-4 transition-colors",
-          "focus-within:border-auth-accent focus-within:ring-2 focus-within:ring-auth-accent/12",
-          error ? "border-danger" : "border-auth-line",
+          "flex h-14 items-center gap-3 rounded-[14px] bg-auth-well px-4 transition-shadow [@media(max-width:480px)]:h-11",
+          "focus-within:ring-2 focus-within:ring-white/25",
+          error && "ring-2 ring-danger",
         )}
       >
         {icon && (
@@ -55,7 +59,7 @@ export function AuthField({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={cn(
-            "min-w-0 flex-1 bg-transparent text-[17px] text-auth-ink outline-none placeholder:text-auth-muted/70",
+            "min-w-0 flex-1 bg-transparent text-[16px] text-auth-ink outline-none placeholder:text-auth-muted",
             className,
           )}
           {...props}
@@ -71,7 +75,7 @@ export function AuthField({
   );
 }
 
-/** Primary action. Drawn pale peach until the form is usable, solid once it is. */
+/** Primary action — a white pill with a black label (Figma 2527:5156). */
 export function AuthButton({
   children,
   disabled,
@@ -84,10 +88,10 @@ export function AuthButton({
     <button
       disabled={disabled}
       className={cn(
-        "h-[60px] w-full rounded-pill text-[17px] font-bold transition-colors",
+        "h-14 w-full rounded-[28px] text-[17px] font-semibold transition-colors [@media(max-width:480px)]:h-11 [@media(max-width:480px)]:text-[15px]",
         disabled
           ? "bg-auth-disabled text-auth-disabled-ink"
-          : "bg-auth-accent text-white hover:bg-[#d4470f]",
+          : "bg-auth-btn text-auth-btn-ink hover:bg-white/90",
       )}
       {...props}
     >
@@ -106,7 +110,7 @@ export function AuthAltButton({
 }) {
   return (
     <button
-      className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill border border-auth-line bg-white text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg"
+      className="flex h-14 w-full items-center justify-center gap-3 rounded-[28px] border border-auth-line bg-auth-alt text-[16px] font-semibold text-auth-alt-ink transition-colors hover:opacity-90 [@media(max-width:480px)]:h-11 [@media(max-width:480px)]:text-[14px]"
       {...props}
     >
       {children}
@@ -117,10 +121,10 @@ export function AuthAltButton({
 /** The "OR" rule that separates the primary action from the alternatives. */
 export function AuthOr() {
   return (
-    <div className="flex items-center gap-4 text-[14px] font-medium text-auth-muted/70">
-      <span className="h-px flex-1 bg-auth-line" />
+    <div className="flex items-center gap-4 text-[13px] font-medium text-auth-muted">
+      <span className="h-px flex-1 bg-auth-line/30" />
       OR
-      <span className="h-px flex-1 bg-auth-line" />
+      <span className="h-px flex-1 bg-auth-line/30" />
     </div>
   );
 }

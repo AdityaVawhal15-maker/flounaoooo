@@ -24,7 +24,7 @@ export function AdviceBanner({
         "flex items-start gap-2.5 rounded-card border px-3.5 py-3",
         wait
           ? "border-accent/40 bg-accent-soft/60"
-          : "border-success/30 bg-[#e9f8f0]",
+          : "border-success/30 bg-success-soft",
         className,
       )}
     >

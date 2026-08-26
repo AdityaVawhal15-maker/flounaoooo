@@ -122,29 +122,33 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+    <div className="min-h-dvh bg-auth-bg px-5 py-5 [@media(max-width:480px)]:py-2">
       <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/signup"
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </Link>
 
-        <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
-          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+        <div className="mt-6 flex flex-col items-center text-center [@media(max-width:480px)]:mt-1">
+          <FlounaLogo
+            size={92}
+            strokeWidth={5}
+            className="size-[92px] text-auth-ink/80 [@media(max-width:480px)]:size-[56px]"
+          />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:text-[20px]">
             Log in or sign up
           </h1>
-          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted [@media(max-width:480px)]:mt-1 [@media(max-width:480px)]:text-[12px] [@media(max-width:480px)]:leading-[1.3]">
             You&apos;ll get smarter responses and can book rides, order food and
             more.
           </p>
         </div>
 
         <div
-          className="mt-10 flex justify-center gap-2.5"
+          className="mt-10 flex justify-center gap-2.5 [@media(max-width:480px)]:mt-3"
           onPaste={onPaste}
           aria-label="Verification code"
           role="group"
@@ -163,12 +167,12 @@ export default function VerifyEmailPage() {
               autoFocus={i === 0}
               onChange={(e) => setDigit(i, e.target.value)}
               onKeyDown={(e) => onKeyDown(i, e)}
-              className="size-[58px] rounded-[16px] border border-auth-line bg-white text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12 disabled:opacity-60"
+              className="size-[58px] rounded-[16px] bg-auth-well text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:ring-2 focus:ring-white/25 disabled:opacity-60 [@media(max-width:480px)]:size-[46px] [@media(max-width:480px)]:text-[20px]"
             />
           ))}
         </div>
 
-        <p className="mt-7 text-center text-[16px] text-auth-muted">
+        <p className="mt-7 text-center text-[16px] text-auth-muted [@media(max-width:480px)]:mt-3 [@media(max-width:480px)]:text-[14px]">
           Didn&apos;t receive code?{" "}
           {secondsLeft > 0 ? (
             <span className="font-bold text-auth-accent">
@@ -177,7 +181,7 @@ export default function VerifyEmailPage() {
           ) : (
             <button
               onClick={resend}
-              className="font-bold text-auth-accent hover:underline"
+              className="font-bold text-auth-ink hover:underline"
             >
               Resend now
             </button>

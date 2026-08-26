@@ -102,29 +102,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+    <div className="min-h-dvh bg-auth-bg px-5 py-4 [@media(max-width:480px)]:py-2">
       <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/"
           aria-label="Back"
-          className="flex size-12 items-center justify-center rounded-full bg-white text-auth-ink shadow-soft transition-colors hover:bg-auth-bg"
+          className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >
           <ArrowLeft size={20} />
         </Link>
 
-        <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
-          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+        <div className="mt-4 flex flex-col items-center text-center [@media(max-width:480px)]:mt-1">
+          {/* Shrinks on short phones so the whole screen fits without scrolling —
+              the mark is the most compressible thing here. */}
+          <FlounaLogo
+            size={92}
+            strokeWidth={5}
+            className="size-[92px] text-auth-ink/80 [@media(max-width:480px)]:size-[56px]"
+          />
+          <h1 className="mt-5 text-[26px] font-bold text-auth-ink [@media(max-width:480px)]:mt-3 [@media(max-width:480px)]:text-[22px]">
             Log in or sign up
           </h1>
-          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+          <p className="mt-2 max-w-[330px] text-[15px] leading-[1.45] text-auth-muted [@media(max-width:480px)]:text-[13px]">
             You&apos;ll get smarter responses and can book rides, order food and
             more.
           </p>
         </div>
 
         {mode === "email" ? (
-          <form onSubmit={onEmailSubmit} className="mt-9 flex flex-col gap-4">
+          <form onSubmit={onEmailSubmit} className="mt-6 flex flex-col gap-3 [@media(max-width:480px)]:mt-4 [@media(max-width:480px)]:gap-2">
             <AuthField
               label="Email"
               type="email"
@@ -173,18 +179,18 @@ export default function LoginPage() {
             {askPassword && (
               <Link
                 href="/forgot"
-                className="-mt-1 self-center text-[15px] font-semibold text-auth-accent hover:underline"
+                className="-mt-1 self-center text-[15px] font-semibold text-auth-ink hover:underline"
               >
                 Forgot password?
               </Link>
             )}
           </form>
         ) : (
-          <form onSubmit={onPhoneSubmit} className="mt-9 flex flex-col gap-4">
+          <form onSubmit={onPhoneSubmit} className="mt-6 flex flex-col gap-3 [@media(max-width:480px)]:mt-4 [@media(max-width:480px)]:gap-2">
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="country"
-                className="text-[14px] font-medium text-auth-accent"
+                className="text-[13px] font-medium text-auth-ink"
               >
                 Country/Region
               </label>
@@ -193,7 +199,7 @@ export default function LoginPage() {
                   id="country"
                   value={dial}
                   onChange={(e) => setDial(e.target.value)}
-                  className="h-[60px] w-full appearance-none rounded-[16px] border border-auth-line bg-white px-4 pr-11 text-[17px] text-auth-ink outline-none focus:border-auth-accent focus:ring-2 focus:ring-auth-accent/12"
+                  className="h-[60px] w-full appearance-none rounded-[16px] bg-auth-well px-4 pr-11 text-[17px] text-auth-ink outline-none focus:ring-2 focus:ring-white/25"
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c.dial} value={c.dial}>
@@ -231,11 +237,11 @@ export default function LoginPage() {
 
         {info && <p className="mt-3 text-center text-[14px] text-auth-muted">{info}</p>}
 
-        <div className="mt-7">
+        <div className="mt-5 [@media(max-width:480px)]:mt-3">
           <AuthOr />
         </div>
 
-        <div className="mt-7 flex flex-col gap-4">
+        <div className="mt-5 flex flex-col gap-3 [@media(max-width:480px)]:mt-3 [@media(max-width:480px)]:gap-2">
           <GoogleButton onError={setError} label="Continue with Google" />
           <AuthAltButton
             type="button"
@@ -257,19 +263,19 @@ export default function LoginPage() {
           </AuthAltButton>
         </div>
 
-        <p className="mt-7 text-center text-[15px] text-auth-muted">
+        <p className="mt-5 text-center text-[14px] text-auth-muted [@media(max-width:480px)]:mt-3">
           New here?{" "}
-          <Link href="/signup" className="font-bold text-auth-accent hover:underline">
+          <Link href="/signup" className="font-bold text-auth-ink hover:underline">
             Create an account
           </Link>
         </p>
 
-        <p className="mt-4 pb-8 text-center text-[15px]">
-          <Link href="/legal/terms" className="font-medium text-auth-accent hover:underline">
+        <p className="mt-3 pb-4 text-center text-[14px] [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:pb-2">
+          <Link href="/legal/terms" className="font-medium text-auth-ink hover:underline">
             Terms of Use
           </Link>
           <span className="px-2 text-auth-muted">·</span>
-          <Link href="/legal/privacy" className="font-medium text-auth-accent hover:underline">
+          <Link href="/legal/privacy" className="font-medium text-auth-ink hover:underline">
             Privacy Policy
           </Link>
         </p>
