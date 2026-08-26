@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
   );
 
   return (
-    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+    <div className="min-h-dvh bg-auth-bg px-5 py-5 [@media(max-width:480px)]:py-2">
       <div className="mx-auto w-full max-w-[420px]">
         <button
           type="button"
@@ -114,12 +114,19 @@ export default function ForgotPasswordPage() {
           <ArrowLeft size={20} />
         </button>
 
-        <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
-          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+        <div className="mt-6 flex flex-col items-center text-center [@media(max-width:480px)]:mt-1">
+          {/* The reset step stacks a code plus two password fields — shrink the
+              header more aggressively than the other auth screens so that step
+              still fits a short phone without scrolling. */}
+          <FlounaLogo
+            size={92}
+            strokeWidth={5}
+            className="size-[92px] text-auth-ink/80 [@media(max-width:480px)]:size-[44px]"
+          />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:text-[19px]">
             {step === "email" ? "Reset your password" : "Choose a new password"}
           </h1>
-          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted [@media(max-width:480px)]:mt-1 [@media(max-width:480px)]:text-[12px] [@media(max-width:480px)]:leading-[1.3]">
             {step === "email" ? (
               "Enter your account email and we'll send you a 6-digit code."
             ) : (
@@ -132,7 +139,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {step === "email" ? (
-          <form onSubmit={sendCode} className="mt-9 flex flex-col gap-4">
+          <form onSubmit={sendCode} className="mt-9 flex flex-col gap-4 [@media(max-width:480px)]:mt-4 [@media(max-width:480px)]:gap-2">
             <AuthField
               label="Email"
               type="email"
@@ -152,7 +159,7 @@ export default function ForgotPasswordPage() {
             </AuthButton>
           </form>
         ) : (
-          <form onSubmit={resetPassword} className="mt-9 flex flex-col gap-5">
+          <form onSubmit={resetPassword} className="mt-9 flex flex-col gap-5 [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:gap-1">
             <div
               className="flex justify-center gap-2.5"
               onPaste={onPaste}
@@ -172,7 +179,7 @@ export default function ForgotPasswordPage() {
                   autoFocus={i === 0}
                   onChange={(e) => setDigit(i, e.target.value)}
                   onKeyDown={(e) => onKeyDown(i, e)}
-                  className="size-[58px] rounded-[16px] bg-auth-well text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:ring-2 focus:ring-white/25"
+                  className="size-[58px] rounded-[16px] bg-auth-well text-center text-[24px] font-bold text-auth-ink outline-none transition-colors focus:ring-2 focus:ring-white/25 [@media(max-width:480px)]:size-[44px] [@media(max-width:480px)]:text-[18px]"
                 />
               ))}
             </div>
@@ -221,7 +228,7 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        <p className="mt-7 pb-8 text-center text-[15px] text-auth-muted">
+        <p className="mt-7 pb-8 text-center text-[15px] text-auth-muted [@media(max-width:480px)]:mt-3 [@media(max-width:480px)]:pb-2">
           Remembered it?{" "}
           <Link href="/login" className="font-bold text-auth-ink hover:underline">
             Log In

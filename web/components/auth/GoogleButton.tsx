@@ -104,7 +104,7 @@ export function GoogleButton({
       <button
         type="button"
         onClick={handleDevLogin}
-        className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill bg-auth-well text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg"
+        className="flex h-[60px] w-full items-center justify-center gap-3 rounded-pill bg-auth-well text-[17px] font-bold text-auth-ink transition-colors hover:bg-auth-bg [@media(max-width:480px)]:h-11 [@media(max-width:480px)]:text-[15px]"
       >
         <GoogleG size={22} />
         {label}

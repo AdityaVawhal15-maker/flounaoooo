@@ -71,7 +71,7 @@ export default function SignupPage() {
   );
 
   return (
-    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+    <div className="min-h-dvh bg-auth-bg px-5 py-5 [@media(max-width:480px)]:py-2">
       <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/login"
@@ -81,18 +81,24 @@ export default function SignupPage() {
           <ArrowLeft size={20} />
         </Link>
 
-        <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
-          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+        <div className="mt-6 flex flex-col items-center text-center [@media(max-width:480px)]:mt-1">
+          {/* Shrinks on short phones so a four-field form still fits without
+              scrolling — the mark is the most compressible thing here. */}
+          <FlounaLogo
+            size={92}
+            strokeWidth={5}
+            className="size-[92px] text-auth-ink/80 [@media(max-width:480px)]:size-[48px]"
+          />
+          <h1 className="mt-7 text-[26px] font-bold text-auth-ink [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:text-[20px]">
             Log in or sign up
           </h1>
-          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted [@media(max-width:480px)]:mt-1 [@media(max-width:480px)]:text-[12px] [@media(max-width:480px)]:leading-[1.3]">
             You&apos;ll get smarter responses and can book rides, order food and
             more.
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="mt-9 flex flex-col gap-5">
+        <form onSubmit={onSubmit} className="mt-9 flex flex-col gap-5 [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:gap-1">
           <AuthField
             label="Full name"
             autoComplete="name"
@@ -142,22 +148,22 @@ export default function SignupPage() {
           </AuthButton>
         </form>
 
-        <div className="mt-7">
+        <div className="mt-7 [@media(max-width:480px)]:mt-3">
           <AuthOr />
         </div>
 
-        <div className="mt-7">
+        <div className="mt-7 [@media(max-width:480px)]:mt-3">
           <GoogleButton onError={setError} label="Continue with Google" />
         </div>
 
-        <p className="mt-7 text-center text-[15px] text-auth-muted">
+        <p className="mt-7 text-center text-[15px] text-auth-muted [@media(max-width:480px)]:mt-3">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-auth-ink hover:underline">
             Log In
           </Link>
         </p>
 
-        <p className="mt-4 pb-8 text-center text-[15px]">
+        <p className="mt-4 pb-8 text-center text-[15px] [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:pb-2">
           <Link href="/legal/terms" className="font-medium text-auth-ink hover:underline">
             Terms of Use
           </Link>
