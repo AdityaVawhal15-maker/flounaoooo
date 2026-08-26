@@ -1,66 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { useState } from "react";
 import { FadeIn } from "@/components/ui/motion";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 import { useI18n } from "@/components/i18n/I18nContext";
 
-// Public landing — matches the Figma "intial landing page" frame. The static
-// prerender is English (SEO keeps indexing English copy); a returning
-// visitor's saved language applies after hydration like the rest of the app.
+// Public landing — matches the Figma "intial landing page" frame: the mark
+// and headline sit in the upper third, then an open middle, then the three
+// entry points anchored to the bottom safe area (Google, Login or Signup,
+// Continue without logging in). The static prerender is English (SEO keeps
+// indexing English copy); a returning visitor's saved language applies after
+// hydration like the rest of the app.
 export default function LandingPage() {
   const { t } = useI18n();
+  const [googleError, setGoogleError] = useState("");
+
   return (
-    <div className="flex min-h-dvh flex-1 flex-col items-center justify-center bg-cream px-6 py-12">
-      {/* Mobile keeps the Figma column exactly; desktop scales the same
-          composition up so a wide screen doesn't show a narrow phone strip. */}
-      <div className="flex w-full max-w-sm flex-col items-center text-center lg:max-w-2xl">
+    <div className="flex min-h-dvh flex-1 flex-col items-center bg-cream px-6 pb-8 pt-16 [@media(max-height:700px)]:pt-10">
+      <div className="flex w-full max-w-sm flex-1 flex-col items-center text-center lg:max-w-2xl">
         <FadeIn y={16}>
-          {/* Vector mark, so the hairline petals stay crisp at the 280px the
-              desktop layout blows it up to. No drop shadow — the design floats
-              the outline directly on the cream. */}
           <FlounaLogo
-            size={230}
+            size={104}
             strokeWidth={4}
-            className="text-ink lg:h-[280px] lg:w-[280px]"
+            className="size-[104px] text-ink lg:size-[140px] [@media(max-height:700px)]:size-[76px]"
           />
         </FadeIn>
 
-        {/* Hero — Stop Searching (ink) / Start Deciding (accent), Inter Bold 28 */}
-        <FadeIn delay={0.1} className="mt-7">
-          <h1 className="flex flex-col gap-2 text-[28px] font-bold leading-[1.2] lg:text-[52px]">
+        <FadeIn delay={0.1} className="mt-6 [@media(max-height:700px)]:mt-4">
+          <h1 className="flex flex-col gap-1.5 text-[26px] font-bold leading-[1.2] lg:text-[44px]">
             <span className="text-ink">{t("landing.headline1")}</span>
             <span className="text-accent">{t("landing.headline2")}</span>
           </h1>
         </FadeIn>
 
-        <FadeIn delay={0.2} className="mt-3.5">
-          <p className="mx-auto max-w-[330px] text-[15px] leading-[1.5] text-cocoa lg:max-w-[520px] lg:text-[18px]">
-            {t("landing.blurb")}
-          </p>
-        </FadeIn>
+        {/* Open middle, same as the Figma frame — nothing competes with the
+            mark and headline for attention. */}
+        <div className="flex-1" />
 
-        {/* Buttons — Get Started (cocoa) / Log In (beige), 56px tall, 28px radius */}
-        <FadeIn delay={0.32} className="mt-9 w-full max-w-[325px] lg:max-w-[440px]">
-          <div className="flex flex-col gap-5 lg:flex-row lg:gap-4">
-            <Link
-              href="/signup"
-              className="group flex h-14 flex-1 items-center justify-center gap-2 rounded-pill bg-cocoa text-[17px] font-semibold text-white transition-all hover:gap-3 hover:bg-[#7a5234]"
-            >
-              {t("landing.getStarted")}
-              <ArrowRight size={20} className="transition-transform group-hover:translate-x-0.5" />
-            </Link>
+        <FadeIn delay={0.25} className="w-full max-w-[340px] lg:max-w-[400px]">
+          <div className="flex flex-col gap-3">
+            <GoogleButton onError={setGoogleError} label="Continue with Google" />
             <Link
               href="/login"
-              className="flex h-14 flex-1 items-center justify-center rounded-pill bg-beige text-[17px] font-semibold text-ink transition-colors hover:bg-[#e6d8cc]"
+              className="flex h-14 w-full items-center justify-center rounded-pill border border-line bg-card text-[16px] font-semibold text-ink shadow-soft transition-colors hover:bg-beige/40"
             >
-              {t("landing.login")}
+              {t("landing.loginOrSignup")}
             </Link>
           </div>
+          {googleError && (
+            <p role="alert" className="mt-3 text-[13px] text-danger">
+              {googleError}
+            </p>
+          )}
+          <Link
+            href="/home"
+            className="mt-5 block text-center text-[14px] font-medium text-cocoa hover:text-ink"
+          >
+            {t("landing.continueGuest")}
+          </Link>
         </FadeIn>
 
-        <FadeIn delay={0.5} className="mt-8 flex items-center gap-4 text-[12px] text-muted">
+        <FadeIn delay={0.4} className="mt-6 flex items-center gap-4 text-[12px] text-muted">
           <Link href="/legal/privacy" className="hover:text-cocoa">
             {t("landing.privacy")}
           </Link>
