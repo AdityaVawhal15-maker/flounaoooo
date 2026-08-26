@@ -253,17 +253,17 @@ function ChatHome() {
             />
           </div>
 
-          {/* Hero heading — the redesign sets both lines in the brand accent
-              (Figma 2177:4763), replacing the old navy/terracotta split. */}
+          {/* Hero heading — two lines, two colours (Figma 2177:4763: navy then
+              terracotta). */}
           <FadeIn y={10}>
-            <h1 className="text-balance text-[30px] font-bold leading-[1.2] tracking-tight text-accent lg:text-[44px]">
-              {t("chat.heading1")}
-              {t("chat.heading2")}
+            <h1 className="text-balance text-[30px] font-bold leading-[1.2] tracking-tight lg:text-[44px]">
+              <span className="text-navy">{t("chat.heading1")}</span>
+              <span className="text-terracotta">{t("chat.heading2")}</span>
             </h1>
           </FadeIn>
 
-          {/* Quick chips — solid accent pills in the redesign, replacing the
-              flat beige ones. Two per row on mobile, as drawn. */}
+          {/* Quick chips — flat, as drawn (Figma 2177:4763). Two per row on
+              mobile. */}
           <Stagger delayChildren={0.15} className="mt-6 flex flex-wrap items-center justify-center gap-3">
             {suggestions.slice(0, 3).map((s) => {
               const Icon = ICONS[s.icon] ?? Pizza;
@@ -273,9 +273,9 @@ function ChatHome() {
                     onClick={() =>
                       s.prompt.endsWith(" ") ? setInput(s.prompt) : send(s.prompt)
                     }
-                    className="flex items-center gap-2 rounded-pill bg-accent px-5 py-3 text-[15px] font-medium text-white transition-colors hover:bg-[#d4570f]"
+                    className="flex items-center gap-2 rounded-pill bg-chip px-5 py-3 text-[15px] font-medium text-chip-ink transition-colors hover:opacity-90"
                   >
-                    <Icon size={16} className="text-white" />
+                    <Icon size={16} className="text-chip-ink" />
                     {s.label}
                   </button>
                 </StaggerItem>
@@ -371,7 +371,7 @@ function ChatHome() {
             type="submit"
             disabled={!input.trim() || thinking}
             aria-label="Send"
-            className="flex size-[54px] shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-[#d4570f] disabled:opacity-40"
+            className="flex size-[54px] shrink-0 items-center justify-center rounded-full bg-send text-white transition-colors hover:opacity-90 disabled:opacity-40"
           >
             <Send size={20} />
           </button>

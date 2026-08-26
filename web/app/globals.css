@@ -68,7 +68,7 @@
   --color-igm-good-tint: #dcfce7;
   --color-igm-wait: #f59e0b;
   --color-igm-body: #374151; /* body copy, one step darker than acct-muted */
-  --color-send: #e8a060; /* ask-bar send button */
+  --color-send: #b33b06; /* ask-bar send circle (Figma 2177:4763) — deeper than --color-accent */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */
   --color-muted: #a08a78; /* tertiary text */
@@ -127,6 +127,15 @@
   --color-state-bg: #141414;
   --color-state-ink: #f5f0ec;
   --color-state-muted: #8d8079;
+
+  /* Chat-home brand accents — no dark frame exists for this screen yet, so
+     these are derived rather than read: lightened enough to hold contrast on
+     a near-black ground, keeping the same hue relationship as the light
+     values above. */
+  --color-navy: #8fb8dd;
+  --color-terracotta: #dba077;
+  --color-chip: #2a2a2a;
+  --color-chip-ink: #ece4db;
 }
 
 body {
