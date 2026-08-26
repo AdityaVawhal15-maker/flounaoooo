@@ -109,7 +109,7 @@ export function AuthAltButton({
 }) {
   return (
     <button
-      className="flex h-14 w-full items-center justify-center gap-3 rounded-[28px] bg-auth-btn text-[16px] font-semibold text-auth-alt-ink transition-colors hover:bg-white/90"
+      className="flex h-14 w-full items-center justify-center gap-3 rounded-[28px] border border-auth-line bg-auth-alt text-[16px] font-semibold text-auth-alt-ink transition-colors hover:opacity-90"
       {...props}
     >
       {children}

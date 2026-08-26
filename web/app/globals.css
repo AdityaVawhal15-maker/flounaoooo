@@ -31,21 +31,21 @@
   --color-chip: #e5ddd5; /* flat quick-chip background */
   --color-chip-ink: #2d2d2d; /* quick-chip label */
 
-  /* Auth palette — Figma 2527:5156 (Aug 2026). The flow was redrawn dark:
-     near-black ground, white type, dark input wells, and white pill buttons
-     with black labels. Kept as its own set so the rest of the app stays on the
-     brand cream. */
-  --color-auth-bg: #111111; /* screen ground */
-  --color-auth-ink: #ffffff; /* headings and body */
-  --color-auth-muted: #bba89f; /* "OR", placeholders, secondary copy */
-  --color-auth-line: #edd9d3; /* dividers */
-  --color-auth-well: #333333; /* input + back-button fill */
-  --color-auth-btn: #ffffff; /* primary + provider buttons */
-  --color-auth-btn-ink: #000000; /* primary button label */
-  --color-auth-alt-ink: #1a1a2e; /* Google / phone button labels */
-  --color-auth-accent: #e8531a; /* errors and the few remaining accents */
-  --color-auth-disabled: #333333; /* primary button, inactive */
-  --color-auth-disabled-ink: #6f6f6f;
+  /* Auth palette — light is the default (Figma 2177:7108, ground #fff9f6).
+     The dark variants (2527:*) are the same screens under the theme toggle;
+     their values live in the [data-theme="dark"] block below. */
+  --color-auth-bg: #fff9f6; /* screen ground */
+  --color-auth-ink: #1a1a2e; /* headings and body */
+  --color-auth-muted: #8b7b72; /* subtitles, placeholders */
+  --color-auth-line: #edd9d3; /* dividers and field borders */
+  --color-auth-well: #ffffff; /* input fill */
+  --color-auth-btn: #e8531a; /* primary button */
+  --color-auth-btn-ink: #ffffff; /* primary button label */
+  --color-auth-alt: #ffffff; /* Google / phone button fill */
+  --color-auth-alt-ink: #1a1a2e; /* their labels */
+  --color-auth-accent: #e8531a; /* labels, links, errors */
+  --color-auth-disabled: #f8d7c8;
+  --color-auth-disabled-ink: #d97757;
 
   /* Account palette — the profile set (Figma 2195:5xx–17xx) is drawn on a
      neutral grey scale rather than either palette above: near-black text on an
@@ -86,6 +86,47 @@
   --shadow-card: 0 1px 2px rgba(61, 28, 0, 0.04), 0 8px 24px -12px rgba(61, 28, 0, 0.12);
   --shadow-soft: 0 1px 2px rgba(61, 28, 0, 0.03), 0 2px 8px -4px rgba(61, 28, 0, 0.06);
   --shadow-lift: 0 2px 4px rgba(61, 28, 0, 0.05), 0 16px 40px -16px rgba(61, 28, 0, 0.18);
+}
+
+/* ── Dark theme ─────────────────────────────────────────────────────────────
+   Applied by the Settings toggle, which stamps data-theme="dark" on <html>.
+   Only tokens are redefined, so every screen follows without touching its
+   markup — and screens Harsha has not drawn dark yet stay coherent rather
+   than half-converted.
+
+   Auth values are read from the dark frames (2527:5156, 5282, 5432): near
+   black ground, white type, #333333 wells, white pill buttons. */
+[data-theme="dark"] {
+  --color-cream: #111111;
+  --color-ink: #f5f0ec;
+  --color-card: #1c1c1c;
+  --color-line: #2b2b2b;
+  --color-beige: #262626;
+  --color-cocoa: #b9a99c;
+  --color-muted: #8d8079;
+  --color-surface: #191919;
+  --color-hairline: #242424;
+
+  --color-auth-bg: #111111;
+  --color-auth-ink: #ffffff;
+  --color-auth-muted: #bba89f;
+  --color-auth-line: #edd9d3;
+  --color-auth-well: #333333;
+  --color-auth-btn: #ffffff;
+  --color-auth-btn-ink: #000000;
+  --color-auth-alt: #ffffff;
+  --color-auth-alt-ink: #1a1a2e;
+  --color-auth-disabled: #333333;
+  --color-auth-disabled-ink: #6f6f6f;
+
+  --color-acct-bg: #141414;
+  --color-acct-ink: #f5f0ec;
+  --color-acct-muted: #8d8079;
+  --color-acct-tint: #2a1f19;
+
+  --color-state-bg: #141414;
+  --color-state-ink: #f5f0ec;
+  --color-state-muted: #8d8079;
 }
 
 body {

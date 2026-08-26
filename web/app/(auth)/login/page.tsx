@@ -102,7 +102,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-auth-bg px-5 py-5">
+    <div className="min-h-dvh bg-auth-bg px-5 py-4 [@media(max-height:700px)]:py-2">
       <div className="mx-auto w-full max-w-[420px]">
         <Link
           href="/"
@@ -112,19 +112,25 @@ export default function LoginPage() {
           <ArrowLeft size={20} />
         </Link>
 
-        <div className="mt-6 flex flex-col items-center text-center">
-          <FlounaLogo size={92} strokeWidth={5} className="text-auth-ink/80" />
-          <h1 className="mt-7 text-[26px] font-bold text-auth-ink">
+        <div className="mt-4 flex flex-col items-center text-center [@media(max-height:700px)]:mt-1">
+          {/* Shrinks on short phones so the whole screen fits without scrolling —
+              the mark is the most compressible thing here. */}
+          <FlounaLogo
+            size={92}
+            strokeWidth={5}
+            className="size-[92px] text-auth-ink/80 [@media(max-height:700px)]:size-[56px]"
+          />
+          <h1 className="mt-5 text-[26px] font-bold text-auth-ink [@media(max-height:700px)]:mt-3 [@media(max-height:700px)]:text-[22px]">
             Log in or sign up
           </h1>
-          <p className="mt-3 max-w-[330px] text-[16px] leading-[1.5] text-auth-muted">
+          <p className="mt-2 max-w-[330px] text-[15px] leading-[1.45] text-auth-muted [@media(max-height:700px)]:text-[13px]">
             You&apos;ll get smarter responses and can book rides, order food and
             more.
           </p>
         </div>
 
         {mode === "email" ? (
-          <form onSubmit={onEmailSubmit} className="mt-9 flex flex-col gap-4">
+          <form onSubmit={onEmailSubmit} className="mt-6 flex flex-col gap-3 [@media(max-height:700px)]:mt-4 [@media(max-height:700px)]:gap-2">
             <AuthField
               label="Email"
               type="email"
@@ -180,7 +186,7 @@ export default function LoginPage() {
             )}
           </form>
         ) : (
-          <form onSubmit={onPhoneSubmit} className="mt-9 flex flex-col gap-4">
+          <form onSubmit={onPhoneSubmit} className="mt-6 flex flex-col gap-3 [@media(max-height:700px)]:mt-4 [@media(max-height:700px)]:gap-2">
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="country"
@@ -231,11 +237,11 @@ export default function LoginPage() {
 
         {info && <p className="mt-3 text-center text-[14px] text-auth-muted">{info}</p>}
 
-        <div className="mt-7">
+        <div className="mt-5 [@media(max-height:700px)]:mt-3">
           <AuthOr />
         </div>
 
-        <div className="mt-7 flex flex-col gap-4">
+        <div className="mt-5 flex flex-col gap-3 [@media(max-height:700px)]:mt-3 [@media(max-height:700px)]:gap-2">
           <GoogleButton onError={setError} label="Continue with Google" />
           <AuthAltButton
             type="button"
@@ -257,14 +263,14 @@ export default function LoginPage() {
           </AuthAltButton>
         </div>
 
-        <p className="mt-7 text-center text-[15px] text-auth-muted">
+        <p className="mt-5 text-center text-[14px] text-auth-muted [@media(max-height:700px)]:mt-3">
           New here?{" "}
           <Link href="/signup" className="font-bold text-auth-ink hover:underline">
             Create an account
           </Link>
         </p>
 
-        <p className="mt-4 pb-8 text-center text-[15px]">
+        <p className="mt-3 pb-4 text-center text-[14px] [@media(max-height:700px)]:mt-2 [@media(max-height:700px)]:pb-2">
           <Link href="/legal/terms" className="font-medium text-auth-ink hover:underline">
             Terms of Use
           </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wallet, Bell, Languages } from "lucide-react";
+import { Wallet, Bell, Languages, Moon, Sun } from "lucide-react";
 import { api } from "@/lib/api";
 import { SubPage } from "@/components/profile/SubPage";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +15,7 @@ import {
 import { useI18n } from "@/components/i18n/I18nContext";
 import { LANGUAGES } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { useTheme } from "@/components/theme/ThemeContext";
 
 // Server-persisted preferences (PUT /api/users/preferences). Security mail
 // (password changed, new address, etc.) isn't listed here — it always sends
@@ -50,6 +51,7 @@ type Prefs = {
 };
 
 export default function SettingsPage() {
+  const { theme, toggle } = useTheme();
   const { t, lang, setLang } = useI18n();
   const [prefs, setPrefs] = useState<Prefs>({
     emailUpdates: true,
@@ -179,6 +181,44 @@ export default function SettingsPage() {
         {budgetSaved && (
           <p className="mt-2 text-[12px] font-medium text-success">{budgetSaved}</p>
         )}
+      </Card>
+
+      {/* Appearance — switches the whole app between the light and dark token
+          sets. Stored per device rather than on the account: which theme suits
+          you depends on the screen you are holding, not on who you are. */}
+      <Card className="mb-4">
+        <div className="flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-beige/70">
+            {theme === "dark" ? (
+              <Moon size={16} className="text-accent" />
+            ) : (
+              <Sun size={16} className="text-accent" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-medium text-ink">Dark mode</p>
+            <p className="text-[12px] text-cocoa">
+              {theme === "dark" ? "On — easier on the eyes at night" : "Off"}
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={theme === "dark"}
+            aria-label="Dark mode"
+            onClick={toggle}
+            className={cn(
+              "h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors",
+              theme === "dark" ? "bg-accent" : "bg-line",
+            )}
+          >
+            <span
+              className={cn(
+                "block size-5 rounded-full bg-white shadow transition-transform",
+                theme === "dark" && "translate-x-5",
+              )}
+            />
+          </button>
+        </div>
       </Card>
 
       {/* Push notifications — real Web Push subscription */}
