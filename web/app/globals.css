@@ -11,6 +11,7 @@
   --color-card: #ffffff; /* cards */
   --color-line: #eee3da; /* hairline borders */
   --color-success: #1ca65c;
+  --color-success-soft: #e9f8f0;
   --color-danger: #d93025;
   /* Advisory, not failure — the "your money will come back" notice on a failed
      payment. Separate from danger so a reassurance never reads as an error. */
@@ -106,6 +107,15 @@
   --color-muted: #8d8079;
   --color-surface: #191919;
   --color-hairline: #242424;
+  /* Never had a dark value, so anything painted on it (active nav row, chip
+     backgrounds) stayed light-mode-coloured and went pale-on-pale once its
+     text correctly switched to light ink. Same bug on the three "soft" status
+     tints below — a pale advisory banner over light ink text, unreadable on
+     a dark ground. */
+  --color-accent-soft: #3a2a1f;
+  --color-success-soft: #16301f;
+  --color-warning-soft: #332a10;
+  --color-danger-soft: #331512;
 
   --color-auth-bg: #111111;
   --color-auth-ink: #ffffff;

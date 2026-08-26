@@ -42,7 +42,7 @@ const PICK_BADGES: Record<
 > = {
   top_rated: { label: "TOP RATED", icon: Award, className: "bg-[#efe7fb] text-[#8b5cf6]" },
   best_price: { label: "BEST PRICE", icon: Tag, className: "bg-accent-soft text-accent" },
-  fastest: { label: "FASTEST", icon: Zap, className: "bg-[#e3f6ec] text-success" },
+  fastest: { label: "FASTEST", icon: Zap, className: "bg-success-soft text-success" },
   best_overall: { label: "BEST OVERALL", icon: Sparkles, className: "bg-accent-soft text-accent" },
 };
 

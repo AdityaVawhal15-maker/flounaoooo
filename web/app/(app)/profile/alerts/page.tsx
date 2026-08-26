@@ -99,7 +99,7 @@ export default function AlertsPage() {
             {past.map((a) => (
               <Card key={a.id} className="py-3 opacity-80">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e3f6ec]">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success-soft">
                     <TrendingDown size={16} className="text-success" />
                   </span>
                   <div className="min-w-0 flex-1">
