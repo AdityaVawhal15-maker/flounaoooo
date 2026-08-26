@@ -99,13 +99,13 @@ const SUPPORT: Row[] = [
 
 function RowList({ rows }: { rows: Row[] }) {
   return (
-    <div className="overflow-hidden rounded-[18px] bg-white shadow-soft">
+    <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
       {rows.map(({ href, icon: Icon, title, subtitle }, i) => (
         <StaggerItem key={`${href}-${title}`}>
           <Link
             href={href}
             className={`flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg ${
-              i < rows.length - 1 ? "border-b border-black/5" : ""
+              i < rows.length - 1 ? "border-b border-line" : ""
             }`}
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
@@ -153,7 +153,7 @@ export default function ProfilePage() {
           <button
             onClick={() => router.back()}
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-black/5"
+            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
           </button>
@@ -174,7 +174,7 @@ export default function ProfilePage() {
               <Link
                 href="/profile/details"
                 aria-label="Edit profile"
-                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-white bg-acct-accent text-white transition-opacity hover:opacity-90"
+                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-acct-accent text-white transition-opacity hover:opacity-90"
               >
                 <Pencil size={14} />
               </Link>
@@ -197,7 +197,7 @@ export default function ProfilePage() {
         {/* Identity strip. Values come from the account, so a user with no phone
             set sees a prompt to add one rather than an empty column. */}
         <FadeIn delay={0.08}>
-          <div className="mt-7 grid grid-cols-3 gap-2 rounded-[18px] bg-white px-3 py-4 text-center shadow-soft">
+          <div className="mt-7 grid grid-cols-3 gap-2 rounded-[18px] bg-card px-3 py-4 text-center shadow-soft">
             {[
               { icon: Mail, value: user?.email ?? "—", label: "Email" },
               { icon: Phone, value: user?.phone ?? "Add phone", label: "Phone" },
