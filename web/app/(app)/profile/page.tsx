@@ -154,7 +154,7 @@ function AppearanceRow() {
             Appearance
           </span>
           <span className="block truncate text-[12px] text-acct-muted">
-            {theme === "dark" ? "Dark" : "Light"}
+            Change the colors
           </span>
         </span>
         <button
@@ -198,8 +198,11 @@ export default function ProfilePage() {
   return (
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
-        {/* Desktop keeps a title row; on mobile the app header already has one. */}
-        <div className="hidden items-center gap-3 py-5 lg:flex">
+        {/* Every other profile screen (Settings, Details, Privacy…) shows its
+            own back-arrow title on mobile too via SubPage — this one was the
+            odd one out, hiding it under lg: and relying on AppShell's
+            generic "Flouna" bar instead, which Figma's frame doesn't draw. */}
+        <div className="flex items-center gap-3 py-5">
           <button
             onClick={() => router.back()}
             aria-label="Back"
@@ -234,13 +237,18 @@ export default function ProfilePage() {
               {user?.name ?? "Your account"}
             </h2>
 
-            <Link
-              href="/profile/plus"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-pill bg-acct-tint px-3.5 py-1.5 text-[13px] font-bold text-acct-accent transition-opacity hover:opacity-85"
-            >
-              <Star size={13} className={plusActive ? "fill-acct-accent" : ""} />
-              {plusActive ? "Premium Member" : "Upgrade to Flouna Plus"}
-            </Link>
+            {/* Figma's View Profile frame goes straight from the name to the
+                identity strip — no Plus pill here. A subscriber's status
+                still needs to live somewhere, so it stays as a plain line
+                rather than disappearing outright; everyone else finds the
+                upgrade path from the Plus page itself, reached the same way
+                as any other Account row. */}
+            {plusActive && (
+              <p className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-acct-accent">
+                <Star size={13} className="fill-acct-accent" />
+                Premium Member
+              </p>
+            )}
           </div>
         </FadeIn>
 

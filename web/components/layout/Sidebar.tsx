@@ -14,9 +14,6 @@ import {
   MessageSquare,
   Plus,
   X,
-  FileText,
-  ShieldCheck,
-  Settings,
   Languages,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -52,9 +49,9 @@ const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
 // still sits behind RequireAuth — but correct and ready for whenever a
 // guest-browsing surface exists to render it on.
 const guestNavItems = [
-  { href: "/legal/terms", label: "Terms", icon: FileText },
-  { href: "/legal/privacy", label: "Policy", icon: ShieldCheck },
-  { href: "/profile/settings", label: "Settings", icon: Settings },
+  { href: "/legal/terms", label: "Terms" },
+  { href: "/legal/privacy", label: "Policy" },
+  { href: "/profile/settings", label: "Settings" },
 ];
 
 const COLLAPSE_KEY = "flouna-sidebar-collapsed";
@@ -238,17 +235,16 @@ export function Sidebar({
                   </Link>
                 );
               })
-            : guestNavItems.map(({ href, label, icon: Icon }) => (
+            : guestNavItems.map(({ href, label }) => (
                 <Link
                   key={href}
                   href={href}
                   onClick={onClose}
                   className="flex items-center justify-between px-4 py-3.5 text-[16px] text-ink transition-colors hover:bg-beige/40"
                 >
-                  <span className="flex items-center gap-3">
-                    <Icon size={17} className="text-cocoa" />
-                    {label}
-                  </span>
+                  {/* Plain text — no icon badge here, unlike the account nav
+                      above it. Figma draws this list bare. */}
+                  <span>{label}</span>
                   <ChevronRight size={17} className="shrink-0 text-muted/60" />
                 </Link>
               ))}
