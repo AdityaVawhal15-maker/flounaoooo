@@ -27,11 +27,7 @@ export function AccountSetup({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream px-8">
-      <FlounaLogo
-        size={110}
-        strokeWidth={5}
-        className="animate-logo-glow text-ink"
-      />
+      <FlounaLogo size={110} className="animate-logo-glow text-ink" />
 
       <p className="mt-8 text-[18px] font-bold text-ink">
         Setting up your account
