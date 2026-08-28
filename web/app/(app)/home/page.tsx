@@ -30,7 +30,6 @@ import { VoiceButton } from "@/components/chat/VoiceButton";
 import { ThinkingSteps } from "@/components/chat/ThinkingSteps";
 import { PredictionBanner } from "@/components/chat/PredictionBanner";
 import { useI18n } from "@/components/i18n/I18nContext";
-import { LanguageSelector } from "@/components/i18n/LanguageSelector";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { type TILE_THEMES } from "@/components/ui/CategoryTile";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
@@ -205,7 +204,6 @@ function ChatHome() {
           fills that bar with hamburger / wordmark / avatar, so they sit in the
           chat column on every width now rather than overlapping the avatar. */}
       <div className="flex w-full items-center justify-end gap-2 pt-2 lg:pt-3">
-        <LanguageSelector />
         <button
           onClick={() => {
             setTemporary((v) => {

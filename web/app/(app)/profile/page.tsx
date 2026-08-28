@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,8 +8,8 @@ import {
   ShieldCheck,
   Bell,
   CreditCard,
-  Gift,
-  History,
+  Tag,
+  Receipt,
   LifeBuoy,
   MessageCircle,
   ChevronRight,
@@ -18,13 +18,16 @@ import {
   MapPin,
   Star,
   LogOut,
-  Pencil,
+  Camera,
   ArrowLeft,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { useTheme } from "@/components/theme/ThemeContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 
 // Figma "View Profile" (2195:589): avatar with an edit badge, name, a premium
@@ -70,13 +73,13 @@ const ACCOUNT: Row[] = [
   },
   {
     href: "/profile/rewards",
-    icon: Gift,
+    icon: Tag,
     title: "Offers & Rewards",
     subtitle: "View your offers and rewards",
   },
   {
     href: "/history",
-    icon: History,
+    icon: Receipt,
     title: "Ride & Order History",
     subtitle: "View your past rides and orders",
   },
@@ -97,7 +100,7 @@ const SUPPORT: Row[] = [
   },
 ];
 
-function RowList({ rows }: { rows: Row[] }) {
+function RowList({ rows, trailing }: { rows: Row[]; trailing?: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
       {rows.map(({ href, icon: Icon, title, subtitle }, i) => (
@@ -105,7 +108,7 @@ function RowList({ rows }: { rows: Row[] }) {
           <Link
             href={href}
             className={`flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg ${
-              i < rows.length - 1 ? "border-b border-line" : ""
+              i < rows.length - 1 || trailing ? "border-b border-line" : ""
             }`}
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
@@ -123,7 +126,54 @@ function RowList({ rows }: { rows: Row[] }) {
           </Link>
         </StaggerItem>
       ))}
+      {trailing}
     </div>
+  );
+}
+
+// Appearance — same row shape as its neighbours, but a toggle rather than a
+// chevron-nav link, since flipping it acts immediately instead of going
+// anywhere. Figma draws it inline in Account, not tucked a level down in
+// Settings (which keeps its own copy — the theme is a per-device choice, so
+// having it reachable from two places costs nothing and finding it from
+// Account is one tap closer).
+function AppearanceRow() {
+  const { theme, toggle } = useTheme();
+  return (
+    <StaggerItem>
+      <div className="flex items-center gap-3.5 px-4 py-3.5">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+          {theme === "dark" ? (
+            <Moon size={18} className="text-acct-accent" />
+          ) : (
+            <Sun size={18} className="text-acct-accent" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-bold text-acct-ink">
+            Appearance
+          </span>
+          <span className="block truncate text-[12px] text-acct-muted">
+            Change the colors
+          </span>
+        </span>
+        <button
+          role="switch"
+          aria-checked={theme === "dark"}
+          aria-label="Dark mode"
+          onClick={toggle}
+          className={`h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
+            theme === "dark" ? "bg-acct-accent" : "bg-line"
+          }`}
+        >
+          <span
+            className={`block size-5 rounded-full bg-white shadow transition-transform ${
+              theme === "dark" ? "translate-x-5" : ""
+            }`}
+          />
+        </button>
+      </div>
+    </StaggerItem>
   );
 }
 
@@ -148,8 +198,11 @@ export default function ProfilePage() {
   return (
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
-        {/* Desktop keeps a title row; on mobile the app header already has one. */}
-        <div className="hidden items-center gap-3 py-5 lg:flex">
+        {/* Every other profile screen (Settings, Details, Privacy…) shows its
+            own back-arrow title on mobile too via SubPage — this one was the
+            odd one out, hiding it under lg: and relying on AppShell's
+            generic "Flouna" bar instead, which Figma's frame doesn't draw. */}
+        <div className="flex items-center gap-3 py-5">
           <button
             onClick={() => router.back()}
             aria-label="Back"
@@ -173,10 +226,10 @@ export default function ProfilePage() {
               </span>
               <Link
                 href="/profile/details"
-                aria-label="Edit profile"
-                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-acct-accent text-white transition-opacity hover:opacity-90"
+                aria-label="Edit profile photo"
+                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-black text-white transition-opacity hover:opacity-90"
               >
-                <Pencil size={14} />
+                <Camera size={14} />
               </Link>
             </div>
 
@@ -184,13 +237,18 @@ export default function ProfilePage() {
               {user?.name ?? "Your account"}
             </h2>
 
-            <Link
-              href="/profile/plus"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-pill bg-acct-tint px-3.5 py-1.5 text-[13px] font-bold text-acct-accent transition-opacity hover:opacity-85"
-            >
-              <Star size={13} className={plusActive ? "fill-acct-accent" : ""} />
-              {plusActive ? "Premium Member" : "Upgrade to Flouna Plus"}
-            </Link>
+            {/* Figma's View Profile frame goes straight from the name to the
+                identity strip — no Plus pill here. A subscriber's status
+                still needs to live somewhere, so it stays as a plain line
+                rather than disappearing outright; everyone else finds the
+                upgrade path from the Plus page itself, reached the same way
+                as any other Account row. */}
+            {plusActive && (
+              <p className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-acct-accent">
+                <Star size={13} className="fill-acct-accent" />
+                Premium Member
+              </p>
+            )}
           </div>
         </FadeIn>
 
@@ -218,7 +276,7 @@ export default function ProfilePage() {
           <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
             Account
           </p>
-          <RowList rows={ACCOUNT} />
+          <RowList rows={ACCOUNT} trailing={<AppearanceRow />} />
 
           <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
             Support

@@ -62,6 +62,11 @@ export function AuthField({
             "min-w-0 flex-1 bg-transparent text-[16px] text-auth-ink outline-none placeholder:text-auth-muted",
             className,
           )}
+          // Chrome's own autofill engine stamps a caret-color style onto an
+          // autofocused field before React hydrates — a false-positive
+          // hydration mismatch, not anything this app sets. Same category
+          // React's own docs name for the theme script in layout.tsx.
+          suppressHydrationWarning
           {...props}
         />
         {trailing && <span className="shrink-0">{trailing}</span>}

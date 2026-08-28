@@ -26,8 +26,12 @@ export class GoogleProvider implements LlmProvider {
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
+    // fetch() never times out on its own — without this, a hung Google AI
+    // connection blocks here forever instead of rejecting, which means
+    // FallbackProvider never gets a failure to fall through on.
     const res = await fetch(url, {
       method: "POST",
+      signal: AbortSignal.timeout(20_000),
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": env.GOOGLE_AI_API_KEY ?? "",

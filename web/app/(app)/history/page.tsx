@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pizza, Car, ChevronRight } from "lucide-react";
+import { Pizza, Car, ChevronRight, History as HistoryIcon } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
+import { StateScreen, StateGlyph } from "@/components/ui/StateScreen";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { CardSkeleton } from "@/components/ui/Skeleton";
@@ -43,9 +44,9 @@ const STATUS_KEYS: Record<string, TranslationKey> = {
 const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-accent-soft text-accent",
   in_progress: "bg-accent-soft text-accent",
-  completed: "bg-[#e3f6ec] text-success",
+  completed: "bg-success-soft text-success",
   pending_payment: "bg-beige text-cocoa",
-  cancelled: "bg-[#fdeceb] text-danger",
+  cancelled: "bg-danger-soft text-danger",
 };
 
 export default function HistoryPage() {
@@ -130,9 +131,15 @@ export default function HistoryPage() {
         {orders === null && !error &&
           Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         {orders?.length === 0 && (
-          <p className="py-10 text-center text-[13px] text-cocoa">
-            {t("history.empty")}
-          </p>
+          // Figma "No items yet" — an empty history is a normal first-run
+          // state, not a failure, so it offers the way forward rather than
+          // leaving a bare line of grey text on an otherwise blank screen.
+          <StateScreen
+            illustration={<StateGlyph icon={HistoryIcon} />}
+            title={t("history.emptyTitle")}
+            message={t("history.empty")}
+            primary={{ label: t("cart.browse"), href: "/food" }}
+          />
         )}
         {orders?.map((o) => (
           <StaggerItem key={o.id}>

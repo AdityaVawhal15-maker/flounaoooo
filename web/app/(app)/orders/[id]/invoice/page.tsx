@@ -195,9 +195,15 @@ export default function InvoicePage({
               {order.domain === "food" ? "Food delivery" : "Ride"} · via Flouna
             </p>
           </div>
-          <div className="text-right">
+          <div className="min-w-0 text-right">
             <p className="font-semibold uppercase tracking-wide text-cocoa">Order</p>
-            <p className="mt-1 break-all font-mono text-[11px] text-ink">{order.id}</p>
+            {/* break-all + text-right staircases across lines — one truncated
+                line reads as a value instead of a wrapped mess. The receipt
+                reference above is the number a person actually needs; this
+                is the raw id for support lookups. */}
+            <p className="mt-1 truncate font-mono text-[11px] text-ink" title={order.id}>
+              {order.id}
+            </p>
             <p className="text-cocoa">
               {order.payment?.method ? order.payment.method.toUpperCase() : "—"}
             </p>

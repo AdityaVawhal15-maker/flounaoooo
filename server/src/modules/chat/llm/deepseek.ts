@@ -7,8 +7,12 @@ export class DeepseekProvider implements LlmProvider {
   name = "deepseek";
 
   async extractIntent(userMessage: string): Promise<Intent> {
+    // fetch() never times out on its own — without this, a hung DeepSeek
+    // connection blocks here forever instead of rejecting, which means
+    // FallbackProvider never gets a failure to fall through on.
     const res = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(20_000),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${env.DEEPSEEK_API_KEY}`,

@@ -32,45 +32,68 @@ export function AppShell({
   // the same ground or a hard colour seam shows across the top of the page.
   const onAccountGround = pathname.startsWith("/profile");
 
+  // Every profile screen draws its own back-arrow title — Settings,
+  // Details, Privacy, all of them, same as View Profile. Confirmed against
+  // both; the rest share the identical header component (SubPage) or the
+  // same hand-built row, so the generic hamburger bar stacking above it is
+  // the same redundant double-header everywhere in this family, not just
+  // the one screen that happened to get checked first.
+  const hideHeader = onAccountGround;
+
   return (
     <div className="flex min-h-dvh w-full">
       <PriceAlertListener />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header
-          className={`sticky top-0 z-20 flex h-16 items-center justify-between gap-3 px-4 backdrop-blur lg:hidden ${
-            // Near-opaque: at 90% the chat's own chips read straight through
-            // the bar as it scrolls under, which looks like a layering fault
-            // rather than a frosted header.
-            onAccountGround ? "bg-acct-bg/97" : "bg-cream/97"
-          }`}
-        >
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="-ml-1 rounded-full p-2 text-ink transition-colors hover:bg-beige"
-            aria-label="Open menu"
+        {!hideHeader && (
+          <header
+            className={`sticky top-0 z-20 flex h-16 items-center justify-between gap-3 px-4 backdrop-blur lg:hidden ${
+              // Near-opaque: at 90% the chat's own chips read straight through
+              // the bar as it scrolls under, which looks like a layering fault
+              // rather than a frosted header.
+              onAccountGround ? "bg-acct-bg/97" : "bg-cream/97"
+            }`}
           >
-            <Menu size={24} />
-          </button>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="-ml-1 rounded-full p-2 text-ink transition-colors hover:bg-beige"
+              aria-label="Open menu"
+            >
+              <Menu size={24} />
+            </button>
 
-          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[19px] font-bold text-ink">
-            {title ?? "Flouna"}
-          </span>
+            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[19px] font-bold text-ink">
+              {title ?? "Flouna"}
+            </span>
 
-          <Link
-            href="/profile"
-            aria-label="Your profile"
-            className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[14px] font-bold text-accent"
-          >
-            {user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+            {user ? (
+              <Link
+                href="/profile"
+                aria-label="Your profile"
+                className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[14px] font-bold text-accent"
+              >
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  (user.name?.trim()?.[0] ?? "?").toUpperCase()
+                )}
+              </Link>
             ) : (
-              (user?.name?.trim()?.[0] ?? "?").toUpperCase()
+              // Figma's signed-out header swaps the avatar for a Login pill —
+              // not reachable while (app) sits behind RequireAuth, but this
+              // component doesn't own that gate, so it stays correct for
+              // whenever it does allow an anonymous visitor through.
+              <Link
+                href="/login"
+                className="shrink-0 rounded-pill bg-card px-4 py-1.5 text-[13px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/40"
+              >
+                Login
+              </Link>
             )}
-          </Link>
-        </header>
+          </header>
+        )}
 
         <main className="flex-1 pb-6">{children}</main>
       </div>

@@ -9,10 +9,30 @@ import {
   runLifecycleSweep,
 } from "./modules/notifications/outbox.service.js";
 import { sweepPlusMemberships } from "./modules/subscription/subscription.service.js";
-import { initMonitoring } from "./lib/monitoring.js";
+import { initMonitoring, captureError } from "./lib/monitoring.js";
 import { seedDemoCoupons } from "./data/coupons.js";
 
 initMonitoring();
+
+// Last-resort safety net. Every route handler already wraps its own work in
+// try/catch and forwards to Express's error middleware — this is for
+// whatever isn't, whether that's a handler someone adds later without one, a
+// background job's stray promise, or a dependency's internal rejection. Node
+// terminates the process on an unhandled rejection by default; without this,
+// one missed catch anywhere takes every concurrent user down with it instead
+// of failing the one request that hit it.
+process.on("unhandledRejection", (reason) => {
+  captureError(reason, { kind: "unhandledRejection" });
+});
+// An uncaught synchronous throw means something is in a state Node itself no
+// longer trusts — continuing risks serving corrupted responses. Exit and let
+// the platform's restart policy (Railway: ON_FAILURE) bring up a clean
+// process, rather than either crashing silently or running on regardless.
+process.on("uncaughtException", (err) => {
+  captureError(err, { kind: "uncaughtException" });
+  process.exit(1);
+});
+
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {

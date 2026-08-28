@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ChevronLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -13,7 +13,12 @@ import { useI18n } from "@/components/i18n/I18nContext";
 export default function GroupStartPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const [code, setCode] = useState("");
+  const search = useSearchParams();
+  // Arriving from a shared link (?code=ABC123) — pre-fill so joining is one
+  // tap, not a re-type of a code the sender already gave them.
+  const [code, setCode] = useState(() =>
+    (search.get("code") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6),
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 

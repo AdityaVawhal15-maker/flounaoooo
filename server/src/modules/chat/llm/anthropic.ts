@@ -5,7 +5,11 @@ import { JSON_SCHEMA, SYSTEM_PROMPT } from "./prompt.js";
 
 export class AnthropicProvider implements LlmProvider {
   name = "anthropic";
-  private client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  // Without a bound, a hung upstream call blocks here indefinitely and never
+  // rejects — which means FallbackProvider never sees a failure to fall
+  // through on, and the whole point of chaining providers is defeated by the
+  // first one going quiet instead of erroring.
+  private client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 20_000 });
 
   async extractIntent(userMessage: string): Promise<Intent> {
     const response = await this.client.messages.create({

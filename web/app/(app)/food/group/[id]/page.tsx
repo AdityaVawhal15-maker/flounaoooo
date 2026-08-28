@@ -11,6 +11,9 @@ import {
   Search,
   ChevronLeft,
   Send,
+  MessageCircle,
+  Share2,
+  Clock,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -133,14 +136,20 @@ export default function GroupCartPage({
     await navigator.clipboard.writeText(text).catch(() => {});
   }
 
+  const joinUrl =
+    typeof window !== "undefined" && cart
+      ? `${window.location.origin}/food/group?code=${cart.code}`
+      : "";
+
   async function shareCode() {
     if (!cart) return;
-    const text = `Join my Flouna group order — code ${cart.code}`;
     if (navigator.share) {
-      await navigator.share({ text }).catch(() => {});
+      await navigator
+        .share({ text: `Join my Flouna group order — code ${cart.code}`, url: joinUrl })
+        .catch(() => {});
       return;
     }
-    await navigator.clipboard.writeText(cart.code).catch(() => {});
+    await navigator.clipboard.writeText(joinUrl || cart.code).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -167,6 +176,12 @@ export default function GroupCartPage({
       <h1 className="mt-3 flex items-center gap-2 text-[20px] font-bold text-ink">
         <Users size={20} className="text-accent" /> {t("grp.groupOrder")}
       </h1>
+      {cart.members.length > 0 && (
+        <span className="mt-1 inline-flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[12px] font-semibold text-success">
+          <span className="size-1.5 rounded-full bg-success" />
+          {cart.members.length} Joined
+        </span>
+      )}
 
       {/* Join code */}
       <Card className="mt-4 bg-accent-soft/50">
@@ -186,6 +201,42 @@ export default function GroupCartPage({
           </button>
         </div>
       </Card>
+
+      {/* Share via — direct deep links where one exists (WhatsApp, Telegram),
+          the native share sheet for everything else. Figma draws a fourth
+          icon for Instagram, but Instagram has no web scheme for sharing a
+          plain link — a button that can't do what it says is worse than one
+          fewer button. */}
+      <div className="mt-3 flex items-center justify-center gap-6">
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`Join my Flouna group order — ${joinUrl}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center gap-1.5"
+        >
+          <span className="flex size-12 items-center justify-center rounded-full bg-[#25D366]/15 text-[#25D366]">
+            <MessageCircle size={22} />
+          </span>
+          <span className="text-[11px] text-cocoa">WhatsApp</span>
+        </a>
+        <a
+          href={`https://t.me/share/url?url=${encodeURIComponent(joinUrl)}&text=${encodeURIComponent("Join my Flouna group order")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center gap-1.5"
+        >
+          <span className="flex size-12 items-center justify-center rounded-full bg-[#229ED9]/15 text-[#229ED9]">
+            <Send size={20} />
+          </span>
+          <span className="text-[11px] text-cocoa">Telegram</span>
+        </a>
+        <button onClick={shareCode} className="flex flex-col items-center gap-1.5">
+          <span className="flex size-12 items-center justify-center rounded-full bg-beige/70 text-cocoa">
+            <Share2 size={20} />
+          </span>
+          <span className="text-[11px] text-cocoa">More</span>
+        </button>
+      </div>
 
       {/* Add items */}
       {!ordered && (
@@ -259,7 +310,9 @@ export default function GroupCartPage({
         ))}
       </div>
 
-      {/* Split summary */}
+      {/* Split summary — Figma's "Waiting..." badge for anyone who hasn't
+          added an item yet, derived from subtotalPaise rather than a new
+          field: 0 ordered *is* waiting, for any member. */}
       {cart.members.length > 0 && (
         <Card className="mt-5">
           <p className="text-[14px] font-bold text-ink">{t("grp.splitEqually")}</p>
@@ -269,7 +322,13 @@ export default function GroupCartPage({
                 <span className="text-cocoa">
                   {m.isYou ? "You" : m.name}
                 </span>
-                <span className="text-ink">{rupees(m.subtotalPaise)} ordered</span>
+                {m.subtotalPaise > 0 ? (
+                  <span className="text-ink">{rupees(m.subtotalPaise)} ordered</span>
+                ) : (
+                  <span className="flex items-center gap-1 rounded-pill border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                    <Clock size={11} /> Waiting…
+                  </span>
+                )}
               </div>
             ))}
           </div>

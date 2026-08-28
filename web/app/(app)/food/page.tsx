@@ -29,6 +29,7 @@ import { VoiceButton } from "@/components/chat/VoiceButton";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
+import { StateScreen, StateGlyph } from "@/components/ui/StateScreen";
 import { AdviceBanner, type Advice } from "@/components/ui/AdviceBanner";
 import { BudgetBar, useBudget } from "@/components/food/BudgetBar";
 import { DishArt } from "@/components/food/DishArt";
@@ -258,19 +259,27 @@ export default function FoodLandingPage() {
       )}
 
       {showSearch ? (
-        <section className="mt-6">
-          <h2 className="text-[17px] font-bold text-ink">Results</h2>
-          <Stagger className="mt-3 flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
-            {results.length === 0 && (
-              <p className="text-[13px] text-cocoa">No matches — try “biryani”, “pizza” or “dosa”.</p>
-            )}
-            {results.map((q) => (
-              <StaggerItem key={`${q.dishId}-${q.platform}`}>
-                <DishRow q={q} />
-              </StaggerItem>
-            ))}
-          </Stagger>
-        </section>
+        results.length === 0 ? (
+          // Figma "No results found" — same family as every other empty
+          // state rather than a bare line of grey text.
+          <StateScreen
+            illustration={<StateGlyph icon={Search} />}
+            title="No results found"
+            message={`We couldn't find anything matching "${activeQuery}".`}
+            primary={{ label: "Clear search", onClick: () => setQuery("") }}
+          />
+        ) : (
+          <section className="mt-6">
+            <h2 className="text-[17px] font-bold text-ink">Results</h2>
+            <Stagger className="mt-3 flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
+              {results.map((q) => (
+                <StaggerItem key={`${q.dishId}-${q.platform}`}>
+                  <DishRow q={q} />
+                </StaggerItem>
+              ))}
+            </Stagger>
+          </section>
+        )
       ) : loading ? (
         <div className="mt-6 flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
