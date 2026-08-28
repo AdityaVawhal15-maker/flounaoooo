@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth, type User } from "@/components/auth/AuthContext";
@@ -45,6 +46,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function ProfileDetailsPage() {
+  const router = useRouter();
   const { t } = useI18n();
   const { user, setUser } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -89,13 +91,13 @@ export default function ProfileDetailsPage() {
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center gap-3 py-5">
-          <Link
-            href="/profile"
+          <button
+            onClick={() => router.back()}
             aria-label="Back"
             className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
-          </Link>
+          </button>
           <h1 className="text-[18px] font-extrabold text-acct-ink">
             Personal Information
           </h1>

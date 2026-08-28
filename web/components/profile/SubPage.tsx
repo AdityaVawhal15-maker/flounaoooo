@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 // Shell for the account sub-screens (notifications, rewards, help, addresses,
@@ -21,17 +21,24 @@ export function SubPage({
   title: string;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   return (
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center gap-3 py-5">
-          <Link
-            href="/profile"
+          {/* router.back(), not a hardcoded Link to /profile: a Link always
+              pushes a new history entry, so arriving here from anywhere
+              other than /profile (e.g. a notification, a direct link) and
+              then tapping back from /profile itself made router.back() pop
+              right back to this page — a two-screen ping-pong that never
+              actually returns to where the visit started. */}
+          <button
+            onClick={() => router.back()}
             aria-label="Back to profile"
             className="rounded-full p-2 text-acct-ink transition-colors hover:bg-black/5"
           >
             <ArrowLeft size={20} />
-          </Link>
+          </button>
           <h1 className="text-[18px] font-extrabold text-acct-ink lg:text-[22px]">
             {title}
           </h1>
