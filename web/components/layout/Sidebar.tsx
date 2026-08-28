@@ -14,7 +14,6 @@ import {
   MessageSquare,
   Plus,
   X,
-  Languages,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -298,8 +297,8 @@ export function Sidebar({
               onClick={onClose}
               title={t("nav.profile")}
               className={cn(
-                "flex min-w-0 flex-1 items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
-                collapsed && "lg:w-full lg:flex-none lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
+                "flex min-w-0 flex-1 items-center gap-3 rounded-[18px] border border-line bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
+                collapsed && "lg:w-full lg:flex-none lg:justify-center lg:border-none lg:bg-transparent lg:p-0 lg:shadow-none",
               )}
             >
               <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
@@ -325,17 +324,18 @@ export function Sidebar({
             </Link>
             {/* Figma pairs the profile card with a language shortcut here
                 too, not just on the signed-out foot — same picker, opened
-                from Settings rather than duplicated. */}
+                from Settings rather than duplicated. The glyph itself (not
+                a translate icon) is what the design actually draws. */}
             <Link
               href="/profile/settings"
               onClick={onClose}
               aria-label="Language"
               className={cn(
-                "flex size-11 shrink-0 items-center justify-center rounded-full bg-card text-ink shadow-soft transition-colors hover:bg-beige/30",
+                "flex size-11 shrink-0 items-center justify-center rounded-[18px] border border-line bg-card text-[18px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/30",
                 collapsed && "lg:hidden",
               )}
             >
-              <Languages size={18} />
+              अ
             </Link>
           </div>
         ) : (
@@ -351,9 +351,9 @@ export function Sidebar({
               href="/profile/settings"
               onClick={onClose}
               aria-label="Language"
-              className="flex size-[52px] shrink-0 items-center justify-center rounded-full border border-line bg-card text-[18px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/30"
+              className="flex size-[52px] shrink-0 items-center justify-center rounded-[18px] border border-line bg-card text-[20px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/30"
             >
-              <Languages size={20} />
+              अ
             </Link>
           </div>
         )}
