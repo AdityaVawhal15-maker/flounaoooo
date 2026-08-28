@@ -58,18 +58,31 @@ export function AppShell({
             {title ?? "Flouna"}
           </span>
 
-          <Link
-            href="/profile"
-            aria-label="Your profile"
-            className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[14px] font-bold text-accent"
-          >
-            {user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="size-full object-cover" />
-            ) : (
-              (user?.name?.trim()?.[0] ?? "?").toUpperCase()
-            )}
-          </Link>
+          {user ? (
+            <Link
+              href="/profile"
+              aria-label="Your profile"
+              className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[14px] font-bold text-accent"
+            >
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+              ) : (
+                (user.name?.trim()?.[0] ?? "?").toUpperCase()
+              )}
+            </Link>
+          ) : (
+            // Figma's signed-out header swaps the avatar for a Login pill —
+            // not reachable while (app) sits behind RequireAuth, but this
+            // component doesn't own that gate, so it stays correct for
+            // whenever it does allow an anonymous visitor through.
+            <Link
+              href="/login"
+              className="shrink-0 rounded-pill bg-card px-4 py-1.5 text-[13px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/40"
+            >
+              Login
+            </Link>
+          )}
         </header>
 
         <main className="flex-1 pb-6">{children}</main>

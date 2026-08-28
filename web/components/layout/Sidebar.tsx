@@ -14,6 +14,10 @@ import {
   MessageSquare,
   Plus,
   X,
+  FileText,
+  ShieldCheck,
+  Settings,
+  Languages,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -40,6 +44,17 @@ const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
   { href: "/history", key: "nav.history", icon: History },
   { href: "/rides", key: "nav.rides", icon: Car },
   { href: "/food", key: "nav.food", icon: Utensils },
+];
+
+// Signed-out variant (Figma 2177:1180-ish "logged out" frame): no account to
+// show recent chats or the AI Assistants nav for, so the card holds the
+// legal/settings links instead. Not reachable today — every (app) route
+// still sits behind RequireAuth — but correct and ready for whenever a
+// guest-browsing surface exists to render it on.
+const guestNavItems = [
+  { href: "/legal/terms", label: "Terms", icon: FileText },
+  { href: "/legal/privacy", label: "Policy", icon: ShieldCheck },
+  { href: "/profile/settings", label: "Settings", icon: Settings },
 ];
 
 const COLLAPSE_KEY = "flouna-sidebar-collapsed";
@@ -80,11 +95,14 @@ export function Sidebar({
   }
 
   // Refresh the list whenever navigation happens (a new chat updates the URL).
+  // Skipped entirely for a guest — there's no session to list, and no point
+  // firing a request that can only come back 401.
   useEffect(() => {
+    if (!user) return;
     api<{ sessions: ChatSessionSummary[] }>("/api/chat/sessions")
       .then((d) => setRecent(d.sessions))
       .catch(() => setRecent([]));
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, user]);
 
   const visible = showAll ? recent : recent.slice(0, 5);
 
@@ -172,50 +190,68 @@ export function Sidebar({
             collapsed && "lg:hidden",
           )}
         >
-          AI Assistants
+          {user ? "AI Assistants" : ""}
         </p>
 
-        {/* Nav card */}
+        {/* Nav card — AI Assistants for a signed-in account, legal/settings
+            links for a guest (Figma's signed-out frame draws no chat nav,
+            since there's no account to attach recent chats to). */}
         <nav
           className={cn(
-            "mt-2 overflow-hidden rounded-[20px] bg-card shadow-soft",
+            "overflow-hidden rounded-[20px] bg-card shadow-soft",
+            user ? "mt-2" : "mt-6",
             collapsed && "lg:bg-transparent lg:shadow-none",
           )}
         >
-          {navItems.map(({ href, key, icon: Icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                title={t(key)}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 transition-colors",
-                  active ? "bg-accent-soft/70" : "hover:bg-beige/40",
-                  collapsed && "lg:justify-center lg:px-0",
-                )}
-              >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-acct-tint">
-                  <Icon size={19} className="text-ink" />
-                </span>
-                <span
-                  className={cn(
-                    "flex-1 truncate text-[16px] text-ink",
-                    active && "font-bold",
-                    collapsed && "lg:hidden",
-                  )}
+          {user
+            ? navItems.map(({ href, key, icon: Icon }) => {
+                const active = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onClose}
+                    title={t(key)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 transition-colors",
+                      active ? "bg-accent-soft/70" : "hover:bg-beige/40",
+                      collapsed && "lg:justify-center lg:px-0",
+                    )}
+                  >
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+                      <Icon size={19} className="text-ink" />
+                    </span>
+                    <span
+                      className={cn(
+                        "flex-1 truncate text-[16px] text-ink",
+                        active && "font-bold",
+                        collapsed && "lg:hidden",
+                      )}
+                    >
+                      {t(key)}
+                    </span>
+                    <ChevronRight
+                      size={17}
+                      className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
+                    />
+                  </Link>
+                );
+              })
+            : guestNavItems.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onClose}
+                  className="flex items-center justify-between px-4 py-3.5 text-[16px] text-ink transition-colors hover:bg-beige/40"
                 >
-                  {t(key)}
-                </span>
-                <ChevronRight
-                  size={17}
-                  className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
-                />
-              </Link>
-            );
-          })}
+                  <span className="flex items-center gap-3">
+                    <Icon size={17} className="text-cocoa" />
+                    {label}
+                  </span>
+                  <ChevronRight size={17} className="shrink-0 text-muted/60" />
+                </Link>
+              ))}
         </nav>
 
         {/* Recent chats fill the band the design leaves empty on a fresh account */}
@@ -255,37 +291,60 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Profile card, pinned to the foot */}
-        <Link
-          href="/profile"
-          onClick={onClose}
-          title={t("nav.profile")}
-          className={cn(
-            "mt-4 flex items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
-            collapsed && "lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
-          )}
-        >
-          <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
-            {user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="size-full object-cover" />
-            ) : (
-              (user?.name?.trim()?.[0] ?? "?").toUpperCase()
+        {/* Foot: profile card for an account, Login/Signup + a language
+            shortcut for a guest (Figma's signed-out frame) — the "अ" glyph
+            circle is a language switcher, so it opens the same picker
+            Settings already has rather than duplicating one here. */}
+        {user ? (
+          <Link
+            href="/profile"
+            onClick={onClose}
+            title={t("nav.profile")}
+            className={cn(
+              "mt-4 flex items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
+              collapsed && "lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
             )}
-          </span>
-          <span className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
-            <span className="block truncate text-[16px] font-bold text-ink">
-              {user?.name ?? "Your account"}
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+              ) : (
+                (user.name?.trim()?.[0] ?? "?").toUpperCase()
+              )}
             </span>
-            <span className="block truncate text-[13px] text-muted">
-              View profile
+            <span className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
+              <span className="block truncate text-[16px] font-bold text-ink">
+                {user.name ?? "Your account"}
+              </span>
+              <span className="block truncate text-[13px] text-muted">
+                View profile
+              </span>
             </span>
-          </span>
-          <ChevronRight
-            size={17}
-            className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
-          />
-        </Link>
+            <ChevronRight
+              size={17}
+              className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
+            />
+          </Link>
+        ) : (
+          <div className={cn("mt-4 flex items-center gap-2.5", collapsed && "lg:flex-col")}>
+            <Link
+              href="/login"
+              onClick={onClose}
+              className="flex h-[52px] flex-1 items-center justify-center rounded-pill border border-line bg-card text-[15px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/30"
+            >
+              <span className={cn(collapsed && "lg:hidden")}>Login or Signup</span>
+            </Link>
+            <Link
+              href="/profile/settings"
+              onClick={onClose}
+              aria-label="Language"
+              className="flex size-[52px] shrink-0 items-center justify-center rounded-full border border-line bg-card text-[18px] font-bold text-ink shadow-soft transition-colors hover:bg-beige/30"
+            >
+              <Languages size={20} />
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );
