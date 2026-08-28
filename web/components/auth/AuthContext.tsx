@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { api } from "@/lib/api";
@@ -55,11 +56,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, setUser, logout }}>
-      {children}
-    </AuthContext.Provider>
+  // Without this, every AuthProvider render (including ones nothing here
+  // caused — a parent re-rendering for its own reasons) hands consumers a
+  // brand-new object. Anything depending on the return of useAuth() then
+  // sees a "change" on every one of those renders even when user and
+  // loading are unchanged, which is exactly what was re-firing effects that
+  // should only run when the session actually changes.
+  const value = useMemo(
+    () => ({ user, loading, setUser, logout }),
+    [user, loading, logout],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

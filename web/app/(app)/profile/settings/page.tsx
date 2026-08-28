@@ -137,15 +137,19 @@ export default function SettingsPage() {
           <Languages size={15} className="text-accent" /> {t("settings.language")}
         </p>
         <p className="mt-1 text-[12px] text-cocoa">{t("settings.languageSub")}</p>
-        <div className="mt-3 flex gap-2">
+        {/* Six languages don't fit one row on a phone without either
+            squeezing every label or cutting the last one off entirely —
+            wrapping instead of forcing flex-1 lets each pill size to its
+            own label and overflow onto a second row cleanly. */}
+        <div className="mt-3 flex flex-wrap gap-2">
           {LANGUAGES.map((l) => (
             <button
               key={l.code}
               onClick={() => setLang(l.code)}
               className={
                 l.code === lang
-                  ? "flex-1 rounded-pill border border-accent bg-accent-soft px-3 py-2 text-[13px] font-semibold text-accent"
-                  : "flex-1 rounded-pill border border-line bg-card px-3 py-2 text-[13px] text-cocoa hover:bg-beige/40"
+                  ? "rounded-pill border border-accent bg-accent-soft px-3.5 py-2 text-[13px] font-semibold text-accent"
+                  : "rounded-pill border border-line bg-card px-3.5 py-2 text-[13px] text-cocoa hover:bg-beige/40"
               }
             >
               {l.label}
