@@ -86,7 +86,6 @@ export default function SignupPage() {
               scrolling — the mark is the most compressible thing here. */}
           <FlounaLogo
             size={92}
-            strokeWidth={5}
             className="size-[92px] text-auth-ink/80 [@media(max-width:480px)]:size-[48px]"
           />
           <h1 className="mt-7 text-[26px] font-bold text-auth-ink [@media(max-width:480px)]:mt-2 [@media(max-width:480px)]:text-[20px]">

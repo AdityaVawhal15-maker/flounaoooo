@@ -1,74 +1,41 @@
 // Flouna brand mark — the eight-petal lotus.
 //
-// Drawn as vector rather than exported from Figma: the design file holds the
-// mark as a placed raster (its SVG export is a 1.1MB embedded PNG), which would
-// look soft on retina and could not take a colour. Here one petal shape is
-// defined once and rotated, so the file stays tiny, scales cleanly to any size,
-// and inherits `currentColor` — letting the same mark sit on cream, on the
-// accent, or knocked out in white without shipping a second asset.
-//
-// Geometry, arrived at by rendering against the Figma artwork:
-//   - Petals are lenses pointed at BOTH ends, all converging on one centre.
-//   - `PINCH` keeps each petal hugging its own axis as it leaves the centre.
-//     This is the whole trick: petals this full (up to 33 units of half-width)
-//     would otherwise cross their 45°-apart neighbours and collapse the middle
-//     into a blob. Pinching the base buys the fullness without the overlap.
-//   - Cardinal petals run longer than the diagonals, and the horizontal pair is
-//     widest — that asymmetry is what reads as a bloom instead of a star.
+// This is the actual artwork, not a redrawn approximation: the path below is
+// traced directly from the source PNG (vtracer, then svgo), so the petals'
+// real asymmetry survives — the two lower-diagonal petals run noticeably
+// longer than the two upper-diagonal ones, which no parametric "rotate one
+// petal 8 times" version ever reproduced correctly. Rendered as a filled
+// silhouette rather than a stroke, so `currentColor` still lets the same
+// mark sit on cream, on the accent, or knocked out in white without shipping
+// a second asset.
+const PATH =
+  "M627.9 190.17c2.6 1.03 4 2.37 5.96 4.37l2.2 2.2 2.25 2.32 2.23 2.24q6.19 6.28 11.94 12.95 2.83 3.24 5.77 6.38c59.15 65.74 91.03 151.46 87.63 239.6-2.04 38.1-12.5 76.4-28.88 110.77l-1.1 2.34A306 306 0 0 1 683 628l-1.3 1.71c-11.07 14.5-23.1 28.1-35.7 41.29l-2.71 2.84c-3.59 3.68-6.78 6.63-11.29 9.16 1.49-3.33 3.4-5.84 5.75-8.62A551 551 0 0 0 680 616l1.16-1.83c7.33-11.67 13.63-23.88 19.84-36.17l1.17-2.3c13.92-27.71 22.34-57.3 27.83-87.7l.55-3.03c4.96-28.66 5-61.4-.55-89.97l-.63-3.27A348 348 0 0 0 665 249l-1.42-1.88c-10.7-14.09-22.5-27.22-34.58-40.12-4.02.52-5.55 2.36-8.12 5.38a351 351 0 0 1-9.63 10.68c-6 6.6-11.34 13.68-16.67 20.83l-4.4 5.8C550.88 301.55 522.68 368.55 521 434l-.06 2.05C518.72 518.17 553.82 593.17 603 657l1.41 1.84A615 615 0 0 0 625 684l-1 2-1.47-1.5-2.03-2.06-1.97-2c-2.07-2-4.18-3.87-6.36-5.74-4.06-3.54-7.77-7.31-11.42-11.26l-1.96-2.12c-42.7-46.24-74.2-102.23-85.54-164.5l-.6-3.31c-2.91-16.87-4.03-33.54-3.96-50.63v-2.85c.06-14.85.62-29.4 3.31-44.03q.3-1.66.62-3.37C523.99 332.55 551.32 278.76 589 231l2.43-3.08a320 320 0 0 1 15.01-17.14q3.13-3.4 6.12-6.9 4.22-4.81 8.63-9.44l2.48-2.63C626 190 626 190 627.9 190.17M340 318c59.56 1.58 115.44 28.96 156.99 70.82 3.38 3.66 3.26 6.39 3.57 11.3l.26 3.89.18 2.99c-3.31-1.44-5.44-3.22-7.94-5.81l-2.12-2.18L489 397l-2.44-2.44a222 222 0 0 1-4.37-4.48c-6.52-6.77-13.65-12.5-21.19-18.08l-1.66-1.24C427.92 347.7 389.47 334.47 351 330c-2.36 4.71-1.25 11.16-1.25 16.38v2.16c.07 51.46 13.73 101.66 43.7 143.81 2.69 3.78 5.13 7.7 7.55 11.65q-3.1-.56-6.19-1.19l-3.48-.67c-12.9-4.42-22.16-26.55-27.95-38.1C343.37 422.54 329.47 364.1 340 318M914 318c14.42 43.25-4.71 108.49-23.87 147.31-4.22 8.3-8.86 16.3-14.04 24.03q-1.45 2.24-2.82 4.5c-4.04 6.13-8.47 7.81-15.48 9.7C855 504 855 504 853 503l2.09-2.75A244 244 0 0 0 873 473l1.23-2.17c13.54-24.1 22.36-50.57 26.77-77.83l.46-2.81c3.1-20.02 2.86-40 2.54-60.19-49.5 6.54-94.73 25.07-131.38 59.59-2.62 2.41-2.62 2.41-5.24 4.47a42 42 0 0 0-5.94 6A37 37 0 0 1 754 407c-.7-7.14-.75-13.21 3.8-19.02 3.48-3.93 7.27-7.5 11.2-10.98l2.92-2.59c2.64-2.22 5.34-4.32 8.08-6.41l2.87-2.34C817.74 337.6 868.69 316.83 914 318M456 533l2.88 1.48c23.31 12.12 43.81 29.81 62.22 48.36q2.59 2.6 5.2 5.18A242 242 0 0 1 545 609l2.83 3.29c10.67 12.23 19.8 25.56 28.86 39.02l1.82 2.7 1.69 2.54 1.5 2.24A44 44 0 0 1 585 666a46 46 0 0 1-9-8.87 256 256 0 0 0-13.34-15.15 273 273 0 0 1-8.1-8.92c-9.9-11.45-20.56-22.24-31.26-32.94l-6-6.04A243 243 0 0 0 495 574q-1.57-1.3-3.1-2.64A225 225 0 0 0 448 542l-1.91-1c-54.3-27.9-118.65-23.96-175.38-6.3-33.64 10.93-66.14 28-93.03 51.15C175 588 175 588 173 588a373 373 0 0 0 18.27 22.7c3.23 3.72 6.6 7.24 10.13 10.67a78 78 0 0 1 4.6 5.2c8.83 10.22 19.45 19.06 30 27.43l3.45 2.83c64.45 52.72 144.2 74.01 226.55 66.04 37.35-4 73.77-12.2 109.76-22.78l2.64-.77 4.85-1.44A168 168 0 0 1 600 694c-5.13 3.97-10.91 6.11-16.87 8.56l-1.94.8C547.92 717.02 513.47 726.24 478 732l-3.32.55c-16.75 2.62-33.52 2.75-50.43 2.83l-3.24.02a281 281 0 0 1-58.38-5.59l-3.09-.63C304.02 717.28 255.52 687.92 214 650l-2.93-2.65c-8.51-7.71-16.84-15.57-24.3-24.31-1.97-2.27-4-4.46-6.02-6.66a291 291 0 0 1-14.53-17.8l-3.25-4.15-1.66-2.12-1.38-1.76C159 589 159 589 159 586c1.88-1.84 1.88-1.84 4.56-3.94l3.08-2.42 1.67-1.3q2.52-2.01 4.99-4.1C244.85 514.36 352.18 490.5 456 533M1096 587a165 165 0 0 1-16 22l-2.6 3.13a478 478 0 0 1-28.65 31.25l-1.97 1.98A253 253 0 0 1 1033 658l-3 2.63c-62.9 54.38-143.23 80.08-225.92 74.48-48.14-3.67-94.63-16.33-139.02-35.05l-2.73-1.14-2.48-1.07-2.19-.94C656 696 656 696 655 694c7.8 1.59 15.4 3.8 23.03 6.02C714.73 710.7 751.87 719.5 790 723l2.8.28c26.96 2.44 55.5 2.21 82.2-2.28l3.4-.55A286 286 0 0 0 1000 669l2.1-1.55A405 405 0 0 0 1031 644l1.8-1.61c17.74-15.96 33.45-33.67 48.2-52.39-9.62-9.93-21.27-17.4-32.93-24.7l-3.92-2.48c-54.7-34.98-126.36-50.62-190.24-37.64-40.84 9.06-75.69 31.16-106.1 59.27a170 170 0 0 1-4.45 3.94c-6.36 5.42-12.22 11.32-18.11 17.23l-5.43 5.42a278 278 0 0 0-15.34 16.23c-2.52 2.94-5.2 5.73-7.86 8.54a261 261 0 0 0-13.34 15.44c-4.22 5.1-8.76 9.91-13.28 14.75 0-3.5.69-4.4 2.6-7.25l1.72-2.57 1.87-2.74 1.92-2.85c12.1-17.83 24.77-35.17 39.48-50.97q2.9-3.16 5.7-6.43c3.72-4.26 7.64-8.27 11.65-12.25l2.01-2.03C804.32 511.67 894.5 495.32 1096 587M623 691c0 4.25-2.5 5.93-5.31 8.81a234 234 0 0 0-16.2 19.26 443 443 0 0 1-4.83 6.11c-42.66 53.45-70.5 119.5-63.41 188.77 3.13 27.01 11.13 52.55 22.75 77.05l1.17 2.47c9.42 19.58 21.91 37.87 35.83 54.53l1.37 1.67c9.45 11.54 19.72 23.29 31.63 32.33 4.32-1.4 6.8-3.42 9.98-6.62l1.4-1.4q1.46-1.45 2.9-2.93 2.17-2.19 4.35-4.36A228 228 0 0 0 662 1047l2.93-3.6c39.58-49.36 62.37-111.65 56.12-175.21-2.82-25.07-10.12-49.09-20.05-72.19l-.91-2.14C691.7 774.42 680.45 756.08 668 739l-1.21-1.67A506 506 0 0 0 651 717l-2.18-2.71a299 299 0 0 0-14.17-16.3C633 696 633 696 633 694c3.5 1.52 5.95 3.6 8.75 6.19 3.05 2.8 6.1 5.56 9.25 8.25A188 188 0 0 1 672 730l1.27 1.52c33.95 40.68 59.62 94.52 59.93 148.37l.02 2.48c.23 33.92.23 33.92-3.22 49.63l-.65 3.03c-9.47 43.39-28.78 83.84-57.35 117.97l-2.38 2.94c-6.49 7.9-13.55 15.2-20.75 22.43l-2.78 2.81A181 181 0 0 1 628 1097c-9.98-4.46-18.05-13.73-25.62-21.37l-2.66-2.64A225 225 0 0 1 583 1054l-3.15-3.83A271 271 0 0 1 524 932l-.54-2.62c-4.96-25.22-4.63-54.23.54-79.38l.59-2.93c6.33-30.77 18.1-60.77 35.41-87.07l1.3-2a266 266 0 0 1 25.58-32.66q2.86-3.16 5.62-6.4a162 162 0 0 1 20.9-19.85c3.27-2.63 6.44-5.35 9.6-8.09M389.63 742.94l2.42.01 5.95.05v2c-1.95 1.38-1.95 1.38-4.69 3-10.62 6.58-20.26 14.4-29.31 23l-1.52 1.43A186 186 0 0 0 340 798l-1.25 1.7c-20.8 28.75-32.07 62.03-39.75 96.3l17 2.49c59.89 8.67 119.3-4.92 168.25-40.63 4.87-3.65 9.33-7.68 13.75-11.86q2.05-1.8 4.13-3.56c3.51-3.06 6.77-6.32 10.04-9.64A67 67 0 0 1 519 827c-.6 3.03-1.27 6-2 9l-.5 2.55c-2.65 10.1-10.78 16.04-18.5 22.45l-1.73 1.44c-3.66 3-7.43 5.8-11.27 8.56l-1.65 1.2c-33.96 24.47-77.87 39.75-119.88 40l-2.38.02-7.59.03h-2.63c-47.44-.03-47.44-.03-63.87-8.25 3.98-42.21 21.27-85.1 48-118l2-2.61c11.93-15.34 31.91-40.67 52.63-40.45M856 743c10.29-1.12 17.65-.96 25.96 5.6A181 181 0 0 1 887 753l1.67 1.46q5 4.38 9.76 9.02 2.32 2.25 4.66 4.46c7.4 7.12 13.8 14.82 19.91 23.06l1.93 2.58C947.67 825.11 964.17 865.1 967 904a255 255 0 0 1-36 7l-2.17.3c-58.94 7.07-119.94-9.11-166.67-45.74-3.83-3.07-7.5-6.29-11.16-9.56l-2.81-2.31c-7.73-6.81-10.81-14.87-13.19-24.69l1-2 1.61 1.66c10.27 10.52 20.36 20.85 32.39 29.34l1.97 1.42C826.9 898.64 889.67 906.52 955 896c-7.47-34.21-18.33-66.33-39-95l-2.23-3.16A200 200 0 0 0 896 777l-1.55-1.63c-10.38-10.9-21.8-19.65-34.13-28.24A200 200 0 0 1 856 744z";
 
-const PINCH = 0.28; // control-point distance from centre, as a fraction of length
-const BELLY = 0.55; // where along the length the petal is widest
-
-/** One petal, tip pointing up from the origin. */
-function petal(length: number, halfWidth: number) {
-  const cx = halfWidth * PINCH;
-  const cy = -length * PINCH;
-  const by = -length * BELLY;
-  return `M0 0C${cx} ${cy} ${halfWidth} ${by} 0 ${-length}C${-halfWidth} ${by} ${-cx} ${cy} 0 0Z`;
-}
-
-const PETALS = [
-  ...[0, 180].map((deg) => ({ deg, d: petal(92, 26) })), // vertical pair
-  ...[90, 270].map((deg) => ({ deg, d: petal(97, 30) })), // horizontal pair, widest
-  // Measured against the actual Figma artwork (not eyeballed): the diagonals
-  // sit at ~90% of the cardinal petals' reach, not the ~70% this had before —
-  // that gap was making the mark read as a 4-point star with stubby fill-in
-  // petals, rather than the fuller 8-petal bloom Figma draws.
-  ...[45, 135, 225, 315].map((deg) => ({ deg, d: petal(86, 22) })), // diagonals
-];
+// The traced path's own coordinate space — its content bounding box, so the
+// mark fills the viewBox with a touch of breathing room rather than
+// inheriting the full 1254×1254 canvas the source PNG happened to be on.
+const VIEWBOX = "139 170 976 946";
 
 export function FlounaLogo({
   size = 40,
   className,
-  strokeWidth = 6,
   title = "Flouna",
 }: {
   size?: number;
   className?: string;
-  /** In viewBox units (the box is 210 wide), so the stroke scales with the mark. */
-  strokeWidth?: number;
   title?: string;
 }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="-105 -105 210 210"
-      fill="none"
+      viewBox={VIEWBOX}
       role="img"
       aria-label={title}
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <g
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        strokeLinejoin="round"
-      >
-        {PETALS.map(({ deg, d }) => (
-          <path key={deg} d={d} transform={`rotate(${deg})`} />
-        ))}
-      </g>
+      <path d={PATH} fill="currentColor" />
     </svg>
   );
 }

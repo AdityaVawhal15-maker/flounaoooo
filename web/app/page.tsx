@@ -23,7 +23,6 @@ export default function LandingPage() {
         <FadeIn y={16}>
           <FlounaLogo
             size={104}
-            strokeWidth={4}
             className="size-[104px] text-ink lg:size-[140px] [@media(max-height:700px)]:size-[76px]"
           />
         </FadeIn>
