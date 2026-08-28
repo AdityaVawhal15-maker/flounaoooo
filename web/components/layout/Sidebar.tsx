@@ -93,12 +93,19 @@ export function Sidebar({
   // Refresh the list whenever navigation happens (a new chat updates the URL).
   // Skipped entirely for a guest — there's no session to list, and no point
   // firing a request that can only come back 401.
+  //
+  // Depends on user?.id rather than user itself: the auth check re-runs
+  // (a silent refresh, React re-fetching after StrictMode's dev-only double
+  // effect) and hands back a new object each time even when nothing about
+  // the session actually changed, which was re-firing this fetch — visibly,
+  // since the list re-renders on every one of those "changes" without one.
+  const userId = user?.id;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     api<{ sessions: ChatSessionSummary[] }>("/api/chat/sessions")
       .then((d) => setRecent(d.sessions))
       .catch(() => setRecent([]));
-  }, [pathname, searchParams, user]);
+  }, [pathname, searchParams, userId]);
 
   const visible = showAll ? recent : recent.slice(0, 5);
 
