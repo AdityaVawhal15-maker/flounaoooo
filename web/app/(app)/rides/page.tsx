@@ -12,6 +12,10 @@ import {
   Plus,
   LocateFixed,
   Loader2,
+  Users,
+  Bike,
+  Car,
+  CarTaxiFront,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -42,6 +46,15 @@ type RouteInfo = {
 };
 
 const VEHICLES = ["any", "bike", "auto", "cab"] as const;
+
+// Seat counts are a fixed fact of the vehicle type, not order data — safe to
+// look up client-side rather than round-trip it from the quote.
+const SEATS: Record<string, number> = { bike: 1, auto: 3, cab: 4 };
+const VEHICLE_ICON: Record<string, typeof Bike> = {
+  bike: Bike,
+  auto: CarTaxiFront,
+  cab: Car,
+};
 
 function haversineKm(
   a: { lat: number; lng: number },
@@ -669,55 +682,66 @@ function RidesInner() {
               </div>
 
               <Stagger className="flex flex-col gap-2">
-                {quotes.map((q) => (
-                  <StaggerItem key={`${q.provider}-${q.productName}`}>
-                    <button
-                      onClick={() => setSelected(q)}
-                      className="w-full text-left"
-                    >
-                      <Card
-                        className={cn(
-                          "py-3 transition-all hover:-translate-y-0.5 hover:shadow-card",
-                          selected === q &&
-                            "border-accent/70 ring-1 ring-accent/30",
-                        )}
+                {quotes.map((q) => {
+                  const VehicleIcon = VEHICLE_ICON[q.vehicle] ?? Car;
+                  const seats = SEATS[q.vehicle];
+                  return (
+                    <StaggerItem key={`${q.provider}-${q.productName}`}>
+                      <button
+                        onClick={() => setSelected(q)}
+                        className="w-full text-left"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
-                              {q.displayName}
+                        <Card
+                          className={cn(
+                            "py-3 transition-all hover:-translate-y-0.5 hover:shadow-card",
+                            selected === q &&
+                              "border-accent/70 ring-1 ring-accent/30",
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-beige/70">
+                              <VehicleIcon size={20} className="text-cocoa" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[14px] font-bold text-ink">
+                                {q.displayName}
+                              </p>
+                              <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cocoa">
+                                {seats && (
+                                  <span className="flex items-center gap-0.5">
+                                    <Users size={12} /> {seats} Seat{seats > 1 ? "s" : ""}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-0.5">
+                                  <Clock size={12} /> {q.pickupEtaMinutes} min away
+                                </span>
+                                <span className="flex items-center gap-0.5">
+                                  <Star size={12} className="fill-accent text-accent" />
+                                  {q.driverRating}
+                                </span>
+                              </p>
+                              {q.offers[0] && (
+                                <p className="mt-0.5 text-[11px] text-success">
+                                  {q.offers[0].label}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <p className="text-[16px] font-bold text-ink">
+                                {rupees(q.effectivePaise)}
+                              </p>
                               {q.badge && (
                                 <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
                                   {q.badge}
                                 </span>
                               )}
-                            </p>
-                            <p className="mt-0.5 flex items-center gap-2 text-[12px] text-cocoa">
-                              <span className="flex items-center gap-0.5">
-                                <Clock size={12} /> {q.pickupEtaMinutes} min
-                              </span>
-                              <span className="flex items-center gap-0.5">
-                                <Star
-                                  size={12}
-                                  className="fill-accent text-accent"
-                                />
-                                {q.driverRating}
-                              </span>
-                            </p>
-                            {q.offers[0] && (
-                              <p className="text-[11px] text-success">
-                                {q.offers[0].label}
-                              </p>
-                            )}
+                            </div>
                           </div>
-                          <p className="shrink-0 text-[16px] font-bold text-ink">
-                            {rupees(q.effectivePaise)}
-                          </p>
-                        </div>
-                      </Card>
-                    </button>
-                  </StaggerItem>
-                ))}
+                        </Card>
+                      </button>
+                    </StaggerItem>
+                  );
+                })}
               </Stagger>
             </>
           )}
