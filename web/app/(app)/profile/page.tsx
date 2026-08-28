@@ -8,8 +8,8 @@ import {
   ShieldCheck,
   Bell,
   CreditCard,
-  Gift,
-  History,
+  Tag,
+  Receipt,
   LifeBuoy,
   MessageCircle,
   ChevronRight,
@@ -18,7 +18,7 @@ import {
   MapPin,
   Star,
   LogOut,
-  Pencil,
+  Camera,
   ArrowLeft,
   Moon,
   Sun,
@@ -73,13 +73,13 @@ const ACCOUNT: Row[] = [
   },
   {
     href: "/profile/rewards",
-    icon: Gift,
+    icon: Tag,
     title: "Offers & Rewards",
     subtitle: "View your offers and rewards",
   },
   {
     href: "/history",
-    icon: History,
+    icon: Receipt,
     title: "Ride & Order History",
     subtitle: "View your past rides and orders",
   },
@@ -226,10 +226,10 @@ export default function ProfilePage() {
               </span>
               <Link
                 href="/profile/details"
-                aria-label="Edit profile"
-                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-acct-accent text-white transition-opacity hover:opacity-90"
+                aria-label="Edit profile photo"
+                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-black text-white transition-opacity hover:opacity-90"
               >
-                <Pencil size={14} />
+                <Camera size={14} />
               </Link>
             </div>
 
