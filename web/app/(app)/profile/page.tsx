@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -20,11 +20,14 @@ import {
   LogOut,
   Pencil,
   ArrowLeft,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { useTheme } from "@/components/theme/ThemeContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 
 // Figma "View Profile" (2195:589): avatar with an edit badge, name, a premium
@@ -97,7 +100,7 @@ const SUPPORT: Row[] = [
   },
 ];
 
-function RowList({ rows }: { rows: Row[] }) {
+function RowList({ rows, trailing }: { rows: Row[]; trailing?: ReactNode }) {
   return (
     <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
       {rows.map(({ href, icon: Icon, title, subtitle }, i) => (
@@ -105,7 +108,7 @@ function RowList({ rows }: { rows: Row[] }) {
           <Link
             href={href}
             className={`flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg ${
-              i < rows.length - 1 ? "border-b border-line" : ""
+              i < rows.length - 1 || trailing ? "border-b border-line" : ""
             }`}
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
@@ -123,7 +126,54 @@ function RowList({ rows }: { rows: Row[] }) {
           </Link>
         </StaggerItem>
       ))}
+      {trailing}
     </div>
+  );
+}
+
+// Appearance — same row shape as its neighbours, but a toggle rather than a
+// chevron-nav link, since flipping it acts immediately instead of going
+// anywhere. Figma draws it inline in Account, not tucked a level down in
+// Settings (which keeps its own copy — the theme is a per-device choice, so
+// having it reachable from two places costs nothing and finding it from
+// Account is one tap closer).
+function AppearanceRow() {
+  const { theme, toggle } = useTheme();
+  return (
+    <StaggerItem>
+      <div className="flex items-center gap-3.5 px-4 py-3.5">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+          {theme === "dark" ? (
+            <Moon size={18} className="text-acct-accent" />
+          ) : (
+            <Sun size={18} className="text-acct-accent" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-bold text-acct-ink">
+            Appearance
+          </span>
+          <span className="block truncate text-[12px] text-acct-muted">
+            {theme === "dark" ? "Dark" : "Light"}
+          </span>
+        </span>
+        <button
+          role="switch"
+          aria-checked={theme === "dark"}
+          aria-label="Dark mode"
+          onClick={toggle}
+          className={`h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
+            theme === "dark" ? "bg-acct-accent" : "bg-line"
+          }`}
+        >
+          <span
+            className={`block size-5 rounded-full bg-white shadow transition-transform ${
+              theme === "dark" ? "translate-x-5" : ""
+            }`}
+          />
+        </button>
+      </div>
+    </StaggerItem>
   );
 }
 
@@ -218,7 +268,7 @@ export default function ProfilePage() {
           <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
             Account
           </p>
-          <RowList rows={ACCOUNT} />
+          <RowList rows={ACCOUNT} trailing={<AppearanceRow />} />
 
           <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
             Support

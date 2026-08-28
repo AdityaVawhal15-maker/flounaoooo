@@ -296,36 +296,52 @@ export function Sidebar({
             circle is a language switcher, so it opens the same picker
             Settings already has rather than duplicating one here. */}
         {user ? (
-          <Link
-            href="/profile"
-            onClick={onClose}
-            title={t("nav.profile")}
-            className={cn(
-              "mt-4 flex items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
-              collapsed && "lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
-            )}
-          >
-            <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
-              {user.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
-              ) : (
-                (user.name?.trim()?.[0] ?? "?").toUpperCase()
+          <div className={cn("mt-4 flex items-center gap-2.5", collapsed && "lg:flex-col")}>
+            <Link
+              href="/profile"
+              onClick={onClose}
+              title={t("nav.profile")}
+              className={cn(
+                "flex min-w-0 flex-1 items-center gap-3 rounded-[18px] bg-card p-3 shadow-soft transition-colors hover:bg-beige/30",
+                collapsed && "lg:w-full lg:flex-none lg:justify-center lg:bg-transparent lg:p-0 lg:shadow-none",
               )}
-            </span>
-            <span className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
-              <span className="block truncate text-[16px] font-bold text-ink">
-                {user.name ?? "Your account"}
+            >
+              <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft text-[15px] font-bold text-accent">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+                ) : (
+                  (user.name?.trim()?.[0] ?? "?").toUpperCase()
+                )}
               </span>
-              <span className="block truncate text-[13px] text-muted">
-                View profile
+              <span className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
+                <span className="block truncate text-[16px] font-bold text-ink">
+                  {user.name ?? "Your account"}
+                </span>
+                <span className="block truncate text-[13px] text-muted">
+                  View profile
+                </span>
               </span>
-            </span>
-            <ChevronRight
-              size={17}
-              className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
-            />
-          </Link>
+              <ChevronRight
+                size={17}
+                className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
+              />
+            </Link>
+            {/* Figma pairs the profile card with a language shortcut here
+                too, not just on the signed-out foot — same picker, opened
+                from Settings rather than duplicated. */}
+            <Link
+              href="/profile/settings"
+              onClick={onClose}
+              aria-label="Language"
+              className={cn(
+                "flex size-11 shrink-0 items-center justify-center rounded-full bg-card text-ink shadow-soft transition-colors hover:bg-beige/30",
+                collapsed && "lg:hidden",
+              )}
+            >
+              <Languages size={18} />
+            </Link>
+          </div>
         ) : (
           <div className={cn("mt-4 flex items-center gap-2.5", collapsed && "lg:flex-col")}>
             <Link
