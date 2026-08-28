@@ -13,6 +13,7 @@ import {
   Send,
   MessageCircle,
   Share2,
+  Clock,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -175,6 +176,12 @@ export default function GroupCartPage({
       <h1 className="mt-3 flex items-center gap-2 text-[20px] font-bold text-ink">
         <Users size={20} className="text-accent" /> {t("grp.groupOrder")}
       </h1>
+      {cart.members.length > 0 && (
+        <span className="mt-1 inline-flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[12px] font-semibold text-success">
+          <span className="size-1.5 rounded-full bg-success" />
+          {cart.members.length} Joined
+        </span>
+      )}
 
       {/* Join code */}
       <Card className="mt-4 bg-accent-soft/50">
@@ -303,7 +310,9 @@ export default function GroupCartPage({
         ))}
       </div>
 
-      {/* Split summary */}
+      {/* Split summary — Figma's "Waiting..." badge for anyone who hasn't
+          added an item yet, derived from subtotalPaise rather than a new
+          field: 0 ordered *is* waiting, for any member. */}
       {cart.members.length > 0 && (
         <Card className="mt-5">
           <p className="text-[14px] font-bold text-ink">{t("grp.splitEqually")}</p>
@@ -313,7 +322,13 @@ export default function GroupCartPage({
                 <span className="text-cocoa">
                   {m.isYou ? "You" : m.name}
                 </span>
-                <span className="text-ink">{rupees(m.subtotalPaise)} ordered</span>
+                {m.subtotalPaise > 0 ? (
+                  <span className="text-ink">{rupees(m.subtotalPaise)} ordered</span>
+                ) : (
+                  <span className="flex items-center gap-1 rounded-pill border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                    <Clock size={11} /> Waiting…
+                  </span>
+                )}
               </div>
             ))}
           </div>
