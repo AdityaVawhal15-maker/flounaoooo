@@ -103,7 +103,7 @@ export default function RewardsPage() {
                   />
                   <Tooltip
                     cursor={{ fill: "rgba(232,101,26,0.08)" }}
-                    formatter={(v) => [`₹${Number(v)}`, "Saved"]}
+                    formatter={(v) => [rupees(Number(v) * 100), "Saved"]}
                     contentStyle={{
                       borderRadius: 12,
                       border: "1px solid #eee3da",
