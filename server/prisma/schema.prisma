@@ -81,6 +81,30 @@ model User {
   supportTickets SupportTicket[]
   notifications Notification[]
   complaints    Complaint[]
+  paymentMethods PaymentMethod[]
+}
+
+// Saved payment methods for quick display/reuse — deliberately not a card
+// vault. A real charge still goes through Cashfree's own hosted checkout at
+// payment time (see the payments module); storing a full card number or CVV
+// here would be a PCI-DSS problem this app has no business taking on. Cards
+// keep only what's needed to recognise them (brand, last 4, expiry) — never
+// the number itself. UPI, by contrast, really is just an identifier, so
+// that's the one type this can actually authenticate as entered.
+model PaymentMethod {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String // "card" | "upi" | "wallet"
+  label       String // "Visa", "Mastercard", "Paytm Wallet", ...
+  last4       String? // cards only
+  expiryMonth Int? // cards only
+  expiryYear  Int? // cards only
+  vpa         String? // upi only — the VPA itself (name@bank)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
