@@ -22,6 +22,7 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useCart } from "@/lib/cart";
 import { Card } from "@/components/ui/Card";
+import { StateScreen, StateGlyph } from "@/components/ui/StateScreen";
 import { Button } from "@/components/ui/Button";
 import { DishArt } from "@/components/food/DishArt";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -129,18 +130,14 @@ export default function CartPage() {
       </div>
 
       {lines.length === 0 ? (
-        <div className="mt-16 flex flex-col items-center text-center">
-          <span className="flex size-14 items-center justify-center rounded-full bg-beige/70">
-            <ShoppingBag size={24} className="text-cocoa" />
-          </span>
-          <p className="mt-3 text-[14px] font-semibold text-ink">{t("cart.empty")}</p>
-          <p className="mt-1 text-[12px] text-cocoa">
-            {t("cart.emptySub")}
-          </p>
-          <Button onClick={() => router.push("/food")} className="mt-5">
-            {t("cart.browse")}
-          </Button>
-        </div>
+        // Figma "No items yet" — same layout as every other empty state, so
+        // an empty cart reads as part of the product rather than a dead end.
+        <StateScreen
+          illustration={<StateGlyph icon={ShoppingBag} />}
+          title={t("cart.empty")}
+          message={t("cart.emptySub")}
+          primary={{ label: t("cart.browse"), href: "/food" }}
+        />
       ) : (
         <>
           <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
