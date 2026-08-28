@@ -32,12 +32,13 @@ export function AppShell({
   // the same ground or a hard colour seam shows across the top of the page.
   const onAccountGround = pathname.startsWith("/profile");
 
-  // View Profile draws its own back-arrow title (Figma: no hamburger bar
-  // above it at all) — unlike every other profile screen, which stacks that
-  // title under this generic bar without issue. Scoped to the exact route
-  // rather than the whole /profile/* family, since that's the one confirmed
-  // against the design, not an assumption the rest share the same problem.
-  const hideHeader = pathname === "/profile";
+  // Every profile screen draws its own back-arrow title — Settings,
+  // Details, Privacy, all of them, same as View Profile. Confirmed against
+  // both; the rest share the identical header component (SubPage) or the
+  // same hand-built row, so the generic hamburger bar stacking above it is
+  // the same redundant double-header everywhere in this family, not just
+  // the one screen that happened to get checked first.
+  const hideHeader = onAccountGround;
 
   return (
     <div className="flex min-h-dvh w-full">
