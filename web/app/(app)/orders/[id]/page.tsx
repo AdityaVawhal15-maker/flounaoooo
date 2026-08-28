@@ -331,13 +331,17 @@ function Row({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-cocoa">{label}</span>
+      <span className="shrink-0 text-cocoa">{label}</span>
       <span
         className={cn(
-          "text-right text-ink",
+          "min-w-0 text-right text-ink",
           bold && "text-[15px] font-bold",
           accent && "font-medium text-success",
-          mono && "break-all font-mono text-[11px] text-cocoa",
+          // A raw order id wrapped with break-all + text-right staircases —
+          // each wrapped line right-justifies on its own, reading as broken
+          // rather than one value. Truncated to one line instead; the full
+          // id is still in the URL and on the invoice page.
+          mono && "truncate font-mono text-[11px] text-cocoa",
         )}
       >
         {value}
