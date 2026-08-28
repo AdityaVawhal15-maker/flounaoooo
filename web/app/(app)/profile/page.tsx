@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,7 +16,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  Star,
   LogOut,
   Camera,
   ArrowLeft,
@@ -24,7 +23,6 @@ import {
   Sun,
   type LucideIcon,
 } from "lucide-react";
-import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { useTheme } from "@/components/theme/ThemeContext";
@@ -66,7 +64,7 @@ const ACCOUNT: Row[] = [
     subtitle: "Manage your notification preferences",
   },
   {
-    href: "/profile/plus",
+    href: "/profile/payment-methods",
     icon: CreditCard,
     title: "Payment Methods",
     subtitle: "Manage cards, UPI and wallets",
@@ -182,17 +180,6 @@ export default function ProfilePage() {
   const { t } = useI18n();
   const router = useRouter();
 
-  // The badge used to read "Premium Member" for everyone. That contradicted
-  // the bill — Plus waives the convenience fee, so a non-member was told they
-  // were premium and then charged for not being one — and it argued against
-  // the upgrade it links to.
-  const [plusActive, setPlusActive] = useState(false);
-  useEffect(() => {
-    api<{ active: boolean }>("/api/subscription")
-      .then((s) => setPlusActive(Boolean(s.active)))
-      .catch(() => setPlusActive(false));
-  }, []);
-
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? "U";
 
   return (
@@ -237,18 +224,6 @@ export default function ProfilePage() {
               {user?.name ?? "Your account"}
             </h2>
 
-            {/* Figma's View Profile frame goes straight from the name to the
-                identity strip — no Plus pill here. A subscriber's status
-                still needs to live somewhere, so it stays as a plain line
-                rather than disappearing outright; everyone else finds the
-                upgrade path from the Plus page itself, reached the same way
-                as any other Account row. */}
-            {plusActive && (
-              <p className="mt-2 flex items-center gap-1.5 text-[13px] font-bold text-acct-accent">
-                <Star size={13} className="fill-acct-accent" />
-                Premium Member
-              </p>
-            )}
           </div>
         </FadeIn>
 

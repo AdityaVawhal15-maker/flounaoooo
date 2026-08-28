@@ -567,3 +567,118 @@ usersRouter.delete("/addresses/:id", async (req, res, next) => {
     next(err);
   }
 });
+
+// --- Payment methods ---
+// Deliberately not a card vault: a real charge still goes through Cashfree's
+// own hosted checkout at payment time. This only ever stores what's needed
+// to recognise a method in a list — a card's number and CVV are refused by
+// the schema itself (there's no field for them), not just by convention.
+const CARD_BRANDS = ["Visa", "Mastercard", "Rupay", "Amex"] as const;
+
+const paymentMethodBody = z
+  .object({
+    type: z.enum(["card", "upi", "wallet"]),
+    label: z.string().trim().min(1).max(40),
+    last4: z
+      .string()
+      .regex(/^\d{4}$/, "Enter the last 4 digits")
+      .optional(),
+    expiryMonth: z.number().int().min(1).max(12).optional(),
+    expiryYear: z
+      .number()
+      .int()
+      .min(new Date().getFullYear())
+      .max(new Date().getFullYear() + 20)
+      .optional(),
+    vpa: z
+      .string()
+      .trim()
+      .regex(/^[\w.+-]{2,256}@[a-zA-Z]{2,64}$/, "Enter a valid UPI ID")
+      .optional(),
+    isDefault: z.boolean().default(false),
+  })
+  .refine(
+    (b) => b.type !== "card" || (b.last4 && b.expiryMonth && b.expiryYear),
+    { message: "Card methods need last4, expiryMonth and expiryYear" },
+  )
+  .refine((b) => b.type !== "upi" || b.vpa, {
+    message: "UPI methods need a vpa",
+  });
+
+usersRouter.get("/payment-methods", async (req, res, next) => {
+  try {
+    const methods = await prisma.paymentMethod.findMany({
+      where: { userId: req.userId! },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    });
+    res.json({ methods });
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.post(
+  "/payment-methods",
+  validateBody(paymentMethodBody),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof paymentMethodBody>;
+      if (body.type === "card" && !(CARD_BRANDS as readonly string[]).includes(body.label)) {
+        throw new ApiError(400, `label must be one of: ${CARD_BRANDS.join(", ")}`);
+      }
+      if (body.isDefault) {
+        await prisma.paymentMethod.updateMany({
+          where: { userId: req.userId! },
+          data: { isDefault: false },
+        });
+      }
+      const method = await prisma.paymentMethod.create({
+        data: {
+          userId: req.userId!,
+          type: body.type,
+          label: body.label,
+          last4: body.last4 ?? null,
+          expiryMonth: body.expiryMonth ?? null,
+          expiryYear: body.expiryYear ?? null,
+          vpa: body.vpa ?? null,
+          isDefault: body.isDefault,
+        },
+      });
+      res.status(201).json({ method });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+usersRouter.patch("/payment-methods/:id/default", async (req, res, next) => {
+  try {
+    const owned = await prisma.paymentMethod.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+    });
+    if (!owned) throw new ApiError(404, "Payment method not found");
+    await prisma.paymentMethod.updateMany({
+      where: { userId: req.userId! },
+      data: { isDefault: false },
+    });
+    const method = await prisma.paymentMethod.update({
+      where: { id: owned.id },
+      data: { isDefault: true },
+    });
+    res.json({ method });
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.delete("/payment-methods/:id", async (req, res, next) => {
+  try {
+    const deleted = await prisma.paymentMethod.deleteMany({
+      where: { id: req.params.id, userId: req.userId! },
+    });
+    if (deleted.count === 0) throw new ApiError(404, "Payment method not found");
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
