@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, Phone, ChevronDown, Lock, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Mail, Phone, Lock, Eye, EyeOff } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api";
 import { GoogleButton } from "@/components/auth/GoogleButton";
+import { Select } from "@/components/ui/Select";
 import { useAuth, type User } from "@/components/auth/AuthContext";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
 import {
@@ -235,31 +236,18 @@ export default function LoginPage() {
         ) : (
           <form onSubmit={onPhoneSubmit} className="mt-6 flex flex-col gap-3 [@media(max-width:480px)]:mt-4 [@media(max-width:480px)]:gap-2">
             <div className="flex flex-col gap-2">
-              <label
-                htmlFor="country"
-                className="text-[13px] font-medium text-auth-ink"
-              >
+              {/* The chevron and the wrapper that positioned it are gone: the
+                  themed Select draws its own, and rotates it when open. */}
+              <span className="text-[13px] font-medium text-auth-ink">
                 Country/Region
-              </label>
-              <div className="relative">
-                <select
-                  id="country"
-                  value={dial}
-                  onChange={(e) => setDial(e.target.value)}
-                  className="h-[60px] w-full appearance-none rounded-[16px] bg-auth-well px-4 pr-11 text-[17px] text-auth-ink outline-none focus:ring-2 focus:ring-white/25"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c.dial} value={c.dial}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={20}
-                  aria-hidden
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-auth-muted"
-                />
-              </div>
+              </span>
+              <Select
+                variant="auth"
+                value={dial}
+                label="Country/Region"
+                options={COUNTRIES.map((c) => ({ value: c.dial, label: c.label }))}
+                onChange={setDial}
+              />
             </div>
             <AuthField
               label="Phone number"

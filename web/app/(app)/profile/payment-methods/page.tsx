@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/Toast";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { PaymentBrandMark } from "@/components/profile/PaymentBrandMark";
+import { Select } from "@/components/ui/Select";
 
 // Figma "Payment Methods": saved methods list, each row a brand mark, a
 // label/detail pair, and either a Default badge or a chevron; a trailing
@@ -363,19 +364,12 @@ export default function PaymentMethodsPage() {
                 <>
                   <label className="flex flex-col gap-1.5">
                     <span className="text-[12px] text-acct-muted">{t("pp.pay.cardBrand")}</span>
-                    <select
+                    <Select
                       value={brand}
-                      onChange={(e) =>
-                        setBrand(e.target.value as (typeof CARD_BRANDS)[number])
-                      }
-                      className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
-                    >
-                      {CARD_BRANDS.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
+                      label={t("pp.pay.cardBrand")}
+                      options={CARD_BRANDS.map((b) => ({ value: b, label: b }))}
+                      onChange={(v) => setBrand(v as (typeof CARD_BRANDS)[number])}
+                    />
                   </label>
                   {/* Last 4 digits only, never a full PAN — this list exists
                       to recognise a method, not to charge it. */}
@@ -424,19 +418,12 @@ export default function PaymentMethodsPage() {
               {type === "wallet" && (
                 <label className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-acct-muted">{t("pp.pay.wallet")}</span>
-                  <select
+                  <Select
                     value={wallet}
-                    onChange={(e) =>
-                      setWallet(e.target.value as (typeof WALLETS)[number])
-                    }
-                    className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
-                  >
-                    {WALLETS.map((w) => (
-                      <option key={w} value={w}>
-                        {w}
-                      </option>
-                    ))}
-                  </select>
+                    label={t("pp.pay.wallet")}
+                    options={WALLETS.map((w) => ({ value: w, label: w }))}
+                    onChange={(v) => setWallet(v as (typeof WALLETS)[number])}
+                  />
                   <span className="text-[12px] text-acct-muted">
                     {t("pp.pay.walletHint")}
                   </span>

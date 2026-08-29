@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth, type User } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
+import { Select } from "@/components/ui/Select";
 
 // Figma "Personal Information" (2195:756): a read-only list of label/value
 // pairs with an Edit Information button beneath.
@@ -219,18 +220,15 @@ export default function ProfileDetailsPage() {
                 </label>
                 <label className="flex flex-col gap-1.5">
                   <span className={label}>Gender</span>
-                  <select
-                    className={field}
+                  <Select
                     value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                  >
-                    <option value="">Prefer not to say</option>
-                    {GENDERS.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
+                    label="Gender"
+                    options={[
+                      { value: "", label: "Prefer not to say" },
+                      ...GENDERS.map((g) => ({ value: g, label: g })),
+                    ]}
+                    onChange={setGender}
+                  />
                 </label>
               </div>
             </div>
