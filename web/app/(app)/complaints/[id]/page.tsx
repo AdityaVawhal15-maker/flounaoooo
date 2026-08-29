@@ -3,21 +3,31 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Check, Clock, MessageSquare, ShieldAlert, Copy } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Clock,
+  MessageSquare,
+  ShieldAlert,
+  Copy,
+  ChevronRight,
+  Headset,
+  Star,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 
-// ONDC IGM 2.0 — Track Complaint and Complaint Resolved (Figma 2288:4781,
-// 2290:1512). One route, because they are the same case at two points in its
-// life; splitting them would mean the customer's link changes when the seller
-// responds.
+// ONDC IGM 2.0 — Track Complaint and Complaint Resolved, restyled to the
+// Component-page Figma: a case card with a Copy chip, a fixed five-step
+// Progress Timeline, reassurance rows, and a refund details card with a
+// rating row on resolution. One route for both states, because they are the
+// same case at two points in its life.
 //
-// Everything rendered here comes from the complaint record. Nothing about the
-// refund is inferred from the complaint state — the guide is explicit that an
-// accepted resolution is not proof money moved, so the refund block only
-// appears when there is an actual refund row, and it shows that row's status.
+// Nothing about the refund is inferred from the complaint state — an accepted
+// resolution is not proof money moved, so the refund block only appears when
+// there is an actual refund row, and it shows that row's status.
 type Action = { code: string; description: string; at: string; by: string };
 type Resolution = {
   id: string;
@@ -51,22 +61,25 @@ type Complaint = {
 };
 
 const STATUS_LABEL: Record<Complaint["status"], string> = {
-  OPEN: "Open",
-  PROCESSING: "In progress",
+  OPEN: "Complaint Submitted",
+  PROCESSING: "Being Investigated",
   RESOLVED: "Resolved",
   CLOSED: "Closed",
 };
+
+const fmt = (iso: string) =>
+  `${new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} • ${new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`;
 
 export default function ComplaintPage() {
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
+  const [orderTitle, setOrderTitle] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stars, setStars] = useState(0);
 
-  // Refresh after the customer acts (reply, accept, escalate) so the timeline
-  // and status reflect what just happened.
   const load = useCallback(async () => {
     try {
       const d = await api<{ complaint: Complaint }>(`/api/complaints/${params.id}`);
@@ -76,9 +89,6 @@ export default function ComplaintPage() {
     }
   }, [params.id]);
 
-  // Initial load. Written as a promise chain rather than calling load() so the
-  // state updates stay in callbacks, and guarded so a slow response can't land
-  // after the view is gone.
   useEffect(() => {
     let cancelled = false;
     api<{ complaint: Complaint }>(`/api/complaints/${params.id}`)
@@ -96,6 +106,20 @@ export default function ComplaintPage() {
       cancelled = true;
     };
   }, [params.id]);
+
+  // The case card names the order the way the customer knows it.
+  useEffect(() => {
+    if (!complaint?.orderId) return;
+    let cancelled = false;
+    api<{ order: { title: string } }>(`/api/orders/${complaint.orderId}`)
+      .then((d) => {
+        if (!cancelled) setOrderTitle(d.order.title);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [complaint?.orderId]);
 
   async function sendInformation() {
     setBusy(true);
@@ -145,249 +169,374 @@ export default function ComplaintPage() {
     }
   }
 
+  function copyCode() {
+    if (!complaint) return;
+    void navigator.clipboard?.writeText(complaint.code);
+    toast("Complaint ID copied");
+  }
+
   if (error) {
     return (
-      <div className="min-h-dvh bg-acct-bg px-4 py-10 text-center">
+      <div className="min-h-dvh bg-cream px-4 py-10 text-center">
         <p className="text-[15px] text-danger">{error}</p>
-        <Link href="/history" className="mt-4 inline-block text-[14px] font-semibold text-igm-accent">
-          Back to orders
+        <Link href="/history" className="mt-4 inline-block text-[14px] font-semibold text-accent">
+          Back to Orders
         </Link>
       </div>
     );
   }
   if (!complaint) {
-    return <div className="min-h-dvh bg-acct-bg px-4 py-10 text-center text-acct-muted">Loading…</div>;
+    return <div className="min-h-dvh bg-cream px-4 py-10 text-center text-muted">Loading...</div>;
   }
 
   const resolved = complaint.status === "RESOLVED" || complaint.status === "CLOSED";
+  const investigating = complaint.status === "PROCESSING";
   const pending = complaint.resolutions.filter((r) => !r.customerDecision);
   const refund = complaint.refunds[0];
+  const refundDone = !!refund && (refund.status === "completed" || !!refund.completedAt);
+
+  // The design's fixed five-step ladder, derived from where the case actually
+  // is. Timestamps come from the action trail where one plausibly matches.
+  const steps: { label: string; done: boolean; at?: string }[] = [
+    { label: "Complaint Submitted", done: true, at: complaint.createdAt },
+    {
+      label: "Complaint Acknowledged",
+      done: investigating || resolved || complaint.actions.length > 1,
+      at: complaint.actions[1]?.at,
+    },
+    { label: "Being Investigated", done: investigating || resolved },
+    {
+      label: "Resolved",
+      done: resolved,
+      at: resolved ? complaint.actions[complaint.actions.length - 1]?.at : undefined,
+    },
+    { label: "Refund Processed", done: refundDone, at: refund?.completedAt ?? undefined },
+  ];
 
   return (
-    <div className="min-h-dvh bg-acct-bg">
+    <div className="min-h-dvh bg-cream">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[680px] lg:px-6">
-        <div className="flex items-center gap-3 py-5">
+        <div className="flex items-center py-4">
           <Link
             href="/history"
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-black/5"
+            className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} className="text-ink" />
           </Link>
-          <h1 className="text-[18px] font-extrabold text-acct-ink">
+          <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-ink">
             {resolved ? "Complaint Resolved" : "Track Complaint"}
           </h1>
         </div>
 
-        {/* Case header */}
-        <div className="rounded-[16px] bg-white p-4 shadow-soft">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[13px] text-acct-muted">Complaint ID</p>
-              <button
-                onClick={() => {
-                  void navigator.clipboard?.writeText(complaint.code);
-                  toast("Complaint ID copied");
-                }}
-                className="mt-0.5 flex items-center gap-1.5 text-[15px] font-bold text-igm-accent"
-              >
-                {complaint.code}
-                <Copy size={13} />
-              </button>
-            </div>
-            <span
-              className={cn(
-                "shrink-0 rounded-pill px-3 py-1 text-[12px] font-bold",
-                resolved
-                  ? "bg-igm-good-tint text-igm-good"
-                  : "bg-igm-tint text-igm-accent",
+        {resolved ? (
+          <>
+            <div className="pt-6 text-center">
+              <h2 className="text-[24px] font-extrabold text-ink">
+                Complaint Resolved
+              </h2>
+              <p className="mt-2 text-[14px] font-semibold text-ink">
+                {refund
+                  ? `Refund of ${rupees(refund.amountPaise)} has been ${refundDone ? "processed" : "initiated"}`
+                  : "Your complaint has been resolved"}
+              </p>
+              {refund && (
+                <p className="mt-1 text-[13px] text-muted">
+                  It will reflect in 3-5 business days.
+                </p>
               )}
-            >
-              {STATUS_LABEL[complaint.status]}
-            </span>
-          </div>
-          <p className="mt-3 border-t border-black/5 pt-3 text-[14px] text-igm-body">
-            {complaint.description}
-          </p>
-          {complaint.escalationLevel > 0 && (
-            <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-igm-wait">
-              <ShieldAlert size={14} />
-              Escalated to {complaint.escalationLevel === 1 ? "the grievance officer" : "ONDC"}
-            </p>
-          )}
-        </div>
+            </div>
 
-        {/* Seller asked for something — the reply state the guide calls out */}
-        {complaint.infoRequestedAt && (
-          <div className="mt-5 rounded-[16px] border border-igm-wait/30 bg-white p-4 shadow-soft">
-            <p className="flex items-center gap-2 text-[15px] font-bold text-acct-ink">
-              <MessageSquare size={16} className="text-igm-wait" />
-              More information needed
-            </p>
-            <p className="mt-1.5 text-[14px] text-igm-body">
-              {complaint.infoRequest ?? "The seller has asked for more detail."}
-            </p>
-            <textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value.slice(0, 2000))}
-              rows={3}
-              placeholder="Type your reply…"
-              className="mt-3 w-full resize-none rounded-[12px] border border-black/10 bg-white p-3 text-[14px] text-acct-ink outline-none focus:border-igm-accent focus:ring-2 focus:ring-igm-accent/15"
-            />
-            <button
-              disabled={busy || reply.trim().length < 2}
-              onClick={sendInformation}
-              className="mt-3 h-[46px] w-full rounded-[12px] bg-igm-accent text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
-              Send information
-            </button>
-          </div>
-        )}
-
-        {/* Proposed resolutions — a list, and possibly per item */}
-        {pending.length > 0 && (
-          <div className="mt-5">
-            <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
-              {pending.length > 1 ? "Choose a resolution" : "Proposed resolution"}
-            </p>
-            <div className="flex flex-col gap-3">
-              {pending.map((r) => (
-                <div key={r.id} className="rounded-[16px] bg-white p-4 shadow-soft">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[15px] font-bold text-acct-ink">
-                        {r.description}
-                      </p>
-                      {r.itemId && (
-                        <p className="mt-0.5 text-[12px] text-acct-muted">
-                          For item {r.itemId}
-                        </p>
-                      )}
-                    </div>
-                    {r.amountPaise != null && (
-                      <span className="shrink-0 text-[17px] font-extrabold text-acct-ink">
-                        {rupees(r.amountPaise)}
-                      </span>
+            {refund && (
+              <div className="mt-7 rounded-[16px] bg-card p-4 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <p className="flex items-center gap-2 text-[15px] font-bold text-ink">
+                    <span className="size-2 rounded-full bg-success" />
+                    Refund Details
+                  </p>
+                  <span
+                    className={cn(
+                      "flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-bold",
+                      refundDone
+                        ? "bg-success-soft text-success"
+                        : "bg-accent-soft text-accent",
                     )}
-                  </div>
-                  <div className="mt-3 flex gap-2.5">
-                    <button
-                      disabled={busy}
-                      onClick={() => decide(r.id, "reject")}
-                      className="h-[44px] flex-1 rounded-[12px] border border-black/10 bg-white text-[14px] font-bold text-acct-ink transition-colors hover:bg-acct-bg disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      disabled={busy}
-                      onClick={() => decide(r.id, "accept")}
-                      className="h-[44px] flex-[2] rounded-[12px] bg-igm-accent text-[14px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                    >
-                      Accept
-                    </button>
-                  </div>
+                  >
+                    {refundDone && <Check size={11} strokeWidth={3} />}
+                    {refundDone ? "Processed" : "Initiated"}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <dl className="mt-4 flex flex-col gap-3 text-[13px]">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Refund Amount</dt>
+                    <dd className="text-[16px] font-extrabold text-success">
+                      {rupees(refund.amountPaise)}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Refund To</dt>
+                    <dd className="font-bold text-ink">Original payment method</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Complaint ID</dt>
+                    <dd className="flex items-center gap-2 font-bold text-ink">
+                      {complaint.code}
+                      <button
+                        onClick={copyCode}
+                        className="flex items-center gap-1 rounded-pill border border-line px-2 py-0.5 text-[11px] font-semibold text-ink transition-colors hover:bg-beige/40"
+                      >
+                        <Copy size={11} /> Copy
+                      </button>
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted">Timeline</dt>
+                    <dd className="font-bold text-ink">3-5 business days</dd>
+                  </div>
+                </dl>
+              </div>
+            )}
 
-        {/* Refund — shown only when a refund record exists, and reporting that
-            record's own status rather than assuming acceptance meant payment */}
-        {refund && (
-          <div className="mt-5 rounded-[16px] bg-white p-4 shadow-soft">
-            <div className="flex items-center justify-between">
-              <p className="text-[15px] font-bold text-acct-ink">Refund Details</p>
-              <span
-                className={cn(
-                  "rounded-pill px-2.5 py-1 text-[11px] font-bold capitalize",
-                  refund.status === "completed"
-                    ? "bg-igm-good-tint text-igm-good"
-                    : "bg-igm-tint text-igm-accent",
-                )}
-              >
-                {refund.status}
-              </span>
+            <div className="mt-5 flex items-center justify-between rounded-[16px] bg-card px-4 py-3.5 shadow-soft">
+              <div>
+                <p className="text-[14px] font-bold text-ink">Rate your experience</p>
+                <p className="text-[12px] text-muted">How was our resolution?</p>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                    onClick={() => {
+                      setStars(n);
+                      toast("Thanks for the feedback");
+                    }}
+                    className="transition-transform hover:scale-110"
+                  >
+                    <Star
+                      size={18}
+                      className={n <= stars ? "text-accent" : "text-line"}
+                      fill={n <= stars ? "currentColor" : "none"}
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
-            <dl className="mt-3 flex flex-col gap-2 text-[13px]">
-              <div className="flex justify-between">
-                <dt className="text-acct-muted">Refund amount</dt>
-                <dd className="text-[16px] font-extrabold text-igm-good">
-                  {rupees(refund.amountPaise)}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-acct-muted">Reference</dt>
-                <dd className="font-semibold text-acct-ink">
-                  {refund.refundReference ?? "Assigned once processed"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-acct-muted">Timeline</dt>
-                <dd className="font-semibold text-igm-wait">
-                  {refund.completedAt ? "Completed" : "3–5 business days"}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        )}
 
-        {/* Action trail — plain language, never raw protocol JSON */}
-        <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
-          Progress
-        </p>
-        <ol className="overflow-hidden rounded-[16px] bg-white shadow-soft">
-          {complaint.actions.map((a, i) => {
-            const last = i === complaint.actions.length - 1;
-            return (
-              <li
-                key={`${a.code}-${a.at}`}
-                className={cn(
-                  "flex gap-3 px-4 py-3.5",
-                  !last && "border-b border-black/5",
-                )}
-              >
-                <span
-                  className={cn(
-                    "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full",
-                    last && !resolved
-                      ? "bg-igm-tint text-igm-accent"
-                      : "bg-igm-good-tint text-igm-good",
-                  )}
+            <Link
+              href="/history"
+              className="mt-7 flex h-[54px] w-full items-center justify-center rounded-[14px] border-[1.5px] border-acct-accent bg-card text-[15px] font-bold text-ink transition-colors hover:bg-accent-soft/40"
+            >
+              Done
+            </Link>
+            <Link
+              href="/history"
+              className="mt-4 block text-center text-[14px] font-bold text-ink hover:underline"
+            >
+              View all orders
+            </Link>
+          </>
+        ) : (
+          <>
+            {/* Case card */}
+            <div className="rounded-[16px] bg-card p-4 shadow-soft">
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-[15px] font-bold text-ink">
+                  Complaint ID: {complaint.code}
+                </p>
+                <button
+                  onClick={copyCode}
+                  className="flex shrink-0 items-center gap-1.5 rounded-pill border border-line px-2.5 py-1 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
                 >
-                  {last && !resolved ? <Clock size={13} /> : <Check size={13} strokeWidth={3} />}
-                </span>
+                  <Copy size={12} /> Copy
+                </button>
+              </div>
+              {orderTitle && (
+                <p className="mt-1.5 text-[13px] text-cocoa">Order: {orderTitle}</p>
+              )}
+              <p className="mt-0.5 text-[12px] text-muted">{fmt(complaint.createdAt)}</p>
+              <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
+                <p className="flex items-center gap-2 text-[13px] font-bold text-ink">
+                  <span className="size-2 rounded-full bg-ink" />
+                  {STATUS_LABEL[complaint.status]}
+                </p>
+                <p className="flex items-center gap-1 text-[12px] text-muted">
+                  <Clock size={12} /> Est. 24-48 hrs
+                </p>
+              </div>
+              {complaint.escalationLevel > 0 && (
+                <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-warning">
+                  <ShieldAlert size={14} />
+                  Escalated to {complaint.escalationLevel === 1 ? "the grievance officer" : "ONDC"}
+                </p>
+              )}
+            </div>
+
+            {/* Seller asked for something */}
+            {complaint.infoRequestedAt && (
+              <div className="mt-5 rounded-[16px] border border-warning/30 bg-card p-4 shadow-soft">
+                <p className="flex items-center gap-2 text-[15px] font-bold text-ink">
+                  <MessageSquare size={16} className="text-warning" />
+                  More information needed
+                </p>
+                <p className="mt-1.5 text-[14px] text-cocoa">
+                  {complaint.infoRequest ?? "The seller has asked for more detail."}
+                </p>
+                <textarea
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value.slice(0, 2000))}
+                  rows={3}
+                  placeholder="Type your reply..."
+                  className="mt-3 w-full resize-none rounded-[12px] border border-line bg-card p-3 text-[14px] text-ink outline-none focus:border-accent"
+                />
+                <button
+                  disabled={busy || reply.trim().length < 2}
+                  onClick={sendInformation}
+                  className="mt-3 h-[46px] w-full rounded-[12px] border-[1.5px] border-acct-accent bg-card text-[14px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-40"
+                >
+                  Send information
+                </button>
+              </div>
+            )}
+
+            {/* Proposed resolutions */}
+            {pending.length > 0 && (
+              <div className="mt-5">
+                <p className="mb-2 px-1 text-[13px] font-semibold text-muted">
+                  {pending.length > 1 ? "Choose a resolution" : "Proposed resolution"}
+                </p>
+                <div className="flex flex-col gap-3">
+                  {pending.map((r) => (
+                    <div key={r.id} className="rounded-[16px] bg-card p-4 shadow-soft">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-bold text-ink">
+                            {r.description}
+                          </p>
+                          {r.itemId && (
+                            <p className="mt-0.5 text-[12px] text-muted">
+                              For item {r.itemId}
+                            </p>
+                          )}
+                        </div>
+                        {r.amountPaise != null && (
+                          <span className="shrink-0 text-[17px] font-extrabold text-ink">
+                            {rupees(r.amountPaise)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex gap-2.5">
+                        <button
+                          disabled={busy}
+                          onClick={() => decide(r.id, "reject")}
+                          className="h-[44px] flex-1 rounded-[12px] border border-line bg-card text-[14px] font-bold text-ink transition-colors hover:bg-beige/40 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          disabled={busy}
+                          onClick={() => decide(r.id, "accept")}
+                          className="h-[44px] flex-[2] rounded-[12px] border-[1.5px] border-acct-accent bg-card text-[14px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Progress Timeline — the design's five fixed steps */}
+            <div className="mt-5 rounded-[16px] bg-card p-4 shadow-soft">
+              <p className="text-[15px] font-bold text-ink">Progress Timeline</p>
+              <ol className="mt-4">
+                {steps.map((s, i) => {
+                  const last = i === steps.length - 1;
+                  const nextDone = steps[i + 1]?.done;
+                  return (
+                    <li key={s.label} className="relative flex gap-3 pb-6 last:pb-0">
+                      {!last && (
+                        <span
+                          className={cn(
+                            "absolute left-[11px] top-6 h-[calc(100%-24px)] w-0.5",
+                            nextDone ? "bg-success" : "bg-line",
+                          )}
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          "z-10 flex size-6 shrink-0 items-center justify-center rounded-full",
+                          s.done ? "bg-success text-white" : "border-2 border-line bg-card",
+                        )}
+                      >
+                        {s.done && <Check size={13} strokeWidth={3} />}
+                      </span>
+                      <span className="min-w-0 flex-1 pt-0.5">
+                        <span
+                          className={cn(
+                            "block text-[14px] font-bold",
+                            s.done ? "text-ink" : "text-muted",
+                          )}
+                        >
+                          {s.label}
+                        </span>
+                        {s.done && s.at && (
+                          <span className="mt-0.5 block text-[12px] text-muted">
+                            {fmt(s.at)}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            {/* Reassurance rows */}
+            <div className="mt-5 flex flex-col gap-2.5">
+              <div className="flex items-center gap-3 rounded-[14px] border border-line bg-card px-4 py-3.5">
+                <Clock size={17} className="shrink-0 text-ink" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold text-acct-ink">
-                    {a.description}
+                  <span className="block text-[13px] font-bold text-ink">
+                    We are working on your complaint
                   </span>
-                  <span className="block text-[12px] text-acct-muted">
-                    {new Date(a.at).toLocaleString()}
+                  <span className="block text-[12px] text-muted">
+                    You will be notified once it is resolved
                   </span>
                 </span>
-              </li>
-            );
-          })}
-        </ol>
+                <ChevronRight size={15} className="shrink-0 text-muted" />
+              </div>
+              <Link
+                href="/profile/help"
+                className="flex items-center gap-3 rounded-[14px] border border-line bg-card px-4 py-3.5 transition-colors hover:bg-beige/30"
+              >
+                <Headset size={17} className="shrink-0 text-ink" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-ink">
+                    Need immediate help?
+                  </span>
+                  <span className="block text-[12px] text-muted">
+                    Chat with our support team
+                  </span>
+                </span>
+                <ChevronRight size={15} className="shrink-0 text-muted" />
+              </Link>
+            </div>
 
-        {!resolved && complaint.escalationLevel < 2 && (
-          <button
-            disabled={busy}
-            onClick={escalate}
-            className="mt-5 h-[50px] w-full rounded-[14px] border border-igm-wait/40 bg-white text-[15px] font-bold text-igm-wait transition-colors hover:bg-igm-wait/5 disabled:opacity-50"
-          >
-            {complaint.escalationLevel === 0
-              ? "Escalate to grievance officer"
-              : "Escalate to ONDC"}
-          </button>
+            {complaint.escalationLevel < 2 && (
+              <button
+                disabled={busy}
+                onClick={escalate}
+                className="mt-5 h-[50px] w-full rounded-[14px] border border-warning/40 bg-card text-[14px] font-bold text-warning transition-colors hover:bg-warning-soft disabled:opacity-50"
+              >
+                {complaint.escalationLevel === 0
+                  ? "Escalate to grievance officer"
+                  : "Escalate to ONDC"}
+              </button>
+            )}
+          </>
         )}
-
-        <Link
-          href="/history"
-          className="mt-5 flex h-[50px] w-full items-center justify-center rounded-[14px] bg-acct-ink text-[15px] font-bold text-white transition-opacity hover:opacity-90"
-        >
-          Done
-        </Link>
       </div>
     </div>
   );
