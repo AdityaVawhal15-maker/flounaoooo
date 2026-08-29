@@ -14,6 +14,16 @@ export const LANGUAGES: { code: Lang; label: string; speechLang: string }[] = [
 
 export const dictionaries = {
   en: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "Setting up encryption on this device...",
+    "chat.notAuthentic": "This message did not come from who it claims",
+    "chat.securityInfo": "Encryption",
+    "chat.safetyExplain": "This code covers every device in the chat. If it matches on your friend's screen, you are talking to the same set of devices and nothing has been added in between.",
+    "chat.devicesInChat": "{n} devices in this chat",
+    "chat.thisDevice": "This device",
+    "chat.yourOther": "Your device",
+    "chat.member": "Member",
+    "chat.limitNotice": "Flouna serves the app that does the encryption, and Flouna's servers decide which devices appear in this list. That is why the list and the code are shown to you: a device you do not recognise is worth asking about.",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "Create Group",
     "grp.createBlurb": "Your group order is open. Share this with friends and they can add what they want.",
@@ -126,14 +136,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "A shared ride is a specific trip, so this crew keeps the people but not the journey.",
     "chat.groupChat": "Group chat",
     "chat.membersCount": "{n} members",
-    "chat.e2eeNotice": "Encrypted on your device. We store only scrambled text and cannot read these messages — though we do serve the app that scrambles them.",
+    "chat.e2eeNotice": "Encrypted on your device with a key that changes every message. We store only scrambled text and cannot read it — tap to see the devices in this chat.",
     "chat.noMessages": "No messages yet. Say something.",
     "chat.typeMessage": "Type a message",
     "chat.notReady": "Setting up encryption...",
-    "chat.waitingForKey": "Waiting for someone in the group to let this device in. Ask a member to open the chat.",
+    "chat.waitingForKey": "Waiting for the sender's key",
     "chat.unsupported": "This browser cannot do the encryption this chat needs. Try a current browser over HTTPS.",
     "chat.setupFailed": "Could not set up the encrypted chat. Try again in a moment.",
-    "chat.cannotRead": "Sent before this device joined",
+    "chat.cannotRead": "Sent before this device joined the chat",
     "chat.sendFailed": "Could not send that",
     "pp.det.editInfo": "Edit Information",
     // Personal Information form, privacy sheets, remaining labels
@@ -763,6 +773,16 @@ export const dictionaries = {
   },
 
   hi: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "इस डिवाइस पर एन्क्रिप्शन तैयार हो रहा है...",
+    "chat.notAuthentic": "यह संदेश उस व्यक्ति से नहीं आया जिसका नाम दिख रहा है",
+    "chat.securityInfo": "एन्क्रिप्शन",
+    "chat.safetyExplain": "यह कोड चैट के हर डिवाइस को कवर करता है। अगर यह आपके दोस्त की स्क्रीन पर भी वही है, तो आप उन्हीं डिवाइसों से बात कर रहे हैं और बीच में कुछ नहीं जोड़ा गया।",
+    "chat.devicesInChat": "इस चैट में {n} डिवाइस",
+    "chat.thisDevice": "यह डिवाइस",
+    "chat.yourOther": "आपका डिवाइस",
+    "chat.member": "सदस्य",
+    "chat.limitNotice": "एन्क्रिप्शन करने वाला ऐप Flouna ही देता है, और इस सूची में कौन से डिवाइस दिखें यह Flouna के सर्वर तय करते हैं। इसीलिए सूची और कोड आपको दिखाए जाते हैं: कोई अनजान डिवाइस दिखे तो पूछना ज़रूरी है।",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "ग्रुप बनाएँ",
     "grp.createBlurb": "आपका ग्रुप ऑर्डर खुला है। इसे दोस्तों के साथ साझा करें और वे अपनी पसंद जोड़ सकते हैं।",
@@ -875,14 +895,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "शेयर की गई सवारी एक तय यात्रा है, इसलिए यह क्रू लोगों को रखता है, सफ़र को नहीं।",
     "chat.groupChat": "ग्रुप चैट",
     "chat.membersCount": "{n} सदस्य",
-    "chat.e2eeNotice": "आपके डिवाइस पर एन्क्रिप्ट। हम सिर्फ़ उलझा हुआ टेक्स्ट रखते हैं और इन्हें पढ़ नहीं सकते — हालाँकि जो ऐप इसे उलझाता है, वह हमारा ही है।",
+    "chat.e2eeNotice": "आपके डिवाइस पर एन्क्रिप्ट, और हर संदेश पर कुंजी बदलती है। हम सिर्फ़ उलझा हुआ टेक्स्ट रखते हैं और उसे पढ़ नहीं सकते — चैट के डिवाइस देखने के लिए टैप करें।",
     "chat.noMessages": "अभी कोई संदेश नहीं। कुछ कहिए।",
     "chat.typeMessage": "संदेश लिखें",
     "chat.notReady": "एन्क्रिप्शन तैयार हो रहा है...",
-    "chat.waitingForKey": "ग्रुप का कोई सदस्य इस डिवाइस को अंदर लेगा। किसी से चैट खोलने को कहें।",
+    "chat.waitingForKey": "भेजने वाले की कुंजी का इंतज़ार",
     "chat.unsupported": "यह ब्राउज़र इस चैट के लिए ज़रूरी एन्क्रिप्शन नहीं कर सकता। HTTPS पर कोई नया ब्राउज़र आज़माएँ।",
     "chat.setupFailed": "एन्क्रिप्टेड चैट तैयार नहीं हो सकी। थोड़ी देर में फिर कोशिश करें।",
-    "chat.cannotRead": "इस डिवाइस के जुड़ने से पहले भेजा गया",
+    "chat.cannotRead": "इस डिवाइस के चैट में आने से पहले भेजा गया",
     "chat.sendFailed": "भेजा नहीं जा सका",
     "pp.det.editInfo": "जानकारी संपादित करें",
     // Personal Information form, privacy sheets, remaining labels
@@ -1505,6 +1525,16 @@ export const dictionaries = {
   },
 
   mr: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "या डिव्हाइसवर एन्क्रिप्शन तयार होत आहे...",
+    "chat.notAuthentic": "हा संदेश ज्याचे नाव दिसते त्याच्याकडून आलेला नाही",
+    "chat.securityInfo": "एन्क्रिप्शन",
+    "chat.safetyExplain": "हा कोड चॅटमधील प्रत्येक डिव्हाइस कव्हर करतो. तुमच्या मित्राच्या स्क्रीनवरही तोच असल्यास, तुम्ही त्याच डिव्हाइसशी बोलत आहात आणि मध्ये काहीही जोडलेले नाही.",
+    "chat.devicesInChat": "या चॅटमध्ये {n} डिव्हाइस",
+    "chat.thisDevice": "हे डिव्हाइस",
+    "chat.yourOther": "तुमचे डिव्हाइस",
+    "chat.member": "सदस्य",
+    "chat.limitNotice": "एन्क्रिप्शन करणारे अ‍ॅप Flouna च देते, आणि या यादीत कोणती डिव्हाइस दिसतील हे Flouna चे सर्व्हर ठरवतात. म्हणूनच यादी आणि कोड तुम्हाला दाखवले जातात: अनोळखी डिव्हाइस दिसल्यास विचारणे योग्य.",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "ग्रुप तयार करा",
     "grp.createBlurb": "तुमची ग्रुप ऑर्डर सुरू आहे. ती मित्रांना पाठवा, ते त्यांना हवे ते जोडू शकतात.",
@@ -1617,14 +1647,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "शेअर केलेली सवारी ही ठराविक प्रवास आहे, म्हणून हा क्रू लोक ठेवतो, प्रवास नाही.",
     "chat.groupChat": "ग्रुप चॅट",
     "chat.membersCount": "{n} सदस्य",
-    "chat.e2eeNotice": "तुमच्या डिव्हाइसवर एन्क्रिप्ट. आम्ही फक्त गुंतागुंतीचा मजकूर ठेवतो आणि हे वाचू शकत नाही — जरी तो गुंतवणारा अ‍ॅप आमचाच आहे.",
+    "chat.e2eeNotice": "तुमच्या डिव्हाइसवर एन्क्रिप्ट, आणि प्रत्येक संदेशाला किल्ली बदलते. आम्ही फक्त गुंतागुंतीचा मजकूर ठेवतो, तो वाचू शकत नाही — चॅटमधील डिव्हाइस पाहण्यासाठी टॅप करा.",
     "chat.noMessages": "अजून संदेश नाहीत. काहीतरी बोला.",
     "chat.typeMessage": "संदेश लिहा",
     "chat.notReady": "एन्क्रिप्शन तयार होत आहे...",
-    "chat.waitingForKey": "ग्रुपमधील कोणीतरी या डिव्हाइसला आत घेईल. कोणालातरी चॅट उघडायला सांगा.",
+    "chat.waitingForKey": "पाठवणाऱ्याच्या किल्लीची वाट पाहत आहे",
     "chat.unsupported": "हा ब्राउझर या चॅटसाठी लागणारे एन्क्रिप्शन करू शकत नाही. HTTPS वर नवा ब्राउझर वापरा.",
     "chat.setupFailed": "एन्क्रिप्टेड चॅट तयार होऊ शकली नाही. थोड्या वेळाने पुन्हा प्रयत्न करा.",
-    "chat.cannotRead": "हे डिव्हाइस जोडण्यापूर्वी पाठवले",
+    "chat.cannotRead": "हे डिव्हाइस चॅटमध्ये येण्यापूर्वी पाठवले",
     "chat.sendFailed": "पाठवता आले नाही",
     "pp.det.editInfo": "माहिती संपादित करा",
     // Personal Information form, privacy sheets, remaining labels
@@ -2247,6 +2277,16 @@ export const dictionaries = {
   },
 
   kn: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "ಈ ಸಾಧನದಲ್ಲಿ ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...",
+    "chat.notAuthentic": "ಈ ಸಂದೇಶ ಹೆಸರಿಸಿದವರಿಂದ ಬಂದಿಲ್ಲ",
+    "chat.securityInfo": "ಎನ್‌ಕ್ರಿಪ್ಶನ್",
+    "chat.safetyExplain": "ಈ ಕೋಡ್ ಚಾಟ್‌ನ ಪ್ರತಿ ಸಾಧನವನ್ನೂ ಒಳಗೊಳ್ಳುತ್ತದೆ. ಸ್ನೇಹಿತರ ಪರದೆಯಲ್ಲೂ ಇದೇ ಇದ್ದರೆ, ನೀವು ಅದೇ ಸಾಧನಗಳೊಂದಿಗೆ ಮಾತನಾಡುತ್ತಿದ್ದೀರಿ, ನಡುವೆ ಏನೂ ಸೇರಿಸಲಾಗಿಲ್ಲ.",
+    "chat.devicesInChat": "ಈ ಚಾಟ್‌ನಲ್ಲಿ {n} ಸಾಧನಗಳು",
+    "chat.thisDevice": "ಈ ಸಾಧನ",
+    "chat.yourOther": "ನಿಮ್ಮ ಸಾಧನ",
+    "chat.member": "ಸದಸ್ಯ",
+    "chat.limitNotice": "ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಮಾಡುವ ಆ್ಯಪ್ ಅನ್ನು Flouna ಕೊಡುತ್ತದೆ, ಮತ್ತು ಈ ಪಟ್ಟಿಯಲ್ಲಿ ಯಾವ ಸಾಧನ ಕಾಣಬೇಕೆಂದು Flouna ಸರ್ವರ್ ನಿರ್ಧರಿಸುತ್ತದೆ. ಅದಕ್ಕೇ ಪಟ್ಟಿ ಮತ್ತು ಕೋಡ್ ನಿಮಗೆ ತೋರಿಸಲಾಗುತ್ತದೆ: ಗೊತ್ತಿಲ್ಲದ ಸಾಧನ ಕಂಡರೆ ಕೇಳುವುದು ಒಳ್ಳೆಯದು.",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "ಗುಂಪು ರಚಿಸಿ",
     "grp.createBlurb": "ನಿಮ್ಮ ಗುಂಪು ಆರ್ಡರ್ ತೆರೆದಿದೆ. ಇದನ್ನು ಸ್ನೇಹಿತರಿಗೆ ಹಂಚಿ, ಅವರು ಬೇಕಾದದ್ದನ್ನು ಸೇರಿಸಬಹುದು.",
@@ -2359,14 +2399,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "ಹಂಚಿಕೊಂಡ ಸವಾರಿ ಒಂದು ನಿರ್ದಿಷ್ಟ ಪ್ರಯಾಣ, ಹಾಗಾಗಿ ಈ ತಂಡ ಜನರನ್ನು ಇಡುತ್ತದೆ, ಪ್ರಯಾಣವನ್ನಲ್ಲ.",
     "chat.groupChat": "ಗುಂಪು ಚಾಟ್",
     "chat.membersCount": "{n} ಸದಸ್ಯರು",
-    "chat.e2eeNotice": "ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಎನ್‌ಕ್ರಿಪ್ಟ್. ನಾವು ಗೊಂದಲದ ಪಠ್ಯವನ್ನಷ್ಟೇ ಇಡುತ್ತೇವೆ, ಇವನ್ನು ಓದಲಾಗುವುದಿಲ್ಲ — ಆದರೂ ಗೊಂದಲಗೊಳಿಸುವ ಆ್ಯಪ್ ನಮ್ಮದೇ.",
+    "chat.e2eeNotice": "ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಎನ್‌ಕ್ರಿಪ್ಟ್, ಪ್ರತಿ ಸಂದೇಶಕ್ಕೂ ಕೀಲಿ ಬದಲಾಗುತ್ತದೆ. ನಾವು ಗೊಂದಲದ ಪಠ್ಯವನ್ನಷ್ಟೇ ಇಡುತ್ತೇವೆ, ಓದಲಾಗುವುದಿಲ್ಲ — ಚಾಟ್‌ನ ಸಾಧನಗಳನ್ನು ನೋಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ.",
     "chat.noMessages": "ಇನ್ನೂ ಸಂದೇಶಗಳಿಲ್ಲ. ಏನಾದರೂ ಹೇಳಿ.",
     "chat.typeMessage": "ಸಂದೇಶ ಬರೆಯಿರಿ",
     "chat.notReady": "ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...",
-    "chat.waitingForKey": "ಗುಂಪಿನ ಯಾರಾದರೂ ಈ ಸಾಧನವನ್ನು ಒಳಗೆ ಬಿಡಬೇಕು. ಯಾರಿಗಾದರೂ ಚಾಟ್ ತೆರೆಯಲು ಹೇಳಿ.",
+    "chat.waitingForKey": "ಕಳಿಸಿದವರ ಕೀಲಿಗಾಗಿ ಕಾಯುತ್ತಿದೆ",
     "chat.unsupported": "ಈ ಬ್ರೌಸರ್ ಈ ಚಾಟ್‌ಗೆ ಬೇಕಾದ ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಮಾಡಲಾರದು. HTTPS ನಲ್ಲಿ ಹೊಸ ಬ್ರೌಸರ್ ಬಳಸಿ.",
     "chat.setupFailed": "ಎನ್‌ಕ್ರಿಪ್ಟ್ ಚಾಟ್ ಸಿದ್ಧವಾಗಲಿಲ್ಲ. ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
-    "chat.cannotRead": "ಈ ಸಾಧನ ಸೇರುವ ಮೊದಲು ಕಳಿಸಲಾಗಿದೆ",
+    "chat.cannotRead": "ಈ ಸಾಧನ ಚಾಟ್‌ಗೆ ಸೇರುವ ಮೊದಲು ಕಳಿಸಲಾಗಿದೆ",
     "chat.sendFailed": "ಕಳಿಸಲಾಗಲಿಲ್ಲ",
     "pp.det.editInfo": "ಮಾಹಿತಿ ಸಂಪಾದಿಸಿ",
     // Personal Information form, privacy sheets, remaining labels
@@ -2989,6 +3029,16 @@ export const dictionaries = {
   },
 
   ta: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "இந்தச் சாதனத்தில் மறையாக்கம் அமைக்கப்படுகிறது...",
+    "chat.notAuthentic": "இந்தச் செய்தி பெயர் காட்டப்பட்டவரிடமிருந்து வரவில்லை",
+    "chat.securityInfo": "மறையாக்கம்",
+    "chat.safetyExplain": "இந்தக் குறியீடு அரட்டையின் ஒவ்வொரு சாதனத்தையும் உள்ளடக்கும். உங்கள் நண்பரின் திரையிலும் இதுவே இருந்தால், நீங்கள் அதே சாதனங்களுடன் பேசுகிறீர்கள், இடையில் எதுவும் சேர்க்கப்படவில்லை.",
+    "chat.devicesInChat": "இந்த அரட்டையில் {n} சாதனங்கள்",
+    "chat.thisDevice": "இந்தச் சாதனம்",
+    "chat.yourOther": "உங்கள் சாதனம்",
+    "chat.member": "உறுப்பினர்",
+    "chat.limitNotice": "மறையாக்கம் செய்யும் செயலியை Flouna தான் வழங்குகிறது, இந்தப் பட்டியலில் எந்தச் சாதனங்கள் தெரிய வேண்டும் என்பதை Flouna சர்வர்கள் தீர்மானிக்கின்றன. அதனால்தான் பட்டியலும் குறியீடும் உங்களுக்குக் காட்டப்படுகின்றன: தெரியாத சாதனம் இருந்தால் கேட்பது நல்லது.",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "குழு உருவாக்கு",
     "grp.createBlurb": "உங்கள் குழு ஆர்டர் திறந்துள்ளது. இதை நண்பர்களுடன் பகிருங்கள், அவர்கள் விரும்பியதைச் சேர்க்கலாம்.",
@@ -3101,14 +3151,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "பகிரப்பட்ட பயணம் ஒரு குறிப்பிட்ட பயணம், எனவே இந்தக் குழு நபர்களை வைத்திருக்கும், பயணத்தை அல்ல.",
     "chat.groupChat": "குழு அரட்டை",
     "chat.membersCount": "{n} உறுப்பினர்கள்",
-    "chat.e2eeNotice": "உங்கள் சாதனத்தில் மறையாக்கம். நாங்கள் குழப்பப்பட்ட உரையை மட்டுமே சேமிக்கிறோம், இவற்றைப் படிக்க முடியாது — ஆனாலும் குழப்பும் செயலி எங்களுடையதே.",
+    "chat.e2eeNotice": "உங்கள் சாதனத்தில் மறையாக்கம், ஒவ்வொரு செய்திக்கும் சாவி மாறும். நாங்கள் குழப்பப்பட்ட உரையை மட்டுமே சேமிக்கிறோம், படிக்க முடியாது — அரட்டையின் சாதனங்களைப் பார்க்க தட்டவும்.",
     "chat.noMessages": "இன்னும் செய்திகள் இல்லை. ஏதாவது சொல்லுங்கள்.",
     "chat.typeMessage": "செய்தியை உள்ளிடு",
     "chat.notReady": "மறையாக்கம் அமைக்கப்படுகிறது...",
-    "chat.waitingForKey": "குழுவில் யாராவது இந்தச் சாதனத்தை உள்ளே அனுமதிக்க வேண்டும். ஒருவரிடம் அரட்டையைத் திறக்கச் சொல்லுங்கள்.",
+    "chat.waitingForKey": "அனுப்பியவரின் சாவிக்காகக் காத்திருக்கிறது",
     "chat.unsupported": "இந்த உலாவியால் இந்த அரட்டைக்குத் தேவையான மறையாக்கம் செய்ய முடியாது. HTTPS இல் புதிய உலாவியை முயற்சிக்கவும்.",
     "chat.setupFailed": "மறையாக்கப்பட்ட அரட்டையை அமைக்க முடியவில்லை. சிறிது நேரம் கழித்து முயற்சிக்கவும்.",
-    "chat.cannotRead": "இந்தச் சாதனம் சேர்வதற்கு முன் அனுப்பப்பட்டது",
+    "chat.cannotRead": "இந்தச் சாதனம் அரட்டையில் சேர்வதற்கு முன் அனுப்பப்பட்டது",
     "chat.sendFailed": "அனுப்ப முடியவில்லை",
     "pp.det.editInfo": "தகவலைத் திருத்து",
     // Personal Information form, privacy sheets, remaining labels
@@ -3731,6 +3781,16 @@ export const dictionaries = {
   },
 
   te: {
+    // Sender-key protocol: device list, safety number
+    "chat.settingUp": "ఈ పరికరంలో ఎన్‌క్రిప్షన్ సిద్ధమవుతోంది...",
+    "chat.notAuthentic": "ఈ సందేశం పేరు చూపిన వ్యక్తి నుండి రాలేదు",
+    "chat.securityInfo": "ఎన్‌క్రిప్షన్",
+    "chat.safetyExplain": "ఈ కోడ్ చాట్‌లోని ప్రతి పరికరాన్నీ కవర్ చేస్తుంది. మీ స్నేహితుడి స్క్రీన్‌లోనూ ఇదే ఉంటే, మీరు అవే పరికరాలతో మాట్లాడుతున్నారు, మధ్యలో ఏమీ చేర్చబడలేదు.",
+    "chat.devicesInChat": "ఈ చాట్‌లో {n} పరికరాలు",
+    "chat.thisDevice": "ఈ పరికరం",
+    "chat.yourOther": "మీ పరికరం",
+    "chat.member": "సభ్యుడు",
+    "chat.limitNotice": "ఎన్‌క్రిప్షన్ చేసే యాప్‌ను Flouna ఇస్తుంది, ఈ జాబితాలో ఏ పరికరాలు కనిపించాలో Flouna సర్వర్లు నిర్ణయిస్తాయి. అందుకే జాబితా, కోడ్ మీకు చూపిస్తాం: తెలియని పరికరం కనిపిస్తే అడగడం మంచిది.",
     // Group order screens, saved crews, encrypted chat
     "grp.createTitle": "గ్రూప్ సృష్టించండి",
     "grp.createBlurb": "మీ గ్రూప్ ఆర్డర్ తెరిచి ఉంది. దీన్ని స్నేహితులతో పంచుకోండి, వారు కావలసినది జోడించవచ్చు.",
@@ -3843,14 +3903,14 @@ export const dictionaries = {
     "crew.rideCannotReopen": "షేర్ చేసిన రైడ్ ఒక నిర్దిష్ట ప్రయాణం, కాబట్టి ఈ క్రూ వ్యక్తులను ఉంచుతుంది, ప్రయాణాన్ని కాదు.",
     "chat.groupChat": "గ్రూప్ చాట్",
     "chat.membersCount": "{n} సభ్యులు",
-    "chat.e2eeNotice": "మీ పరికరంలో ఎన్‌క్రిప్ట్. మేము గజిబిజి టెక్స్ట్‌ను మాత్రమే ఉంచుతాము, వీటిని చదవలేము — అయితే గజిబిజి చేసే యాప్ మాదే.",
+    "chat.e2eeNotice": "మీ పరికరంలో ఎన్‌క్రిప్ట్, ప్రతి సందేశానికీ కీ మారుతుంది. మేము గజిబిజి టెక్స్ట్‌ను మాత్రమే ఉంచుతాము, చదవలేము — చాట్‌లోని పరికరాలను చూడటానికి ట్యాప్ చేయండి.",
     "chat.noMessages": "ఇంకా సందేశాలు లేవు. ఏదైనా చెప్పండి.",
     "chat.typeMessage": "సందేశం టైప్ చేయండి",
     "chat.notReady": "ఎన్‌క్రిప్షన్ సిద్ధమవుతోంది...",
-    "chat.waitingForKey": "గ్రూప్‌లో ఎవరైనా ఈ పరికరాన్ని లోపలికి అనుమతించాలి. ఎవరినైనా చాట్ తెరవమని అడగండి.",
+    "chat.waitingForKey": "పంపినవారి కీ కోసం వేచి ఉంది",
     "chat.unsupported": "ఈ బ్రౌజర్ ఈ చాట్‌కు అవసరమైన ఎన్‌క్రిప్షన్ చేయలేదు. HTTPS లో కొత్త బ్రౌజర్ ప్రయత్నించండి.",
     "chat.setupFailed": "ఎన్‌క్రిప్టెడ్ చాట్ సిద్ధం కాలేదు. కొద్దిసేపటి తర్వాత మళ్లీ ప్రయత్నించండి.",
-    "chat.cannotRead": "ఈ పరికరం చేరకముందు పంపబడింది",
+    "chat.cannotRead": "ఈ పరికరం చాట్‌లో చేరకముందు పంపబడింది",
     "chat.sendFailed": "పంపలేకపోయాము",
     "pp.det.editInfo": "సమాచారాన్ని సవరించండి",
     // Personal Information form, privacy sheets, remaining labels

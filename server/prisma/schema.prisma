@@ -85,13 +85,15 @@ model User {
   otpCodes             OtpCode[]
   refreshTokens        RefreshToken[]
   pushSubscriptions    PushSubscription[]
-  hostedCarts          GroupCart[]        @relation("HostedCarts")
+  hostedCarts          GroupCart[]         @relation("HostedCarts")
   groupCartItems       GroupCartItem[]
   groupCartMemberships GroupCartMember[]
-  ownedCrews           GroupCrew[]        @relation("OwnedCrews")
+  ownedCrews           GroupCrew[]         @relation("OwnedCrews")
   crewMemberships      GroupCrewMember[]
   chatDevices          ChatDevice[]
-  keyEnvelopes         GroupKeyEnvelope[]
+  sentSenderKeys       SenderKeyEnvelope[] @relation("SentSenderKeys")
+  receivedSenderKeys   SenderKeyEnvelope[] @relation("ReceivedSenderKeys")
+  historySyncs         HistorySync[]
   groupMessages        GroupMessage[]
   priceAlerts          PriceAlert[]
   supportTickets       SupportTicket[]
@@ -100,8 +102,8 @@ model User {
   paymentMethods       PaymentMethod[]
   walletEntries        WalletEntry[]
   supportChats         SupportChat[]
-  blocks               BlockedUser[]      @relation("Blocker")
-  blockedBy            BlockedUser[]      @relation("Blocked")
+  blocks               BlockedUser[]       @relation("Blocker")
+  blockedBy            BlockedUser[]       @relation("Blocked")
   deviceLocks          DeviceLock[]
 }
 
@@ -502,10 +504,11 @@ model GroupCart {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  items     GroupCartItem[]
-  members   GroupCartMember[]
-  messages  GroupMessage[]
-  envelopes GroupKeyEnvelope[]
+  items      GroupCartItem[]
+  members    GroupCartMember[]
+  messages   GroupMessage[]
+  senderKeys SenderKeyEnvelope[]
+  histories  HistorySync[]
 
   @@index([hostId])
   @@index([crewId])
@@ -568,9 +571,16 @@ model ChatDevice {
    */
   deviceId   String
   /**
-   * Base64 SPKI of an ECDH P-256 public key.
+   * Base64 SPKI of an ECDH P-256 public key. Used to seal things TO this
+   * device.
    */
   publicKey  String
+  /**
+   * Base64 SPKI of an ECDSA P-256 public key. Used to prove something came
+   * FROM this device. Without it every member shares one key, and any member
+   * can write a message that looks like it came from another.
+   */
+  signingKey String?
   label      String?
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -583,26 +593,68 @@ model ChatDevice {
  * The group's symmetric key, sealed for exactly one device. Written by a
  * member who already holds the key; openable only by that device.
  */
-model GroupKeyEnvelope {
+/**
+ * A Sender Key Distribution Message, sealed for exactly one recipient device.
+ * This is the Signal/WhatsApp group design rather than one shared group key.
+ * Every sending device owns its own chain: a random chain key that ratchets
+ * forward one way per message, so a key captured today cannot open yesterday's
+ * messages. The chain is handed to each recipient device once, sealed to that
+ * device's public key, and after that the sender simply sends.
+ */
+model SenderKeyEnvelope {
+  id              String    @id @default(cuid())
+  cartId          String
+  cart            GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User      @relation("SentSenderKeys", fields: [senderId], references: [id], onDelete: Cascade)
+  senderDevice    String
+  recipientId     String
+  recipient       User      @relation("ReceivedSenderKeys", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientDevice String
+  /**
+   * Base64 SPKI of the ephemeral public key used for the ECDH that sealed it.
+   */
+  senderKey       String
+  iv              String
+  /**
+   * Chain key, chain index and the sender's group signing key, encrypted.
+   * Meaningless to the server.
+   */
+  payload         String
+  createdAt       DateTime  @default(now())
+
+  @@unique([cartId, senderDevice, recipientDevice])
+  @@index([cartId, recipientDevice])
+}
+
+/**
+ * A conversation's past, handed from one of a user's own devices to another of
+ * their devices.
+ * A ratchet means a new device genuinely cannot derive the keys for messages
+ * sent before it existed — that is forward secrecy working, not a bug. So
+ * history moves the way WhatsApp moves it: an existing device of the SAME user,
+ * holding the plaintext locally, re-encrypts it and seals it for the new
+ * device. Never across users: nobody else's device should be able to hand you a
+ * version of the conversation.
+ */
+model HistorySync {
   id         String    @id @default(cuid())
   cartId     String
   cart       GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId   String
-  /**
-   * Base64 SPKI of the ephemeral public key the sender used for ECDH.
-   */
+  fromDevice String
+  toDevice   String
   senderKey  String
   iv         String
   /**
-   * The group key, encrypted. Meaningless to the server.
+   * The past messages, encrypted for the receiving device alone.
    */
-  wrappedKey String
+  payload    String
   createdAt  DateTime  @default(now())
 
-  @@unique([cartId, userId, deviceId])
-  @@index([cartId])
+  @@unique([cartId, toDevice])
+  @@index([cartId, userId])
 }
 
 /**
@@ -610,16 +662,35 @@ model GroupKeyEnvelope {
  * who sent it and when — it cannot know what it says.
  */
 model GroupMessage {
-  id         String    @id @default(cuid())
-  cartId     String
-  cart       GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  senderId   String
-  sender     User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  iv         String
-  ciphertext String
-  createdAt  DateTime  @default(now())
+  id           String    @id @default(cuid())
+  cartId       String
+  cart         GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  senderId     String
+  sender       User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /**
+   * Which of the sender's devices wrote it. A user with a phone and a laptop
+   * has two chains, and a message only opens by ratcheting the right one.
+   */
+  senderDevice String    @default("")
+  /**
+   * Position in that device's chain. The receiver ratchets forward to here.
+   */
+  index        Int       @default(0)
+  /**
+   * Protocol version, so a later change never has to guess at old rows.
+   */
+  version      Int       @default(2)
+  iv           String
+  ciphertext   String
+  /**
+   * ECDSA signature by the sending device's group signing key. This is what
+   * stops one member writing a message that looks like another member's.
+   */
+  signature    String?
+  createdAt    DateTime  @default(now())
 
   @@index([cartId, createdAt])
+  @@index([cartId, senderDevice, index])
 }
 
 // Explicit membership: created when someone joins via code (and for the host).

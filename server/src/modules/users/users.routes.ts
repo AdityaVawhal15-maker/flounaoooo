@@ -53,6 +53,77 @@ usersRouter.post(
   },
 );
 
+// ---------- chat device identity ----------
+//
+// Registered against the ACCOUNT, not a conversation.
+//
+// A sender key distribution message carries the sender's chain at its current
+// position, so a device that appears after a message was sent can never read
+// that message. If registration only happened when someone opened a particular
+// chat, a member who joined a group and read it ten minutes later would find
+// everything said in between permanently locked. WhatsApp does not have that
+// problem because your phone is known to your account before any group exists,
+// which is what this route reproduces: sign in anywhere and your device is
+// publishable to every conversation you are in.
+usersRouter.post(
+  "/chat-device",
+  validateBody(
+    z
+      .object({
+        deviceId: z.string().trim().min(8).max(64),
+        publicKey: z
+          .string()
+          .trim()
+          .min(1)
+          .max(500)
+          .regex(/^[A-Za-z0-9+/=]+$/, "Expected base64"),
+        signingKey: z
+          .string()
+          .trim()
+          .min(1)
+          .max(500)
+          .regex(/^[A-Za-z0-9+/=]+$/, "Expected base64"),
+        label: z.string().trim().max(60).optional(),
+      })
+      .strict(),
+  ),
+  async (req, res, next) => {
+    try {
+      const { deviceId, publicKey, signingKey, label } = req.body as {
+        deviceId: string;
+        publicKey: string;
+        signingKey: string;
+        label?: string;
+      };
+
+      const existing = await prisma.chatDevice.findUnique({
+        where: { userId_deviceId: { userId: req.userId!, deviceId } },
+        select: { publicKey: true },
+      });
+      const rekeyed = Boolean(existing && existing.publicKey !== publicKey);
+
+      const device = await prisma.chatDevice.upsert({
+        where: { userId_deviceId: { userId: req.userId!, deviceId } },
+        create: { userId: req.userId!, deviceId, publicKey, signingKey, label },
+        update: { publicKey, signingKey, label, lastSeenAt: new Date() },
+        select: { deviceId: true, createdAt: true },
+      });
+
+      // A device whose key changed cannot open anything sealed to the old one,
+      // so those are dropped and senders re-seal rather than leaving it holding
+      // post it will never open.
+      if (rekeyed) {
+        await prisma.senderKeyEnvelope.deleteMany({ where: { recipientDevice: deviceId } });
+        await prisma.historySync.deleteMany({ where: { toDevice: deviceId } });
+      }
+
+      res.status(201).json({ device, rekeyed });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 usersRouter.get("/tickets", async (req, res, next) => {
   try {
     res.json({ tickets: await listUserTickets(req.userId!) });

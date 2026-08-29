@@ -4,27 +4,36 @@ import { prisma } from "../../lib/prisma.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
-import { sendPushToUser } from "../../modules/notifications/push.service.js";
+import { sendPushToUser } from "../notifications/push.service.js";
 
-// End-to-end encrypted group chat.
+// End-to-end encrypted group chat, on the Sender Keys design that Signal and
+// WhatsApp use for groups.
 //
-// Everything in this file is deliberately dumb about content. The server holds
-// three things: public keys, sealed envelopes it has no key for, and ciphertext
-// with a nonce. It knows who spoke and when, because it has to route and order
-// messages, and it knows nothing about what was said.
+// Every sending DEVICE owns a chain: a random chain key that ratchets forward
+// one way per message. The key for message N is derived from the chain key at
+// N, and the chain key at N+1 is derived from that same value, so a key
+// captured today cannot open yesterday's messages. Each device hands its chain
+// to every other member device once, sealed to that device's public key, and
+// after that it simply sends.
 //
-// What that buys, stated honestly: nobody reading the database — including us,
-// including a subpoena, including a stolen backup — can read a message. What it
-// does not buy: the server still serves the JavaScript that does the crypto, so
-// a compromised build could betray a user. That is true of every in-browser
-// E2EE product and the UI says so rather than implying otherwise.
+// The server's whole job is to be a courier that cannot read the post:
 //
-// The key exchange is ECDH P-256 → HKDF → AES-GCM, all via WebCrypto in the
-// browser. A member who holds the group key seals it once per recipient device.
-// Nothing here validates the crypto, because it cannot: to the server an
-// envelope is an opaque string, and pretending to check it would be theatre.
+//   · public keys, which are public by definition
+//   · sealed distribution messages it has no key for
+//   · ciphertext with a nonce, a chain index and a signature
+//
+// It knows who spoke, from which device, and when, because it has to route and
+// order messages. It knows nothing about what was said.
+//
+// The honest limit, stated here and in the UI rather than papered over: the
+// server serves the JavaScript that does the crypto, and the server decides
+// which devices appear in a member's device list. A compromised server could
+// therefore add a device and have members seal to it. That is true of every
+// in-browser E2EE product, and the answer used here is the one everyone else
+// uses — surface the device list and a safety number, so a change is visible.
 
 export const groupChatRouter = Router({ mergeParams: true });
+groupChatRouter.use(requireAuth);
 
 /**
  * The cart id arrives from the parent router through mergeParams, which Express
@@ -36,7 +45,6 @@ function cartIdOf(req: { params: unknown }): string {
   if (!id) throw new ApiError(404, "Group order not found");
   return id;
 }
-groupChatRouter.use(requireAuth);
 
 /** Base64 of a bounded size — enough to reject junk without parsing crypto. */
 const b64 = (max: number) =>
@@ -46,6 +54,8 @@ const b64 = (max: number) =>
     .min(1)
     .max(max)
     .regex(/^[A-Za-z0-9+/=]+$/, "Expected base64");
+
+const deviceIdSchema = z.string().trim().min(8).max(64);
 
 /** Membership is the whole access-control story: chat is per-cart. */
 async function assertMember(cartId: string, userId: string) {
@@ -62,122 +72,52 @@ async function assertMember(cartId: string, userId: string) {
   return cart;
 }
 
+/** Everyone entitled to be in this conversation. */
+async function memberIdsOf(cartId: string): Promise<string[]> {
+  const cart = await prisma.groupCart.findUniqueOrThrow({
+    where: { id: cartId },
+    select: { hostId: true, members: { select: { userId: true } } },
+  });
+  return [...new Set([cart.hostId, ...cart.members.map((m) => m.userId)])];
+}
+
+/**
+ * Confirms the caller is speaking as a device they actually registered.
+ *
+ * Without this a member could publish under someone else's device id, and since
+ * recipients key their chain state by device id, quietly take over that
+ * device's chain as far as every recipient is concerned.
+ */
+async function assertOwnDevice(userId: string, deviceId: string) {
+  const device = await prisma.chatDevice.findUnique({
+    where: { userId_deviceId: { userId, deviceId } },
+    select: { id: true },
+  });
+  if (!device) throw new ApiError(403, "Register this device first");
+}
+
 // ---------- device identity ----------
 
 /**
- * Registers this browser's public key.
+ * Registers this browser's public keys: one for sealing things TO it, one for
+ * proving things came FROM it.
  *
- * Re-registering the same deviceId replaces the key, which is what happens when
- * a user clears site data: the old private key is gone for good, so the old
- * public key is worthless and keeping it would only cause members to seal
- * envelopes nobody can open.
+ * Re-registering the same deviceId replaces both, which is what happens when a
+ * user clears site data: the private halves are gone for good, so the old
+ * public halves are worthless and keeping them would only make members seal
+ * chains nobody can open. When the key does change, every chain sealed to the
+ * old one is dropped so senders re-seal — otherwise the device would sit
+ * holding envelopes it can never open and blame the network.
  */
 groupChatRouter.post(
   "/devices",
   validateBody(
     z
       .object({
-        deviceId: z.string().trim().min(8).max(64),
+        deviceId: deviceIdSchema,
         publicKey: b64(500),
+        signingKey: b64(500),
         label: z.string().trim().max(60).optional(),
-      })
-      .strict(),
-  ),
-  async (req, res, next) => {
-    try {
-      const { deviceId, publicKey, label } = req.body as {
-        deviceId: string;
-        publicKey: string;
-        label?: string;
-      };
-      const device = await prisma.chatDevice.upsert({
-        where: { userId_deviceId: { userId: req.userId!, deviceId } },
-        create: { userId: req.userId!, deviceId, publicKey, label },
-        update: { publicKey, label, lastSeenAt: new Date() },
-        select: { deviceId: true, publicKey: true, createdAt: true },
-      });
-      res.status(201).json({ device });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-// ---------- key distribution ----------
-
-/**
- * Everything this device needs to join the conversation: every member device's
- * public key, and the envelope addressed to this device if one exists yet.
- *
- * Public keys are public by definition, so returning them to a fellow member is
- * not a leak. Envelopes are scoped to the caller — you are never handed one
- * sealed for somebody else, because that is exactly the string an attacker
- * would want to collect and grind on offline.
- */
-groupChatRouter.get("/keys", async (req, res, next) => {
-  try {
-    await assertMember(cartIdOf(req), req.userId!);
-    const cart = await prisma.groupCart.findUniqueOrThrow({
-      where: { id: cartIdOf(req) },
-      select: { hostId: true, members: { select: { userId: true } } },
-    });
-    const memberIds = [...new Set([cart.hostId, ...cart.members.map((m) => m.userId)])];
-
-    const devices = await prisma.chatDevice.findMany({
-      where: { userId: { in: memberIds } },
-      select: { userId: true, deviceId: true, publicKey: true },
-      orderBy: { createdAt: "asc" },
-    });
-
-    const mine = await prisma.groupKeyEnvelope.findMany({
-      where: { cartId: cartIdOf(req), userId: req.userId! },
-      select: { deviceId: true, senderKey: true, iv: true, wrappedKey: true },
-    });
-
-    // Which member devices are still waiting to be let in. Whoever holds the
-    // key seals for these on their next poll, so a late joiner does not depend
-    // on the host being awake.
-    const sealed = await prisma.groupKeyEnvelope.findMany({
-      where: { cartId: cartIdOf(req) },
-      select: { userId: true, deviceId: true },
-    });
-    const has = new Set(sealed.map((e) => `${e.userId}:${e.deviceId}`));
-    const pending = devices.filter((d) => !has.has(`${d.userId}:${d.deviceId}`));
-
-    res.json({ devices, envelopes: mine, pending });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * Uploads envelopes sealed for other people's devices.
- *
- * The server cannot tell a good envelope from a bad one, so it does the two
- * checks it actually can: the recipient must be a member of this cart, and an
- * envelope that already exists is not overwritten. Without that second rule any
- * member could replace everyone's envelope with one wrapping a key of their
- * choosing and quietly fork the conversation.
- */
-groupChatRouter.post(
-  "/keys",
-  validateBody(
-    z
-      .object({
-        envelopes: z
-          .array(
-            z
-              .object({
-                userId: z.string().cuid(),
-                deviceId: z.string().trim().min(8).max(64),
-                senderKey: b64(500),
-                iv: b64(64),
-                wrappedKey: b64(500),
-              })
-              .strict(),
-          )
-          .min(1)
-          .max(40),
       })
       .strict(),
   ),
@@ -185,27 +125,194 @@ groupChatRouter.post(
     try {
       const cartId = cartIdOf(req);
       await assertMember(cartId, req.userId!);
-      const { envelopes } = req.body as {
-        envelopes: {
-          userId: string;
-          deviceId: string;
-          senderKey: string;
-          iv: string;
-          wrappedKey: string;
-        }[];
+      const { deviceId, publicKey, signingKey, label } = req.body as {
+        deviceId: string;
+        publicKey: string;
+        signingKey: string;
+        label?: string;
       };
 
-      const cart = await prisma.groupCart.findUniqueOrThrow({
-        where: { id: cartId },
-        select: { hostId: true, members: { select: { userId: true } } },
+      const existing = await prisma.chatDevice.findUnique({
+        where: { userId_deviceId: { userId: req.userId!, deviceId } },
+        select: { publicKey: true },
       });
-      const memberIds = new Set([cart.hostId, ...cart.members.map((m) => m.userId)]);
+      const rekeyed = Boolean(existing && existing.publicKey !== publicKey);
+
+      const device = await prisma.chatDevice.upsert({
+        where: { userId_deviceId: { userId: req.userId!, deviceId } },
+        create: { userId: req.userId!, deviceId, publicKey, signingKey, label },
+        update: { publicKey, signingKey, label, lastSeenAt: new Date() },
+        select: { deviceId: true, publicKey: true, signingKey: true, createdAt: true },
+      });
+
+      if (rekeyed) {
+        await prisma.senderKeyEnvelope.deleteMany({ where: { recipientDevice: deviceId } });
+        await prisma.historySync.deleteMany({ where: { toDevice: deviceId } });
+      }
+
+      res.status(201).json({ device, rekeyed });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------- sender keys ----------
+
+/**
+ * Everything a device needs to take part: every member device's public keys,
+ * the chains sealed for THIS device, the devices this caller still owes its own
+ * chain to, and any history waiting to be handed over.
+ *
+ * Chains are scoped to the calling device. You are never handed one sealed for
+ * somebody else — including another of your own devices — because that is
+ * precisely the string an attacker would want to collect and grind on offline.
+ */
+groupChatRouter.get("/keys", async (req, res, next) => {
+  try {
+    const cartId = cartIdOf(req);
+    await assertMember(cartId, req.userId!);
+    const memberIds = await memberIdsOf(cartId);
+
+    const devices = await prisma.chatDevice.findMany({
+      where: { userId: { in: memberIds } },
+      select: {
+        userId: true,
+        deviceId: true,
+        publicKey: true,
+        signingKey: true,
+        createdAt: true,
+        user: { select: { name: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // Which of the caller's devices is asking. Only that device's inbound
+    // chains come back.
+    const asDevice =
+      typeof req.query.deviceId === "string" ? req.query.deviceId : undefined;
+    if (asDevice) await assertOwnDevice(req.userId!, asDevice);
+
+    const inbound = asDevice
+      ? await prisma.senderKeyEnvelope.findMany({
+          where: { cartId, recipientId: req.userId!, recipientDevice: asDevice },
+          select: {
+            senderId: true,
+            senderDevice: true,
+            senderKey: true,
+            iv: true,
+            payload: true,
+          },
+        })
+      : [];
+
+    // Devices this caller has not yet handed its own chain to.
+    const alreadySent = asDevice
+      ? await prisma.senderKeyEnvelope.findMany({
+          where: { cartId, senderDevice: asDevice },
+          select: { recipientDevice: true },
+        })
+      : [];
+    const sentTo = new Set(alreadySent.map((e) => e.recipientDevice));
+    const owed = asDevice ? devices.filter((d) => !sentTo.has(d.deviceId)) : [];
+
+    // History waiting for this device, from another device of the same user.
+    const history = asDevice
+      ? await prisma.historySync.findUnique({
+          where: { cartId_toDevice: { cartId, toDevice: asDevice } },
+          select: { fromDevice: true, senderKey: true, iv: true, payload: true },
+        })
+      : null;
+
+    res.json({
+      devices: devices.map((d) => ({
+        userId: d.userId,
+        name: d.user.name,
+        deviceId: d.deviceId,
+        publicKey: d.publicKey,
+        signingKey: d.signingKey,
+        addedAt: d.createdAt,
+        isYou: d.userId === req.userId,
+      })),
+      inbound,
+      owed: owed.map((d) => ({
+        userId: d.userId,
+        deviceId: d.deviceId,
+        publicKey: d.publicKey,
+      })),
+      history,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Publishes this device's chain, sealed once per recipient device.
+ *
+ * The server cannot tell a good envelope from a bad one, so it makes the checks
+ * it actually can: the sender must own the device it claims to be, the
+ * recipient must be in this cart, and an envelope that already exists is never
+ * replaced. That last rule is what stops a member re-sealing a chain around a
+ * value of their own choosing after the fact.
+ */
+groupChatRouter.post(
+  "/keys",
+  validateBody(
+    z
+      .object({
+        senderDevice: deviceIdSchema,
+        envelopes: z
+          .array(
+            z
+              .object({
+                recipientId: z.string().cuid(),
+                recipientDevice: deviceIdSchema,
+                senderKey: b64(500),
+                iv: b64(64),
+                payload: b64(2000),
+              })
+              .strict(),
+          )
+          .min(1)
+          .max(60),
+      })
+      .strict(),
+  ),
+  async (req, res, next) => {
+    try {
+      const cartId = cartIdOf(req);
+      await assertMember(cartId, req.userId!);
+      const { senderDevice, envelopes } = req.body as {
+        senderDevice: string;
+        envelopes: {
+          recipientId: string;
+          recipientDevice: string;
+          senderKey: string;
+          iv: string;
+          payload: string;
+        }[];
+      };
+      await assertOwnDevice(req.userId!, senderDevice);
+
+      const memberIds = new Set(await memberIdsOf(cartId));
 
       let written = 0;
       for (const e of envelopes) {
-        if (!memberIds.has(e.userId)) continue; // not in this room
+        if (!memberIds.has(e.recipientId)) continue; // not in this room
         try {
-          await prisma.groupKeyEnvelope.create({ data: { cartId, ...e } });
+          await prisma.senderKeyEnvelope.create({
+            data: {
+              cartId,
+              senderId: req.userId!,
+              senderDevice,
+              recipientId: e.recipientId,
+              recipientDevice: e.recipientDevice,
+              senderKey: e.senderKey,
+              iv: e.iv,
+              payload: e.payload,
+            },
+          });
           written++;
         } catch {
           // Already sealed for that device. First writer wins, on purpose.
@@ -218,31 +325,105 @@ groupChatRouter.post(
   },
 );
 
+// ---------- history sync ----------
+
+/**
+ * Hands a conversation's past from one of a user's devices to another of their
+ * own devices.
+ *
+ * Restricted to the same user at both ends. Letting anyone hand you a "history"
+ * would let a member rewrite what you believe was said before you arrived,
+ * which is worse than having no history at all.
+ */
+groupChatRouter.post(
+  "/history",
+  validateBody(
+    z
+      .object({
+        fromDevice: deviceIdSchema,
+        toDevice: deviceIdSchema,
+        senderKey: b64(500),
+        iv: b64(64),
+        payload: b64(400_000),
+      })
+      .strict(),
+  ),
+  async (req, res, next) => {
+    try {
+      const cartId = cartIdOf(req);
+      await assertMember(cartId, req.userId!);
+      const body = req.body as {
+        fromDevice: string;
+        toDevice: string;
+        senderKey: string;
+        iv: string;
+        payload: string;
+      };
+      if (body.fromDevice === body.toDevice) {
+        throw new ApiError(400, "A device cannot sync history to itself");
+      }
+      await assertOwnDevice(req.userId!, body.fromDevice);
+      await assertOwnDevice(req.userId!, body.toDevice);
+
+      try {
+        await prisma.historySync.create({
+          data: { cartId, userId: req.userId!, ...body },
+        });
+      } catch {
+        // Already delivered. First writer wins here too, so a later device
+        // cannot replace a history the recipient may already have read.
+        return res.json({ written: false });
+      }
+      res.status(201).json({ written: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/** Marks a delivered history as consumed, so it is not stored any longer than
+ *  the handover needs it to be. */
+groupChatRouter.delete("/history/:deviceId", async (req, res, next) => {
+  try {
+    const cartId = cartIdOf(req);
+    await assertMember(cartId, req.userId!);
+    const deviceId = req.params.deviceId!;
+    await assertOwnDevice(req.userId!, deviceId);
+    await prisma.historySync.deleteMany({ where: { cartId, toDevice: deviceId } });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- messages ----------
 
 const MAX_CIPHERTEXT = 8000; // ~4KB of plaintext once base64 and GCM overhead
 
 groupChatRouter.get("/messages", async (req, res, next) => {
   try {
-    await assertMember(cartIdOf(req), req.userId!);
-    // `after` lets the client poll for just what is new instead of refetching
-    // a conversation it already holds in plaintext locally.
+    const cartId = cartIdOf(req);
+    await assertMember(cartId, req.userId!);
+    // `after` lets a client poll for only what is new instead of refetching a
+    // conversation it already holds in plaintext locally.
     const after = typeof req.query.after === "string" ? req.query.after : undefined;
     const cursor = after ? new Date(after) : undefined;
     const messages = await prisma.groupMessage.findMany({
       where: {
-        cartId: cartIdOf(req),
-        ...(cursor && !Number.isNaN(cursor.getTime())
-          ? { createdAt: { gt: cursor } }
-          : {}),
+        cartId,
+        ...(cursor && !Number.isNaN(cursor.getTime()) ? { createdAt: { gt: cursor } } : {}),
       },
       orderBy: { createdAt: "asc" },
       take: 200,
       select: {
         id: true,
         senderId: true,
+        senderDevice: true,
+        index: true,
+        version: true,
         iv: true,
         ciphertext: true,
+        signature: true,
         createdAt: true,
         sender: { select: { name: true } },
       },
@@ -252,9 +433,13 @@ groupChatRouter.get("/messages", async (req, res, next) => {
         id: m.id,
         senderId: m.senderId,
         senderName: m.sender.name,
+        senderDevice: m.senderDevice,
+        index: m.index,
+        version: m.version,
         isYou: m.senderId === req.userId,
         iv: m.iv,
         ciphertext: m.ciphertext,
+        signature: m.signature,
         createdAt: m.createdAt,
       })),
     });
@@ -267,18 +452,59 @@ groupChatRouter.post(
   "/messages",
   validateBody(
     z
-      .object({ iv: b64(64), ciphertext: b64(MAX_CIPHERTEXT) })
+      .object({
+        senderDevice: deviceIdSchema,
+        index: z.number().int().min(0).max(1_000_000),
+        iv: b64(64),
+        ciphertext: b64(MAX_CIPHERTEXT),
+        signature: b64(300),
+      })
       .strict(),
   ),
   async (req, res, next) => {
     try {
       const cartId = cartIdOf(req);
       const cart = await assertMember(cartId, req.userId!);
-      const { iv, ciphertext } = req.body as { iv: string; ciphertext: string };
+      const { senderDevice, index, iv, ciphertext, signature } = req.body as {
+        senderDevice: string;
+        index: number;
+        iv: string;
+        ciphertext: string;
+        signature: string;
+      };
+      await assertOwnDevice(req.userId!, senderDevice);
+
+      // A chain position is used exactly once. Reusing one is either a replay
+      // or a client bug, and both end with a recipient deriving a key for a
+      // message that is not the one it is trying to open.
+      const clash = await prisma.groupMessage.findFirst({
+        where: { cartId, senderDevice, index },
+        select: { id: true },
+      });
+      if (clash) throw new ApiError(409, "That chain position is already used");
 
       const message = await prisma.groupMessage.create({
-        data: { cartId, senderId: req.userId!, iv, ciphertext },
-        select: { id: true, senderId: true, iv: true, ciphertext: true, createdAt: true },
+        data: {
+          cartId,
+          senderId: req.userId!,
+          senderDevice,
+          index,
+          version: 2,
+          iv,
+          ciphertext,
+          signature,
+        },
+        select: {
+          id: true,
+          senderId: true,
+          senderDevice: true,
+          index: true,
+          version: true,
+          iv: true,
+          ciphertext: true,
+          signature: true,
+          createdAt: true,
+        },
       });
 
       // The push cannot carry the message, because the server does not have it.
@@ -293,7 +519,7 @@ groupChatRouter.post(
       });
       for (const o of others) {
         void sendPushToUser(o.userId, {
-          title: cart.name ? `${cart.name}` : "Group order",
+          title: cart.name ?? "Group order",
           body: `${me?.name ?? "Someone"} sent a message`,
           url: `/food/group/${cartId}/chat`,
         });

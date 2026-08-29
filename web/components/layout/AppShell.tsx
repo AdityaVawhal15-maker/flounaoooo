@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -8,6 +8,7 @@ import { Sidebar } from "./Sidebar";
 import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
 import { useAuth } from "@/components/auth/AuthContext";
 import { AppLock } from "@/components/security/AppLock";
+import { registerDeviceQuietly } from "@/lib/groupChatSetup";
 
 // Layout for all signed-in screens: persistent sidebar on desktop, hamburger
 // drawer on mobile — one codebase, two views. The drawer is the single
@@ -26,6 +27,17 @@ export function AppShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+
+  // Publish this browser's chat keys as soon as somebody is signed in.
+  //
+  // A sender key distribution message carries the sender's chain at its current
+  // position, so a device only becomes readable-to from the moment it is known.
+  // Registering here rather than when a chat is opened is what stops a member
+  // finding everything said before they tapped through permanently locked.
+  useEffect(() => {
+    if (!user) return;
+    void registerDeviceQuietly();
+  }, [user]);
   const pathname = usePathname();
 
   // The account screens are drawn on their own near-white grey rather than the

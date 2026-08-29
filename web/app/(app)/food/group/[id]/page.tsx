@@ -22,6 +22,7 @@ import { useI18n } from "@/components/i18n/I18nContext";
 import { useToast } from "@/components/ui/Toast";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
+import { joinChatQuietly } from "@/lib/groupChatSetup";
 
 // Figma "Group Status": the named group, then every member with where they have
 // got to, then the one action the host has while waiting.
@@ -62,6 +63,15 @@ export default function GroupStatusPage({
     const timer = setInterval(load, POLL_MS);
     return () => clearInterval(timer);
   }, [load]);
+
+  // Publish this device's chat keys on arrival, not when the chat is first
+  // opened. A distribution message carries the chain's current position, so a
+  // device that appears after a message was sent can never read that message —
+  // being in the room is what has to register you, exactly as being in a
+  // WhatsApp group registers your phone whether the thread is open or not.
+  useEffect(() => {
+    void joinChatQuietly(id);
+  }, [id]);
 
   async function rename() {
     const name = draftName.trim();
