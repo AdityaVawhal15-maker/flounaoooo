@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users, ChevronLeft } from "lucide-react";
+import Link from "next/link";
+import { Users, ChevronLeft, Bookmark, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,7 +32,7 @@ export default function GroupStartPage() {
         method: "POST",
         json: { platform: "ondc" },
       });
-      router.push(`/food/group/${cart.id}`);
+      router.push(`/food/group/${cart.id}/invite`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start group order");
       setBusy(false);
@@ -72,9 +73,23 @@ export default function GroupStartPage() {
         {t("grp.groupOrderSub")}
       </p>
 
+      <Link
+        href="/food/crews"
+        className="mt-5 flex items-center gap-3 rounded-[18px] bg-card p-3.5 shadow-soft transition-colors hover:bg-beige/30"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+          <Bookmark size={18} className="text-accent" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-bold text-ink">{t("crew.title")}</span>
+          <span className="block text-[12px] text-cocoa">{t("crew.entrySub")}</span>
+        </span>
+        <ChevronRight size={17} className="shrink-0 text-cocoa/60" />
+      </Link>
+
       <div className="lg:mt-2 lg:grid lg:grid-cols-2 lg:gap-4">
       {/* Start new */}
-      <Card className="mt-5 lg:mt-0">
+      <Card className="mt-4 lg:mt-0">
         <p className="text-[14px] font-bold text-ink">{t("grp.startNew")}</p>
         <p className="mt-1 text-[12px] text-cocoa">
           {t("grp.startNewSub")}
