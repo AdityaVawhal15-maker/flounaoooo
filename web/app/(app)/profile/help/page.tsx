@@ -45,11 +45,12 @@ const GROUP_ICON: Record<string, typeof Car> = {
 const SUPPORT_PHONE = "+917396144250";
 
 export default function HelpCenterPage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <div className="min-h-dvh bg-acct-bg px-4 py-10 text-center text-[13px] text-acct-muted">
-          Loading…
+          {t("common.loading")}
         </div>
       }
     >
@@ -208,7 +209,9 @@ function HelpCenter() {
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           {topics === null ? (
-            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              {t("common.loading")}
+            </p>
           ) : top.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[14px] font-semibold text-acct-ink">

@@ -278,7 +278,7 @@ export default function PaymentMethodsPage() {
               </span>
               <button
                 onClick={() => setActing(null)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
               >
                 <X size={18} />
@@ -317,7 +317,7 @@ export default function PaymentMethodsPage() {
         >
           <div
             role="dialog"
-            aria-label="Add payment method"
+            aria-label={t("pp.pm.addMethod")}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-t-3xl bg-card p-5 lg:rounded-3xl"
           >
@@ -325,7 +325,7 @@ export default function PaymentMethodsPage() {
               <p className="text-[16px] font-bold text-acct-ink">{t("pp.pay.addMethod")}</p>
               <button
                 onClick={() => setAdding(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
               >
                 <X size={18} />

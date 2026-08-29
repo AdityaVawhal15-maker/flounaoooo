@@ -150,6 +150,7 @@ function Sheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 lg:items-center"
@@ -165,7 +166,7 @@ function Sheet({
           <p className="text-[16px] font-bold text-acct-ink">{title}</p>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("common.close")}
             className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
           >
             <X size={18} />
@@ -318,7 +319,7 @@ export default function PrivacySecurityPage() {
         <div className="flex items-center py-4">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
@@ -463,7 +464,7 @@ export default function PrivacySecurityPage() {
       )}
 
       {twoFactorStep === "code" && (
-        <Sheet title="Two-Factor Authentication" onClose={() => setTwoFactorStep(null)}>
+        <Sheet title={t("pp.priv.twoFactor")} onClose={() => setTwoFactorStep(null)}>
           <p className="mt-1 text-[13px] text-acct-muted">
             We emailed a 6-digit code to {user?.email}. Enter it to turn on
             two-factor sign-in.
@@ -493,7 +494,7 @@ export default function PrivacySecurityPage() {
       )}
 
       {twoFactorStep === "password" && (
-        <Sheet title="Turn off two-factor" onClose={() => setTwoFactorStep(null)}>
+        <Sheet title={t("pp.priv.turnOff2fa")} onClose={() => setTwoFactorStep(null)}>
           <p className="mt-1 text-[13px] text-acct-muted">
             Enter your password to remove the extra sign-in step.
           </p>
@@ -502,7 +503,7 @@ export default function PrivacySecurityPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
+            placeholder={t("pp.priv.yourPassword")}
             className="mt-4 h-12 w-full rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
           />
           {error && (

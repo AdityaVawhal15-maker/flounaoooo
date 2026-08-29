@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Gift } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 // Offers & Rewards → Reward History.
 //
@@ -22,15 +24,16 @@ type Entry = {
   createdAt: string;
 };
 
-const REASON_LABEL: Record<string, string> = {
-  cashback: "Cashback",
-  spend: "Used on an order",
-  refund: "Refund",
-  adjustment: "Adjustment",
+const REASON_KEY: Record<string, TranslationKey> = {
+  cashback: "pp.rew.cashback",
+  spend: "pp.rew.usedOnOrder",
+  refund: "pp.rew.refund",
+  adjustment: "pp.rew.adjustment",
 };
 
 export default function RewardHistoryPage() {
   const goBack = useBackTo("/profile/rewards");
+  const { t, lang } = useI18n();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [balancePaise, setBalancePaise] = useState<number | null>(null);
 
@@ -56,18 +59,18 @@ export default function RewardHistoryPage() {
         <div className="flex items-center py-4">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Reward History
+            {t("pp.rew.history")}
           </h1>
         </div>
 
         <div className="rounded-[18px] bg-card px-4 py-3.5 shadow-soft">
-          <p className="text-[12px] text-acct-muted">Current balance</p>
+          <p className="text-[12px] text-acct-muted">{t("pp.rew.currentBalance")}</p>
           <p className="mt-0.5 text-[22px] font-extrabold text-acct-ink">
             {balancePaise === null ? "—" : rupees(balancePaise)}
           </p>
@@ -75,17 +78,19 @@ export default function RewardHistoryPage() {
 
         <div className="mt-5 overflow-hidden rounded-[18px] bg-card shadow-soft">
           {entries === null ? (
-            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              {t("common.loading")}
+            </p>
           ) : entries.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-acct-tint">
                 <Gift size={22} className="text-acct-accent" />
               </span>
               <p className="mt-3 text-[15px] font-bold text-acct-ink">
-                No rewards yet
+                {t("pp.rew.noRewards")}
               </p>
               <p className="mt-1 text-[13px] text-acct-muted">
-                Cashback lands here once an order is completed.
+                {t("pp.rew.noRewardsSub")}
               </p>
             </div>
           ) : (
@@ -116,8 +121,8 @@ export default function RewardHistoryPage() {
                       {e.description}
                     </span>
                     <span className="block truncate text-[12px] text-acct-muted">
-                      {REASON_LABEL[e.reason] ?? e.reason} ·{" "}
-                      {new Date(e.createdAt).toLocaleDateString("en-IN", {
+                      {REASON_KEY[e.reason] ? t(REASON_KEY[e.reason]) : e.reason} ·{" "}
+                      {new Date(e.createdAt).toLocaleDateString(`${lang}-IN`, {
                         day: "numeric",
                         month: "short",
                         year: "numeric",

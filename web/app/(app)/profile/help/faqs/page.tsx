@@ -6,6 +6,8 @@ import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 // FAQs — the same knowledge base as the Help Centre and the chat assistant,
 // grouped and expandable rather than one row per screen. One source means the
@@ -14,16 +16,17 @@ import { cn } from "@/lib/cn";
 type Topic = { slug: string; title: string; summary: string };
 type Group = { group: string; topics: Topic[] };
 
-const GROUP_TITLE: Record<string, string> = {
-  orders: "Food orders",
-  rides: "Rides",
-  payments: "Payments and refunds",
-  offers: "Offers and rewards",
-  account: "Account and security",
+const GROUP_KEY: Record<string, TranslationKey> = {
+  orders: "pp.faq.orders",
+  rides: "pp.faq.rides",
+  payments: "pp.faq.payments",
+  offers: "pp.faq.offers",
+  account: "pp.faq.account",
 };
 
 export default function FaqsPage() {
   const goBack = useBackTo("/profile/help");
+  const { t } = useI18n();
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
@@ -47,18 +50,18 @@ export default function FaqsPage() {
         <div className="flex items-center py-4">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            FAQs
+            {t("pp.hc.faqs")}
           </h1>
         </div>
 
         {groups === null ? (
-          <p className="py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+          <p className="py-8 text-center text-[13px] text-acct-muted">{t("common.loading")}</p>
         ) : (
           <div className="flex flex-col gap-3">
             {groups.map((g) => {
@@ -75,10 +78,11 @@ export default function FaqsPage() {
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-bold text-acct-ink">
-                        {GROUP_TITLE[g.group] ?? g.group}
+                        {GROUP_KEY[g.group] ? t(GROUP_KEY[g.group]) : g.group}
                       </span>
                       <span className="block text-[12px] text-acct-muted">
-                        {g.topics.length} question{g.topics.length === 1 ? "" : "s"}
+                        {g.topics.length}{" "}
+                        {t(g.topics.length === 1 ? "pp.faq.question" : "pp.faq.questions")}
                       </span>
                     </span>
                     <ChevronDown
@@ -118,7 +122,7 @@ export default function FaqsPage() {
           href="/profile/help/contact"
           className="mt-5 flex h-[52px] w-full items-center justify-center rounded-pill border border-line bg-card text-[15px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
         >
-          Still need help? Contact us
+          {t("pp.faq.stillNeed")}
         </Link>
       </div>
     </div>

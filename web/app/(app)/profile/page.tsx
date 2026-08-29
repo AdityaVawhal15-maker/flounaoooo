@@ -217,7 +217,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3 py-5">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />

@@ -18,6 +18,8 @@ import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 // ONDC IGM 2.0 — Track Complaint and Complaint Resolved, restyled to the
 // Component-page Figma: a case card with a Copy chip, a fixed five-step
@@ -60,11 +62,11 @@ type Complaint = {
   refunds: Refund[];
 };
 
-const STATUS_LABEL: Record<Complaint["status"], string> = {
-  OPEN: "Complaint Submitted",
-  PROCESSING: "Being Investigated",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
+const STATUS_KEY: Record<Complaint["status"], TranslationKey> = {
+  OPEN: "cx.submitted",
+  PROCESSING: "cx.investigating",
+  RESOLVED: "cx.resolved",
+  CLOSED: "cx.closed",
 };
 
 const fmt = (iso: string) =>
@@ -73,6 +75,7 @@ const fmt = (iso: string) =>
 export default function ComplaintPage() {
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [orderTitle, setOrderTitle] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -85,9 +88,9 @@ export default function ComplaintPage() {
       const d = await api<{ complaint: Complaint }>(`/api/complaints/${params.id}`);
       setComplaint(d.complaint);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load this complaint");
+      setError(err instanceof Error ? err.message : t("cx.loadFailed"));
     }
-  }, [params.id]);
+  }, [params.id, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,15 +100,13 @@ export default function ComplaintPage() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Could not load this complaint",
-          );
+          setError(err instanceof Error ? err.message : t("cx.loadFailed"));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [params.id]);
+  }, [params.id, t]);
 
   // The case card names the order the way the customer knows it.
   useEffect(() => {
@@ -130,9 +131,9 @@ export default function ComplaintPage() {
       });
       setReply("");
       await load();
-      toast("Information sent");
+      toast(t("cx.infoSent"));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not send that");
+      toast(err instanceof Error ? err.message : t("cx.sendFailed"));
     } finally {
       setBusy(false);
     }
@@ -145,9 +146,9 @@ export default function ComplaintPage() {
         method: "POST",
       });
       await load();
-      toast(decision === "accept" ? "Resolution accepted" : "Resolution rejected");
+      toast(decision === "accept" ? t("cx.accepted") : t("cx.rejected"));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not record that");
+      toast(err instanceof Error ? err.message : t("cx.recordFailed"));
     } finally {
       setBusy(false);
     }
@@ -158,12 +159,12 @@ export default function ComplaintPage() {
     try {
       const d = await api<{ level: number }>(`/api/complaints/${params.id}/escalate`, {
         method: "POST",
-        json: { reason: "Not resolved to my satisfaction" },
+        json: { reason: t("cx.notSatisfied") },
       });
       await load();
-      toast(d.level === 1 ? "Escalated to the grievance officer" : "Escalated to ONDC");
+      toast(d.level === 1 ? t("cx.escalatedGro") : t("cx.escalatedOndc"));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "Could not escalate");
+      toast(err instanceof Error ? err.message : t("cx.escalateFailed"));
     } finally {
       setBusy(false);
     }
@@ -172,7 +173,7 @@ export default function ComplaintPage() {
   function copyCode() {
     if (!complaint) return;
     void navigator.clipboard?.writeText(complaint.code);
-    toast("Complaint ID copied");
+    toast(t("cx.idCopied"));
   }
 
   if (error) {
@@ -180,13 +181,17 @@ export default function ComplaintPage() {
       <div className="min-h-dvh bg-cream px-4 py-10 text-center">
         <p className="text-[15px] text-danger">{error}</p>
         <Link href="/history" className="mt-4 inline-block text-[14px] font-semibold text-accent">
-          Back to Orders
+          {t("cx.backToOrders")}
         </Link>
       </div>
     );
   }
   if (!complaint) {
-    return <div className="min-h-dvh bg-cream px-4 py-10 text-center text-muted">Loading...</div>;
+    return (
+      <div className="min-h-dvh bg-cream px-4 py-10 text-center text-muted">
+        {t("common.loading")}
+      </div>
+    );
   }
 
   const resolved = complaint.status === "RESOLVED" || complaint.status === "CLOSED";
@@ -198,19 +203,19 @@ export default function ComplaintPage() {
   // The design's fixed five-step ladder, derived from where the case actually
   // is. Timestamps come from the action trail where one plausibly matches.
   const steps: { label: string; done: boolean; at?: string }[] = [
-    { label: "Complaint Submitted", done: true, at: complaint.createdAt },
+    { label: t("cx.submitted"), done: true, at: complaint.createdAt },
     {
-      label: "Complaint Acknowledged",
+      label: t("cx.acknowledged"),
       done: investigating || resolved || complaint.actions.length > 1,
       at: complaint.actions[1]?.at,
     },
-    { label: "Being Investigated", done: investigating || resolved },
+    { label: t("cx.investigating"), done: investigating || resolved },
     {
-      label: "Resolved",
+      label: t("cx.resolved"),
       done: resolved,
       at: resolved ? complaint.actions[complaint.actions.length - 1]?.at : undefined,
     },
-    { label: "Refund Processed", done: refundDone, at: refund?.completedAt ?? undefined },
+    { label: t("cx.refundProcessed"), done: refundDone, at: refund?.completedAt ?? undefined },
   ];
 
   return (
@@ -219,13 +224,13 @@ export default function ComplaintPage() {
         <div className="flex items-center py-4">
           <Link
             href="/history"
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
           >
             <ArrowLeft size={18} className="text-ink" />
           </Link>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-ink">
-            {resolved ? "Complaint Resolved" : "Track Complaint"}
+            {resolved ? t("cx.resolvedTitle") : t("cx.trackTitle")}
           </h1>
         </div>
 
@@ -233,16 +238,16 @@ export default function ComplaintPage() {
           <>
             <div className="pt-6 text-center">
               <h2 className="text-[24px] font-extrabold text-ink">
-                Complaint Resolved
+                {t("cx.resolvedTitle")}
               </h2>
               <p className="mt-2 text-[14px] font-semibold text-ink">
                 {refund
-                  ? `Refund of ${rupees(refund.amountPaise)} has been ${refundDone ? "processed" : "initiated"}`
-                  : "Your complaint has been resolved"}
+                  ? `${t("cx.refundAmount")}: ${rupees(refund.amountPaise)} ${refundDone ? t("cx.processed") : t("cx.initiated")}`
+                  : t("cx.resolvedNoRefund")}
               </p>
               {refund && (
                 <p className="mt-1 text-[13px] text-muted">
-                  It will reflect in 3-5 business days.
+                  {t("cx.reflectDays")}
                 </p>
               )}
             </div>
@@ -252,7 +257,7 @@ export default function ComplaintPage() {
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-2 text-[15px] font-bold text-ink">
                     <span className="size-2 rounded-full bg-success" />
-                    Refund Details
+                    {t("cx.refundDetails")}
                   </p>
                   <span
                     className={cn(
@@ -263,35 +268,35 @@ export default function ComplaintPage() {
                     )}
                   >
                     {refundDone && <Check size={11} strokeWidth={3} />}
-                    {refundDone ? "Processed" : "Initiated"}
+                    {refundDone ? t("cx.processed") : t("cx.initiated")}
                   </span>
                 </div>
                 <dl className="mt-4 flex flex-col gap-3 text-[13px]">
                   <div className="flex items-center justify-between">
-                    <dt className="text-muted">Refund Amount</dt>
+                    <dt className="text-muted">{t("cx.refundAmount")}</dt>
                     <dd className="text-[16px] font-extrabold text-success">
                       {rupees(refund.amountPaise)}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-muted">Refund To</dt>
-                    <dd className="font-bold text-ink">Original payment method</dd>
+                    <dt className="text-muted">{t("cx.refundTo")}</dt>
+                    <dd className="font-bold text-ink">{t("cx.origMethod")}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-muted">Complaint ID</dt>
+                    <dt className="text-muted">{t("cx.complaintId")}</dt>
                     <dd className="flex items-center gap-2 font-bold text-ink">
                       {complaint.code}
                       <button
                         onClick={copyCode}
                         className="flex items-center gap-1 rounded-pill border border-line px-2 py-0.5 text-[11px] font-semibold text-ink transition-colors hover:bg-beige/40"
                       >
-                        <Copy size={11} /> Copy
+                        <Copy size={11} /> {t("cx.copy")}
                       </button>
                     </dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-muted">Timeline</dt>
-                    <dd className="font-bold text-ink">3-5 business days</dd>
+                    <dt className="text-muted">{t("cx.timeline")}</dt>
+                    <dd className="font-bold text-ink">{t("cx.businessDays")}</dd>
                   </div>
                 </dl>
               </div>
@@ -299,8 +304,8 @@ export default function ComplaintPage() {
 
             <div className="mt-5 flex items-center justify-between rounded-[16px] bg-card px-4 py-3.5 shadow-soft">
               <div>
-                <p className="text-[14px] font-bold text-ink">Rate your experience</p>
-                <p className="text-[12px] text-muted">How was our resolution?</p>
+                <p className="text-[14px] font-bold text-ink">{t("cx.rateExperience")}</p>
+                <p className="text-[12px] text-muted">{t("cx.howResolution")}</p>
               </div>
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((n) => (
@@ -309,7 +314,7 @@ export default function ComplaintPage() {
                     aria-label={`${n} star${n === 1 ? "" : "s"}`}
                     onClick={() => {
                       setStars(n);
-                      toast("Thanks for the feedback");
+                      toast(t("pp.chat.thanksFeedback"));
                     }}
                     className="transition-transform hover:scale-110"
                   >
@@ -327,13 +332,13 @@ export default function ComplaintPage() {
               href="/history"
               className="mt-7 flex h-[54px] w-full items-center justify-center rounded-[14px] border-[1.5px] border-acct-accent bg-card text-[15px] font-bold text-ink transition-colors hover:bg-accent-soft/40"
             >
-              Done
+              {t("cx.done")}
             </Link>
             <Link
               href="/history"
               className="mt-4 block text-center text-[14px] font-bold text-ink hover:underline"
             >
-              View all orders
+              {t("cx.viewAllOrders")}
             </Link>
           </>
         ) : (
@@ -342,32 +347,34 @@ export default function ComplaintPage() {
             <div className="rounded-[16px] bg-card p-4 shadow-soft">
               <div className="flex items-center justify-between gap-3">
                 <p className="min-w-0 truncate text-[15px] font-bold text-ink">
-                  Complaint ID: {complaint.code}
+                  {t("cx.complaintId")}: {complaint.code}
                 </p>
                 <button
                   onClick={copyCode}
                   className="flex shrink-0 items-center gap-1.5 rounded-pill border border-line px-2.5 py-1 text-[12px] font-semibold text-ink transition-colors hover:bg-beige/40"
                 >
-                  <Copy size={12} /> Copy
+                  <Copy size={12} /> {t("cx.copy")}
                 </button>
               </div>
               {orderTitle && (
-                <p className="mt-1.5 text-[13px] text-cocoa">Order: {orderTitle}</p>
+                <p className="mt-1.5 text-[13px] text-cocoa">
+                  {t("cx.order")}: {orderTitle}
+                </p>
               )}
               <p className="mt-0.5 text-[12px] text-muted">{fmt(complaint.createdAt)}</p>
               <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
                 <p className="flex items-center gap-2 text-[13px] font-bold text-ink">
                   <span className="size-2 rounded-full bg-ink" />
-                  {STATUS_LABEL[complaint.status]}
+                  {t(STATUS_KEY[complaint.status])}
                 </p>
                 <p className="flex items-center gap-1 text-[12px] text-muted">
-                  <Clock size={12} /> Est. 24-48 hrs
+                  <Clock size={12} /> {t("cx.estimate")}
                 </p>
               </div>
               {complaint.escalationLevel > 0 && (
                 <p className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-warning">
                   <ShieldAlert size={14} />
-                  Escalated to {complaint.escalationLevel === 1 ? "the grievance officer" : "ONDC"}
+                  {complaint.escalationLevel === 1 ? t("cx.escalatedGro") : t("cx.escalatedOndc")}
                 </p>
               )}
             </div>
@@ -377,16 +384,16 @@ export default function ComplaintPage() {
               <div className="mt-5 rounded-[16px] border border-warning/30 bg-card p-4 shadow-soft">
                 <p className="flex items-center gap-2 text-[15px] font-bold text-ink">
                   <MessageSquare size={16} className="text-warning" />
-                  More information needed
+                  {t("cx.moreInfo")}
                 </p>
                 <p className="mt-1.5 text-[14px] text-cocoa">
-                  {complaint.infoRequest ?? "The seller has asked for more detail."}
+                  {complaint.infoRequest ?? t("cx.sellerAsked")}
                 </p>
                 <textarea
                   value={reply}
                   onChange={(e) => setReply(e.target.value.slice(0, 2000))}
                   rows={3}
-                  placeholder="Type your reply..."
+                  placeholder={t("cx.replyPh")}
                   className="mt-3 w-full resize-none rounded-[12px] border border-line bg-card p-3 text-[14px] text-ink outline-none focus:border-accent"
                 />
                 <button
@@ -394,7 +401,7 @@ export default function ComplaintPage() {
                   onClick={sendInformation}
                   className="mt-3 h-[46px] w-full rounded-[12px] border-[1.5px] border-acct-accent bg-card text-[14px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-40"
                 >
-                  Send information
+                  {t("cx.sendInfo")}
                 </button>
               </div>
             )}
@@ -403,7 +410,7 @@ export default function ComplaintPage() {
             {pending.length > 0 && (
               <div className="mt-5">
                 <p className="mb-2 px-1 text-[13px] font-semibold text-muted">
-                  {pending.length > 1 ? "Choose a resolution" : "Proposed resolution"}
+                  {pending.length > 1 ? t("cx.chooseResolution") : t("cx.proposedResolution")}
                 </p>
                 <div className="flex flex-col gap-3">
                   {pending.map((r) => (
@@ -415,7 +422,7 @@ export default function ComplaintPage() {
                           </p>
                           {r.itemId && (
                             <p className="mt-0.5 text-[12px] text-muted">
-                              For item {r.itemId}
+                              {t("cx.forItem")} {r.itemId}
                             </p>
                           )}
                         </div>
@@ -431,14 +438,14 @@ export default function ComplaintPage() {
                           onClick={() => decide(r.id, "reject")}
                           className="h-[44px] flex-1 rounded-[12px] border border-line bg-card text-[14px] font-bold text-ink transition-colors hover:bg-beige/40 disabled:opacity-50"
                         >
-                          Reject
+                          {t("cx.reject")}
                         </button>
                         <button
                           disabled={busy}
                           onClick={() => decide(r.id, "accept")}
                           className="h-[44px] flex-[2] rounded-[12px] border-[1.5px] border-acct-accent bg-card text-[14px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-50"
                         >
-                          Accept
+                          {t("cx.accept")}
                         </button>
                       </div>
                     </div>
@@ -449,7 +456,7 @@ export default function ComplaintPage() {
 
             {/* Progress Timeline — the design's five fixed steps */}
             <div className="mt-5 rounded-[16px] bg-card p-4 shadow-soft">
-              <p className="text-[15px] font-bold text-ink">Progress Timeline</p>
+              <p className="text-[15px] font-bold text-ink">{t("cx.progressTimeline")}</p>
               <ol className="mt-4">
                 {steps.map((s, i) => {
                   const last = i === steps.length - 1;
@@ -499,10 +506,10 @@ export default function ComplaintPage() {
                 <Clock size={17} className="shrink-0 text-ink" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-bold text-ink">
-                    We are working on your complaint
+                    {t("cx.workingOnIt")}
                   </span>
                   <span className="block text-[12px] text-muted">
-                    You will be notified once it is resolved
+                    {t("cx.notifyResolved")}
                   </span>
                 </span>
                 <ChevronRight size={15} className="shrink-0 text-muted" />
@@ -514,10 +521,10 @@ export default function ComplaintPage() {
                 <Headset size={17} className="shrink-0 text-ink" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-bold text-ink">
-                    Need immediate help?
+                    {t("cx.immediateHelp")}
                   </span>
                   <span className="block text-[12px] text-muted">
-                    Chat with our support team
+                    {t("cx.chatSupport")}
                   </span>
                 </span>
                 <ChevronRight size={15} className="shrink-0 text-muted" />
@@ -531,8 +538,8 @@ export default function ComplaintPage() {
                 className="mt-5 h-[50px] w-full rounded-[14px] border border-warning/40 bg-card text-[14px] font-bold text-warning transition-colors hover:bg-warning-soft disabled:opacity-50"
               >
                 {complaint.escalationLevel === 0
-                  ? "Escalate to grievance officer"
-                  : "Escalate to ONDC"}
+                  ? t("cx.escalateGro")
+                  : t("cx.escalateOndc")}
               </button>
             )}
           </>

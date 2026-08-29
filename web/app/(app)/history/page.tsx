@@ -120,7 +120,7 @@ export default function HistoryPage() {
         <div className="flex items-center py-4">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
           >
             <ArrowLeft size={18} className="text-ink" />

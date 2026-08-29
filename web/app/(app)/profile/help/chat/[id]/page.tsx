@@ -112,7 +112,7 @@ export default function SupportChatPage() {
       });
       setChat(d.chat);
     } catch {
-      toast("Could not end the chat");
+      toast(t("pp.chat.endFailed"));
     } finally {
       setBusy(false);
     }
@@ -121,7 +121,7 @@ export default function SupportChatPage() {
   if (!chat) {
     return (
       <div className="min-h-dvh bg-acct-bg px-4 py-10 text-center text-[13px] text-acct-muted">
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }

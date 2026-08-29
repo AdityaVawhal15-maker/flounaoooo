@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth, type User } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { Select } from "@/components/ui/Select";
 
 // Figma "Personal Information" (2195:756): a read-only list of label/value
@@ -27,7 +28,16 @@ import { Select } from "@/components/ui/Select";
 // draw. Every value is real: Date of Birth was already stored at sign-up but
 // never returned by the API, and Gender is a new nullable column, so neither
 // row is placeholder text.
-const GENDERS = ["Female", "Male", "Non-binary", "Prefer not to say"];
+const GENDERS: { value: string; labelKey: TranslationKey }[] = [
+  { value: "Female", labelKey: "pp.det.female" },
+  { value: "Male", labelKey: "pp.det.male" },
+  { value: "Non-binary", labelKey: "pp.det.nonBinary" },
+  { value: "Prefer not to say", labelKey: "pp.det.preferNotSay" },
+];
+
+const GENDER_KEY: Record<string, TranslationKey> = Object.fromEntries(
+  GENDERS.map((g) => [g.value, g.labelKey]),
+);
 
 /** "2002-03-12" -> "12 Mar 2002", the format the design shows. */
 function formatDob(iso: string | null) {
@@ -59,6 +69,7 @@ function Row({
   onClick?: () => void;
   href?: string;
 }) {
+  const { t } = useI18n();
   const body = (
     <>
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-acct-tint">
@@ -71,7 +82,7 @@ function Row({
             value ? "text-acct-ink" : "text-acct-muted"
           }`}
         >
-          {value ?? "Not added"}
+          {value ?? t("pp.det.notAdded")}
         </span>
       </span>
       <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -163,13 +174,13 @@ export default function ProfileDetailsPage() {
         <div className="flex items-center gap-3 py-5">
           <button
             onClick={goBack}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
           </button>
           <h1 className="text-[18px] font-extrabold text-acct-ink">
-            Personal Information
+            {t("pp.det.title")}
           </h1>
         </div>
 
@@ -178,7 +189,7 @@ export default function ProfileDetailsPage() {
             <div className="rounded-[18px] bg-card p-4 shadow-soft">
               <div className="flex flex-col gap-4">
                 <label className="flex flex-col gap-1.5">
-                  <span className={label}>Full Name</span>
+                  <span className={label}>{t("pp.det.fullName")}</span>
                   <input
                     className={field}
                     value={name}
@@ -188,7 +199,7 @@ export default function ProfileDetailsPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className={label}>Email</span>
+                  <span className={label}>{t("pp.det.email")}</span>
                   {/* Changing the sign-in address needs re-verification, which
                       this screen can't do — shown, but not editable here. */}
                   <input
@@ -198,18 +209,18 @@ export default function ProfileDetailsPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className={label}>Phone Number</span>
+                  <span className={label}>{t("pp.det.phone")}</span>
                   <input
                     className={field}
                     type="tel"
                     inputMode="tel"
-                    placeholder="10-digit mobile number"
+                    placeholder={t("pp.det.mobilePh")}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className={label}>Date of Birth</span>
+                  <span className={label}>{t("pp.det.dob")}</span>
                   <input
                     className={field}
                     type="date"
@@ -219,13 +230,13 @@ export default function ProfileDetailsPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className={label}>Gender</span>
+                  <span className={label}>{t("pp.det.gender")}</span>
                   <Select
                     value={gender}
-                    label="Gender"
+                    label={t("pp.det.gender")}
                     options={[
-                      { value: "", label: "Prefer not to say" },
-                      ...GENDERS.map((g) => ({ value: g, label: g })),
+                      { value: "", label: t("pp.det.preferNotSay") },
+                      ...GENDERS.map((g) => ({ value: g.value, label: t(g.labelKey) })),
                     ]}
                     onChange={setGender}
                   />
@@ -252,14 +263,14 @@ export default function ProfileDetailsPage() {
                 }}
                 className="h-[52px] flex-1 rounded-pill border border-line bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={busy}
                 className="h-[52px] flex-[2] rounded-pill bg-acct-accent text-[16px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
-                {busy ? "Saving…" : "Save changes"}
+                {busy ? t("pp.det.saving") : t("pp.det.saveChanges")}
               </button>
             </div>
           </form>
@@ -268,32 +279,32 @@ export default function ProfileDetailsPage() {
             <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
               <Row
                 icon={UserRound}
-                label="Full Name"
+                label={t("pp.det.fullName")}
                 value={user?.name ?? null}
                 onClick={() => setEditing(true)}
               />
               <Row
                 icon={Mail}
-                label="Email"
+                label={t("pp.det.email")}
                 value={user?.email ?? null}
                 onClick={() => setEditing(true)}
               />
               <Row
                 icon={Phone}
-                label="Phone Number"
+                label={t("pp.det.phone")}
                 value={user?.phone ?? null}
                 onClick={() => setEditing(true)}
               />
               <Row
                 icon={Calendar}
-                label="Date of Birth"
+                label={t("pp.det.dob")}
                 value={formatDob(user?.dateOfBirth ?? null)}
                 onClick={() => setEditing(true)}
               />
               <Row
                 icon={UserRound}
-                label="Gender"
-                value={user?.gender ?? null}
+                label={t("pp.det.gender")}
+                value={user?.gender && GENDER_KEY[user.gender] ? t(GENDER_KEY[user.gender]) : (user?.gender ?? null)}
                 onClick={() => setEditing(true)}
               />
               {/* Address lives in the saved-addresses book, which has its own
@@ -315,7 +326,7 @@ export default function ProfileDetailsPage() {
               className="mt-6 flex h-[54px] w-full items-center justify-center gap-2 rounded-pill border-[1.5px] border-acct-accent bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-tint"
             >
               <Pencil size={17} />
-              Edit Information
+              {t("pp.det.editInfo")}
             </button>
           </>
         )}
