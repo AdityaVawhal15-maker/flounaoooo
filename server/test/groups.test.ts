@@ -154,3 +154,94 @@ describe("group ordering", () => {
     await host.agent.delete(`/api/groups/${id}/items/${hostItemId}`).expect(200);
   });
 });
+
+// Privacy & Security settings are only real if they change what happens here —
+// the one screen that puts two accounts in the same room.
+describe("group ordering honours privacy settings", () => {
+  it("a blocked user cannot join the blocker's cart, in either direction", async () => {
+    const host = await authedAgent();
+    const blocked = await authedAgent();
+
+    await host.agent
+      .post("/api/users/blocked")
+      .send({ email: blocked.email })
+      .expect(201);
+
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    // Same answer a closed cart gives, so this can't be used to detect a block.
+    await blocked.agent
+      .post("/api/groups/join")
+      .send({ code: cart.body.code })
+      .expect(409);
+
+    // And the reverse: someone who did the blocking isn't put back in a room
+    // with the person they blocked.
+    const theirCart = await blocked.agent
+      .post("/api/groups")
+      .send({ platform: "ondc" })
+      .expect(201);
+    await host.agent
+      .post("/api/groups/join")
+      .send({ code: theirCart.body.code })
+      .expect(409);
+  });
+
+  it("unblocking lets them join again", async () => {
+    const host = await authedAgent();
+    const other = await authedAgent();
+    const block = await host.agent
+      .post("/api/users/blocked")
+      .send({ email: other.email })
+      .expect(201);
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    await other.agent.post("/api/groups/join").send({ code: cart.body.code }).expect(409);
+
+    await host.agent.delete(`/api/users/blocked/${block.body.blocked.id}`).expect(200);
+    await other.agent.post("/api/groups/join").send({ code: cart.body.code }).expect(200);
+  });
+
+  it("profileVisibility 'nobody' hides a member's name from others but not themselves", async () => {
+    const host = await authedAgent();
+    const shy = await authedAgent();
+
+    await shy.agent
+      .put("/api/users/preferences")
+      .send({ profileVisibility: "nobody" })
+      .expect(200);
+
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    const id = cart.body.id;
+    await shy.agent.post("/api/groups/join").send({ code: cart.body.code }).expect(200);
+    await shy.agent.post(`/api/groups/${id}/items`).send({ dishId: "dum-biryani" }).expect(201);
+
+    const hostView = await host.agent.get(`/api/groups/${id}`).expect(200);
+    const asSeenByHost = hostView.body.members.find(
+      (m: { isYou: boolean }) => !m.isYou,
+    );
+    expect(asSeenByHost.name).toBe("Flouna user");
+
+    // The member still sees their own real name.
+    const ownView = await shy.agent.get(`/api/groups/${id}`).expect(200);
+    const asSeenBySelf = ownView.body.members.find((m: { isYou: boolean }) => m.isYou);
+    expect(asSeenBySelf.name).not.toBe("Flouna user");
+  });
+
+  it("activityStatus off means other members are never told you are active", async () => {
+    const host = await authedAgent();
+    const quiet = await authedAgent();
+
+    await quiet.agent
+      .put("/api/users/preferences")
+      .send({ activityStatus: false })
+      .expect(200);
+
+    const cart = await host.agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    const id = cart.body.id;
+    await quiet.agent.post("/api/groups/join").send({ code: cart.body.code }).expect(200);
+    await quiet.agent.post(`/api/groups/${id}/items`).send({ dishId: "dum-biryani" }).expect(201);
+
+    const hostView = await host.agent.get(`/api/groups/${id}`).expect(200);
+    const them = hostView.body.members.find((m: { isYou: boolean }) => !m.isYou);
+    expect(them.active).toBe(false);
+  });
+});

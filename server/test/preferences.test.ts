@@ -14,13 +14,23 @@ const DEFAULTS = {
   // Privacy & Security → Share My Location. Gates the rides screen
   // auto-detecting the rider's position.
   shareLocation: true,
+  // The rest of the Privacy & Security screen. Visibility and activity status
+  // are writable here; two-factor has its own confirm/disable endpoints, so it
+  // is read-only on this one.
+  profileVisibility: "everyone",
+  activityStatus: true,
+  twoFactorEnabled: false,
 };
+
+// GET adds a derived flag the PUT response doesn't carry: whether any device
+// has the biometric lock armed. It's a count of another table, not a column.
+const GET_DEFAULTS = { ...DEFAULTS, biometricLock: false };
 
 describe("user preferences", () => {
   it("defaults every preference to true", async () => {
     const { agent } = await authedAgent();
     const res = await agent.get("/api/users/preferences").expect(200);
-    expect(res.body).toEqual(DEFAULTS);
+    expect(res.body).toEqual(GET_DEFAULTS);
   });
 
   it("persists a partial update and leaves the other flags untouched", async () => {
@@ -32,7 +42,7 @@ describe("user preferences", () => {
     expect(put.body).toEqual({ ...DEFAULTS, emailUpdates: false });
 
     const res = await agent.get("/api/users/preferences").expect(200);
-    expect(res.body).toEqual({ ...DEFAULTS, emailUpdates: false });
+    expect(res.body).toEqual({ ...GET_DEFAULTS, emailUpdates: false });
   });
 
   it("updates several flags together", async () => {
@@ -72,6 +82,113 @@ describe("user preferences", () => {
 
   it("requires auth", async () => {
     await request(app).get("/api/users/preferences").expect(401);
+  });
+
+  it("accepts the three profile-visibility values and rejects anything else", async () => {
+    const { agent } = await authedAgent();
+    for (const v of ["contacts", "nobody", "everyone"]) {
+      const res = await agent
+        .put("/api/users/preferences")
+        .send({ profileVisibility: v })
+        .expect(200);
+      expect(res.body.profileVisibility).toBe(v);
+    }
+    await agent
+      .put("/api/users/preferences")
+      .send({ profileVisibility: "friends" })
+      .expect(400);
+  });
+
+  it("does not let two-factor be switched on through the preferences endpoint", async () => {
+    const { agent } = await authedAgent();
+    // Arming a login factor has to prove control of the mailbox first, so the
+    // flag is deliberately not writable here.
+    await agent
+      .put("/api/users/preferences")
+      .send({ twoFactorEnabled: true })
+      .expect(400);
+  });
+});
+
+describe("blocked users", () => {
+  it("blocks by email, lists the block, and removes it", async () => {
+    const { agent } = await authedAgent();
+    const other = await authedAgent();
+
+    const created = await agent
+      .post("/api/users/blocked")
+      .send({ email: other.email })
+      .expect(201);
+    expect(created.body.blocked.user.email).toBe(other.email);
+
+    const list = await agent.get("/api/users/blocked").expect(200);
+    expect(list.body.blocked).toHaveLength(1);
+
+    await agent.delete(`/api/users/blocked/${created.body.blocked.id}`).expect(200);
+    const after = await agent.get("/api/users/blocked").expect(200);
+    expect(after.body.blocked).toHaveLength(0);
+  });
+
+  it("blocking the same person twice does not create a duplicate", async () => {
+    const { agent } = await authedAgent();
+    const other = await authedAgent();
+    await agent.post("/api/users/blocked").send({ email: other.email }).expect(201);
+    await agent.post("/api/users/blocked").send({ email: other.email }).expect(201);
+    const list = await agent.get("/api/users/blocked").expect(200);
+    expect(list.body.blocked).toHaveLength(1);
+  });
+
+  it("refuses to block yourself or an address with no account", async () => {
+    const { agent, email } = await authedAgent();
+    await agent.post("/api/users/blocked").send({ email }).expect(404);
+    await agent
+      .post("/api/users/blocked")
+      .send({ email: "nobody-here@example.com" })
+      .expect(404);
+  });
+
+  it("one user's block list is not visible to another", async () => {
+    const { agent: a } = await authedAgent();
+    const { agent: b } = await authedAgent();
+    const target = await authedAgent();
+    const created = await a
+      .post("/api/users/blocked")
+      .send({ email: target.email })
+      .expect(201);
+    // B can neither see nor delete A's block.
+    expect((await b.get("/api/users/blocked").expect(200)).body.blocked).toHaveLength(0);
+    await b.delete(`/api/users/blocked/${created.body.blocked.id}`).expect(404);
+  });
+
+  it("requires auth", async () => {
+    await request(app).get("/api/users/blocked").expect(401);
+  });
+});
+
+describe("device locks (biometric)", () => {
+  it("registers a credential, reports the lock as on, and clears it", async () => {
+    const { agent } = await authedAgent();
+    expect((await agent.get("/api/users/preferences").expect(200)).body.biometricLock)
+      .toBe(false);
+
+    await agent
+      .post("/api/users/device-locks")
+      .send({ credentialId: "credential-abcdefgh", label: "Chrome on Windows" })
+      .expect(201);
+
+    expect((await agent.get("/api/users/preferences").expect(200)).body.biometricLock)
+      .toBe(true);
+    expect((await agent.get("/api/users/device-locks").expect(200)).body.locks)
+      .toHaveLength(1);
+
+    await agent.delete("/api/users/device-locks").expect(200);
+    expect((await agent.get("/api/users/preferences").expect(200)).body.biometricLock)
+      .toBe(false);
+  });
+
+  it("rejects a credential id that is too short", async () => {
+    const { agent } = await authedAgent();
+    await agent.post("/api/users/device-locks").send({ credentialId: "abc" }).expect(400);
   });
 });
 
