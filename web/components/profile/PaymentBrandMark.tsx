@@ -61,13 +61,28 @@ export function PaymentBrandMark({
   }
 
   if (type === "upi") {
+    // The UPI mark is the two-tone arrow device over the wordmark, not three
+    // differently coloured letters. Saffron above, green below, navy text —
+    // NPCI's own colours, drawn rather than bundled as their trademark file.
     return (
       <span className={frame} aria-hidden>
-        <span className="text-[11px] font-extrabold tracking-tight">
-          <span style={{ color: "#e8651a" }}>U</span>
-          <span style={{ color: "#0d7c3f" }}>P</span>
-          <span style={{ color: "#0d4a8f" }}>I</span>
-        </span>
+        <svg viewBox="0 0 44 26" className="h-5 w-9" role="img" aria-label="UPI">
+          <g>
+            <polygon points="2,2 11,2 6.5,11 0,11" fill="#F26522" />
+            <polygon points="5,15 14,15 9.5,24 3,24" fill="#00A94F" />
+          </g>
+          <text
+            x="17"
+            y="19"
+            fontSize="14"
+            fontWeight="700"
+            fontFamily="Inter, system-ui, sans-serif"
+            fill="#0B2A5B"
+            letterSpacing="0.5"
+          >
+            UPI
+          </text>
+        </svg>
       </span>
     );
   }
