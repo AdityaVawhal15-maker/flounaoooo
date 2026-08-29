@@ -1,441 +1,292 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Mail, LifeBuoy, CheckCircle2, Send } from "lucide-react";
-import { api, ApiClientError } from "@/lib/api";
-import { SubPage } from "@/components/profile/SubPage";
-import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Search,
+  Mic,
+  Phone,
+  ChevronRight,
+  Car,
+  ShoppingBag,
+  CreditCard,
+  Tag,
+  UserRound,
+  MessageCircle,
+  BookOpen,
+  Headset,
+} from "lucide-react";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
-import { useI18n } from "@/components/i18n/I18nContext";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
-// Question/answer and label copy lives in the dictionaries; these tables hold
-// only the keys so the component resolves them through t().
-const FAQS: { q: TranslationKey; a: TranslationKey }[] = [
-  { q: "pp.help.q1", a: "pp.help.a1" },
-  { q: "pp.help.q2", a: "pp.help.a2" },
-  { q: "pp.help.q3", a: "pp.help.a3" },
-  { q: "pp.help.q4", a: "pp.help.a4" },
-];
+// Figma "Help Center": a search field with voice input, an orange hero with a
+// call button, Top Topics, then "Still need help?".
+//
+// Topics come from the support knowledge base rather than being written into
+// this file, so the Help Centre, the article pages and the chat assistant all
+// answer from one source. Search runs against the same set.
 
-const CATEGORIES: { key: string; label: TranslationKey }[] = [
-  { key: "order", label: "pp.help.catOrder" },
-  { key: "payment", label: "pp.help.catPayment" },
-  { key: "refund", label: "pp.help.catRefund" },
-  { key: "account", label: "pp.help.catAccount" },
-  { key: "other", label: "pp.help.catOther" },
-];
+type Topic = { slug: string; group: string; title: string; summary: string };
 
-type Ticket = {
-  id: string;
-  category: string;
-  subject: string;
-  status: "open" | "in_progress" | "resolved" | "closed";
-  priority: string;
-  resolution: string | null;
-  createdAt: string;
-  updatedAt: string;
+const GROUP_ICON: Record<string, typeof Car> = {
+  rides: Car,
+  orders: ShoppingBag,
+  payments: CreditCard,
+  offers: Tag,
+  account: UserRound,
 };
 
-type OrderSummary = { id: string; title: string; status?: string; createdAt: string };
+// The founder's line, as drawn on the Contact Us frame.
+const SUPPORT_PHONE = "+917396144250";
 
-const STATUS_BADGE: Record<Ticket["status"], { label: TranslationKey; cls: string }> = {
-  open: { label: "pp.help.stOpen", cls: "bg-accent-soft text-accent" },
-  in_progress: { label: "pp.help.stInProgress", cls: "bg-beige text-cocoa" },
-  resolved: { label: "pp.help.stResolved", cls: "bg-success/10 text-success" },
-  closed: { label: "pp.help.stClosed", cls: "bg-line text-muted" },
-};
-
-export default function HelpPage() {
+export default function HelpCenterPage() {
   return (
-    <Suspense fallback={null}>
-      <HelpInner />
+    <Suspense
+      fallback={
+        <div className="min-h-dvh bg-acct-bg px-4 py-10 text-center text-[13px] text-acct-muted">
+          Loading…
+        </div>
+      }
+    >
+      <HelpCenter />
     </Suspense>
   );
 }
 
-function HelpInner() {
-  // Bound as `tr` because ticket rows below use `t` as their loop variable.
-  const { t: tr } = useI18n();
-  const prefillOrder = useSearchParams().get("order") ?? "";
+function HelpCenter() {
+  const router = useRouter();
+  const { toast } = useToast();
+  // Order pages and the ride tracker link here with ?order=<id> so help can
+  // start already attached to the order in question.
+  const orderId = useSearchParams().get("order");
+  const [startingOrderChat, setStartingOrderChat] = useState(false);
+  const [query, setQuery] = useState("");
+  const [topics, setTopics] = useState<Topic[] | null>(null);
+  const [listening, setListening] = useState(false);
 
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [openTicket, setOpenTicket] = useState<string | null>(null);
-
-  // Form state. When arriving via "Report an issue" on an order, the order is
-  // pre-linked and the category defaults to "order".
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]["key"]>(
-    prefillOrder ? "order" : "other",
-  );
-  const [orderId, setOrderId] = useState(prefillOrder);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-
-  function loadTickets() {
-    api<{ tickets: Ticket[] }>("/api/users/tickets")
-      .then((d) => setTickets(d.tickets))
-      .catch(() => setTickets([]));
-  }
-
-  useEffect(() => {
-    loadTickets();
-    api<{ orders: OrderSummary[] }>("/api/orders")
-      .then(async (d) => {
-        let list = d.orders.slice(0, 10);
-        // Deep-linked from "Report an issue" on an order that's older than the
-        // top-10 slice: resolve it so the dropdown shows it as selected instead
-        // of silently displaying the placeholder.
-        if (prefillOrder && !list.some((o) => o.id === prefillOrder)) {
-          const linked = await api<{ order: OrderSummary }>(`/api/orders/${prefillOrder}`)
-            .then((r) => r.order)
-            .catch(() => null);
-          if (linked) list = [linked, ...list];
-        }
-        setOrders(list);
-      })
-      .catch(() => setOrders([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const load = useCallback((q: string) => {
+    api<{ topics: Topic[] }>(`/api/support/topics${q ? `?q=${encodeURIComponent(q)}` : ""}`)
+      .then((d) => setTopics(d.topics))
+      .catch(() => setTopics([]));
   }, []);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    setSent(false);
+  useEffect(() => {
+    const id = setTimeout(() => load(query), query ? 250 : 0);
+    return () => clearTimeout(id);
+  }, [query, load]);
+
+  /** Voice search, using the same Web Speech API the chat bar uses. */
+  function startVoice() {
+    type SpeechCtor = new () => {
+      lang: string;
+      interimResults: boolean;
+      start(): void;
+      stop(): void;
+      onresult: ((e: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
+      onend: (() => void) | null;
+      onerror: (() => void) | null;
+    };
+    const w = window as unknown as {
+      SpeechRecognition?: SpeechCtor;
+      webkitSpeechRecognition?: SpeechCtor;
+    };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    const rec = new Ctor();
+    rec.lang = "en-IN";
+    rec.interimResults = false;
+    rec.onresult = (e) => setQuery(e.results[0][0].transcript);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    setListening(true);
+    rec.start();
+  }
+
+  // The design's five Top Topics: one representative row per group.
+  const top = (topics ?? []).filter((t, i, all) =>
+    query ? true : all.findIndex((x) => x.group === t.group) === i,
+  );
+
+  async function startOrderChat() {
+    setStartingOrderChat(true);
     try {
-      await api("/api/users/tickets", {
+      const d = await api<{ chat: { id: string } }>("/api/support/chats", {
         method: "POST",
-        json: {
-          category,
-          subject,
-          body,
-          ...(orderId ? { orderId } : {}),
-        },
+        json: { ...(orderId ? { orderId } : {}) },
       });
-      setSent(true);
-      setSubject("");
-      setBody("");
-      loadTickets();
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Couldn't send — try again.");
-    } finally {
-      setBusy(false);
+      router.push(`/profile/help/chat/${d.chat.id}`);
+    } catch {
+      toast("Could not start a chat just now");
+      setStartingOrderChat(false);
     }
   }
 
-  // Latest live order for the "current order help" card (Figma).
-  const liveOrder = orders.find((o) =>
-    ["confirmed", "in_progress"].includes((o as { status?: string }).status ?? ""),
-  ) as (OrderSummary & { status?: string }) | undefined;
-
-  // One-tap intents: pre-fill the ticket form and link the live order.
-  function prefill(cat: string, subj: string, linkOrder = true) {
-    setCategory(cat);
-    setSubject(subj);
-    if (linkOrder && liveOrder) setOrderId(liveOrder.id);
-  }
-
   return (
-    <SubPage title={tr("pp.help.title")}>
-      {/* Current order help — Figma: live order + one-tap intents */}
-      {liveOrder && (
-        <Card className="mb-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[14px] font-bold text-ink">Current order help</p>
-            <span className="flex items-center gap-1 rounded-pill bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent">
-              <span className="size-1.5 animate-pulse rounded-full bg-accent" /> LIVE
+    <div className="min-h-dvh bg-acct-bg">
+      <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
+        <div className="flex items-center py-4">
+          <button
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
+          >
+            <ArrowLeft size={18} className="text-acct-ink" />
+          </button>
+          <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
+            Help Center
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-pill bg-card px-4 py-3 shadow-soft">
+          <Search size={17} className="shrink-0 text-acct-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for help..."
+            aria-label="Search for help"
+            className="min-w-0 flex-1 bg-transparent text-[16px] text-acct-ink outline-none placeholder:text-acct-muted"
+          />
+          <button
+            onClick={startVoice}
+            aria-label="Search by voice"
+            className={cn(
+              "tap-target shrink-0 rounded-full p-1",
+              listening ? "text-acct-accent" : "text-acct-muted hover:text-acct-ink",
+            )}
+          >
+            <Mic size={17} />
+          </button>
+        </div>
+
+        {orderId && (
+          <button
+            onClick={startOrderChat}
+            disabled={startingOrderChat}
+            className="mt-4 flex w-full items-center gap-3 rounded-[18px] bg-card px-4 py-3.5 text-left shadow-soft transition-colors hover:bg-acct-bg disabled:opacity-60"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+              <Headset size={18} className="text-acct-accent" />
             </span>
-          </div>
-          <div className="mt-2.5 flex items-center gap-3 rounded-card bg-beige/40 px-3 py-2.5">
-            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
-              {liveOrder.title}
-            </p>
-            <Link
-              href={`/orders/${liveOrder.id}`}
-              className="shrink-0 rounded-pill bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f]"
-            >
-              Track
-            </Link>
-          </div>
-          <div className="mt-2 flex flex-col divide-y divide-line/70">
-            <Link
-              href={`/orders/${liveOrder.id}`}
-              className="py-2.5 text-[13px] text-ink hover:text-accent"
-            >
-              I want to cancel my order
-              <span className="block text-[11px] text-cocoa">
-                Cancel from the order screen before pickup
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">
+                Get help with this order
               </span>
-            </Link>
-            <button
-              onClick={() => prefill("order", "Order is taking too long")}
-              className="py-2.5 text-left text-[13px] text-ink hover:text-accent"
-            >
-              Order is taking too long
-              <span className="block text-[11px] text-cocoa">
-                Raise it below — we chase the delivery partner
+              <span className="block text-[12px] text-acct-muted">
+                {startingOrderChat
+                  ? "Starting…"
+                  : "Start a chat with the order already attached"}
               </span>
-            </button>
-            <button
-              onClick={() => prefill("order", "Wrong delivery address")}
-              className="py-2.5 text-left text-[13px] text-ink hover:text-accent"
-            >
-              Wrong delivery address
-              <span className="block text-[11px] text-cocoa">
-                Tell us before pickup and we update it
-              </span>
-            </button>
-          </div>
-        </Card>
-      )}
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </button>
+        )}
 
-      {/* Quick actions — Figma grid */}
-      <div className="mb-4 grid grid-cols-4 gap-2">
-        <QuickAction
-          label="Refund status"
-          onClick={() => prefill("refund", "Where is my refund?", false)}
-        />
-        <QuickAction
-          label="Payment issue"
-          onClick={() => prefill("payment", "Payment problem", false)}
-        />
-        <QuickAction label="Rate order" href="/history" />
-        <QuickAction
-          label="Missing item"
-          onClick={() => prefill("order", "Item missing from my order")}
-        />
-      </div>
+        {/* Hero */}
+        <div
+          className="mt-4 rounded-[18px] p-5 text-white shadow-lift"
+          style={{ background: "linear-gradient(135deg, #e8651a 0%, #b33b06 100%)" }}
+        >
+          <p className="text-[17px] font-extrabold">How can we help you?</p>
+          <p className="mt-1 text-[12px] text-white/80">
+            Find answers or reach our team instantly
+          </p>
+          <a
+            href={`tel:${SUPPORT_PHONE}`}
+            className="mt-4 inline-flex items-center gap-2 rounded-pill bg-black/25 px-4 py-2.5 text-[14px] font-bold text-white backdrop-blur transition-colors hover:bg-black/35"
+          >
+            <Phone size={15} /> Call Support
+          </a>
+        </div>
 
-      {/* Raise a ticket */}
-      <Card>
-        <h2 className="flex items-center gap-1.5 text-[14px] font-bold text-ink">
-          <LifeBuoy size={15} className="text-accent" /> {tr("pp.help.raise")}
-        </h2>
-        <p className="mt-1 text-[12px] leading-relaxed text-cocoa">
-          {tr("pp.help.intro")}
+        <p className="mb-2 mt-6 px-1 text-[16px] font-extrabold text-acct-ink">
+          {query ? "Results" : "Top Topics"}
         </p>
 
-        <form onSubmit={submit} className="mt-4 flex flex-col gap-3.5">
-          {/* Category chips */}
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setCategory(c.key)}
-                className={cn(
-                  "rounded-pill px-3.5 py-1.5 text-[12px] font-semibold transition-colors",
-                  category === c.key
-                    ? "bg-cocoa text-white"
-                    : "border border-line bg-card text-cocoa hover:bg-beige/40",
-                )}
-              >
-                {tr(c.label)}
-              </button>
-            ))}
-          </div>
-
-          {/* Optional order link */}
-          {orders.length > 0 && (
-            <label className="block">
-              <span className="mb-1.5 block text-[12px] font-semibold text-cocoa">
-                {tr("pp.help.aboutOrder")}
-              </span>
-              <select
-                value={orderId}
-                onChange={(e) => setOrderId(e.target.value)}
-                className="h-12 w-full rounded-pill border border-line bg-card px-4 text-[14px] text-ink outline-none focus:border-accent"
-              >
-                <option value="">{tr("pp.help.notAboutOrder")}</option>
-                {orders.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.title} · {new Date(o.createdAt).toLocaleDateString("en-IN")}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <Input
-            label={tr("pp.help.subject")}
-            placeholder={tr("pp.help.subjectPh")}
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            minLength={3}
-            maxLength={140}
-            required
-          />
-
-          <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-cocoa">
-              {tr("pp.help.whatHappened")}
-            </span>
-            <textarea
-              required
-              minLength={5}
-              maxLength={2000}
-              rows={4}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={tr("pp.help.detailsPh")}
-              className="w-full resize-none rounded-card border border-line bg-card px-4 py-3 text-[14px] leading-relaxed text-ink outline-none placeholder:text-muted focus:border-accent"
-            />
-          </label>
-
-          {error && <p className="text-[13px] text-danger">{error}</p>}
-          {sent && (
-            <p className="flex items-center gap-1.5 text-[13px] font-medium text-success">
-              <CheckCircle2 size={15} /> {tr("pp.help.raised")}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={busy || subject.trim().length < 3 || body.trim().length < 5}
-            className="flex h-12 items-center justify-center gap-2 rounded-pill bg-cocoa text-[14px] font-semibold text-white transition-colors hover:bg-ink disabled:opacity-50"
-          >
-            <Send size={15} /> {busy ? tr("pp.help.sending") : tr("pp.help.submit")}
-          </button>
-        </form>
-      </Card>
-
-      {/* My tickets */}
-      {tickets.length > 0 && (
-        <div className="mt-5">
-          <h2 className="mb-2.5 text-[14px] font-bold text-ink">{tr("pp.help.myTickets")}</h2>
-          <div className="flex flex-col gap-2.5">
-            {tickets.map((t) => {
-              const badge = STATUS_BADGE[t.status] ?? STATUS_BADGE.open;
-              const expanded = openTicket === t.id;
+        <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
+          {topics === null ? (
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+          ) : top.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <p className="text-[14px] font-semibold text-acct-ink">
+                Nothing matched &ldquo;{query}&rdquo;
+              </p>
+              <p className="mt-1 text-[13px] text-acct-muted">
+                Start a chat and describe it in your own words.
+              </p>
+            </div>
+          ) : (
+            top.map((t, i) => {
+              const Icon = GROUP_ICON[t.group] ?? ShoppingBag;
               return (
-                <Card key={t.id} className="p-0">
-                  <button
-                    onClick={() => setOpenTicket(expanded ? null : t.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-semibold text-ink">
-                        {t.subject}
-                      </p>
-                      <p className="mt-0.5 text-[11px] capitalize text-muted">
-                        {t.category} ·{" "}
-                        {new Date(t.createdAt).toLocaleDateString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                        })}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-pill px-2.5 py-1 text-[11px] font-bold",
-                        badge.cls,
-                      )}
-                    >
-                      {tr(badge.label)}
-                    </span>
-                    <ChevronDown
-                      size={15}
-                      className={cn(
-                        "shrink-0 text-cocoa transition-transform",
-                        expanded && "rotate-180",
-                      )}
-                    />
-                  </button>
-                  {expanded && (
-                    <div className="border-t border-line px-4 py-3.5">
-                      {t.resolution ? (
-                        <>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-success">
-                            Support reply
-                          </p>
-                          <p className="mt-1 text-[13px] leading-relaxed text-ink">
-                            {t.resolution}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-[13px] text-cocoa">
-                          Our team is on it — the reply will appear here.
-                        </p>
-                      )}
-                    </div>
+                <Link
+                  key={t.slug}
+                  href={`/profile/help/topics/${t.slug}`}
+                  className={cn(
+                    "flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg",
+                    i < top.length - 1 && "border-b border-line",
                   )}
-                </Card>
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint">
+                    <Icon size={17} className="text-acct-accent" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold text-acct-ink">
+                      {t.title}
+                    </span>
+                    {query && (
+                      <span className="block truncate text-[12px] text-acct-muted">
+                        {t.summary}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+                </Link>
               );
-            })}
-          </div>
+            })
+          )}
         </div>
-      )}
 
-      {/* FAQs */}
-      <h2 className="mb-2.5 mt-6 text-[14px] font-bold text-ink">{tr("pp.help.faqs")}</h2>
-      <div className="flex flex-col gap-2.5">
-        {FAQS.map((f, i) => (
-          <Card key={i} className="p-0">
-            <button
-              onClick={() => setOpenFaq(openFaq === i ? null : i)}
-              className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
-            >
-              <span className="flex-1 text-[14px] font-semibold text-ink">{tr(f.q)}</span>
-              <ChevronDown
-                size={16}
-                className={cn(
-                  "shrink-0 text-cocoa transition-transform",
-                  openFaq === i && "rotate-180",
-                )}
-              />
-            </button>
-            {openFaq === i && (
-              <p className="px-4 pb-4 text-[13px] leading-relaxed text-cocoa">{tr(f.a)}</p>
-            )}
-          </Card>
-        ))}
+        <p className="mb-2 mt-6 px-1 text-[16px] font-extrabold text-acct-ink">
+          Still need help?
+        </p>
+
+        <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
+          <Link
+            href="/profile/help/contact"
+            className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 transition-colors hover:bg-acct-bg"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint">
+              <MessageCircle size={17} className="text-acct-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">Contact Us</span>
+              <span className="block text-[12px] text-acct-muted">
+                Chat or call with our support team
+              </span>
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </Link>
+          <Link
+            href="/profile/help/faqs"
+            className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint">
+              <BookOpen size={17} className="text-acct-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">FAQs</span>
+              <span className="block text-[12px] text-acct-muted">
+                Find answers to common questions
+              </span>
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </Link>
+        </div>
       </div>
-
-      <a
-        href="mailto:support@flouna.app"
-        className="mt-5 flex items-center justify-center gap-2 rounded-pill border border-line bg-card py-3 text-[14px] font-semibold text-ink transition-colors hover:bg-beige/40"
-      >
-        <Mail size={16} className="text-accent" /> Contact support
-      </a>
-    </SubPage>
-  );
-}
-
-// Small quick-action tile (Figma "Quick Actions" grid).
-function QuickAction({
-  label,
-  onClick,
-  href,
-}: {
-  label: string;
-  onClick?: () => void;
-  href?: string;
-}) {
-  const cls =
-    "flex flex-col items-center gap-1.5 rounded-card border border-line bg-card px-2 py-3 text-center text-[11px] font-semibold text-ink transition-colors hover:bg-beige/40";
-  const icon = (
-    <span className="flex size-8 items-center justify-center rounded-full bg-accent-soft">
-      <LifeBuoy size={15} className="text-accent" />
-    </span>
-  );
-  return href ? (
-    <Link href={href} className={cls}>
-      {icon}
-      {label}
-    </Link>
-  ) : (
-    <button onClick={onClick} className={cls}>
-      {icon}
-      {label}
-    </button>
+    </div>
   );
 }
