@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Gift } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
@@ -30,7 +30,7 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 export default function RewardHistoryPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile/rewards");
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [balancePaise, setBalancePaise] = useState<number | null>(null);
 
@@ -55,7 +55,7 @@ export default function RewardHistoryPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, MessageSquare, Phone, Mail, Headset } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -21,6 +22,7 @@ const SUPPORT_HOURS = "9:00 AM - 9:00 PM";
 
 export default function ContactUsPage() {
   const router = useRouter();
+  const goBack = useBackTo("/profile/help");
   const { toast } = useToast();
   const { t } = useI18n();
   const [starting, setStarting] = useState(false);
@@ -44,7 +46,7 @@ export default function ContactUsPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { I18nProvider } from "@/components/i18n/I18nContext";
 import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeContext";
+import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -49,7 +50,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <I18nProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <NavHistoryTracker />
+              {children}
+            </AuthProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

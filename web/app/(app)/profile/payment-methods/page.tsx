@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   Plus,
@@ -53,7 +53,7 @@ const WALLETS = ["Paytm Wallet", "PhonePe Wallet", "Amazon Pay", "Mobikwik"] as 
 type AddType = "card" | "upi" | "wallet";
 
 export default function PaymentMethodsPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile");
   const { toast } = useToast();
   const { t } = useI18n();
   const [methods, setMethods] = useState<Method[] | null>(null);
@@ -154,7 +154,7 @@ export default function PaymentMethodsPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

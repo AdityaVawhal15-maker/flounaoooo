@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import Link from "next/link";
 import { ArrowLeft, Percent, Wallet, Tag, ShieldCheck } from "lucide-react";
 
@@ -35,14 +35,14 @@ const STEPS = [
 ];
 
 export default function HowRewardsWorkPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile/rewards");
 
   return (
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

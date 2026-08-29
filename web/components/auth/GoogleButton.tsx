@@ -60,7 +60,7 @@ export function GoogleButton({
               json: { credential },
             });
             setUser(d.user);
-            router.push("/home");
+            router.replace("/home");
           } catch (e) {
             onError(e instanceof Error ? e.message : "Google sign-in failed");
           }
@@ -107,7 +107,7 @@ export function GoogleButton({
           json: { credential: "dev-mock-google" },
         });
         setUser(d.user);
-        router.push("/home");
+        router.replace("/home");
       } catch (e) {
         onError(e instanceof Error ? e.message : "Google sign-in failed");
       }

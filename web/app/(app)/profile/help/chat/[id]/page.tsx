@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, SendHorizonal, Headset, Star, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -42,6 +43,9 @@ export default function SupportChatPage() {
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
   const { t } = useI18n();
+  // Was router.push("/profile/help"), which pushed a second Help entry and
+  // made back on Help go forward into this chat again, forever.
+  const goBack = useBackTo("/profile/help");
   const [chat, setChat] = useState<Chat | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -91,7 +95,8 @@ export default function SupportChatPage() {
       setChat(d.chat);
       toast(t("pp.chat.thanksFeedback"));
       // Back to the Help Centre once the conversation is genuinely over.
-      setTimeout(() => router.push("/profile/help"), 1200);
+      // The conversation is over, so it should not be re-enterable by back.
+      setTimeout(() => router.replace("/profile/help"), 1200);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Could not save that rating");
     } finally {
@@ -131,7 +136,7 @@ export default function SupportChatPage() {
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pb-4 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center gap-3 py-4">
           <button
-            onClick={() => router.push("/profile/help")}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
@@ -269,7 +274,7 @@ export default function SupportChatPage() {
               </>
             )}
             <button
-              onClick={() => router.push("/profile/help")}
+              onClick={() => router.replace("/profile/help")}
               className="mt-3 text-[13px] font-semibold text-acct-muted hover:underline"
             >
               {t("pp.chat.skip")}

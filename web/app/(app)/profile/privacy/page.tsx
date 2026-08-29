@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   ChevronRight,
@@ -178,7 +178,7 @@ function Sheet({
 }
 
 export default function PrivacySecurityPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile");
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useI18n();
@@ -317,7 +317,7 @@ export default function PrivacySecurityPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

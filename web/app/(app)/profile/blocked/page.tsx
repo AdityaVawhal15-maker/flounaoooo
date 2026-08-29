@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, UserX, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -22,7 +22,7 @@ type Blocked = {
 };
 
 export default function BlockedUsersPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile/privacy");
   const { toast } = useToast();
   const { t } = useI18n();
   const [rows, setRows] = useState<Blocked[] | null>(null);
@@ -75,7 +75,7 @@ export default function BlockedUsersPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

@@ -51,7 +51,8 @@ export default function SignupPage() {
         json: { name: name.trim(), email: email.trim(), password },
       });
       sessionStorage.setItem("pendingEmail", email.trim());
-      router.push("/verify");
+      // The account exists now; back into the signup form would only fail.
+      router.replace("/verify");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed");
     } finally {

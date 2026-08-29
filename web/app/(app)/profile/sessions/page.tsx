@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, Monitor, Smartphone, LogOut } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -63,7 +63,7 @@ function when(iso: string | null, t: (k: TranslationKey) => string, locale: stri
 }
 
 export default function LoginActivityPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile/privacy");
   const { toast } = useToast();
   const { t, lang } = useI18n();
   const locale = lang === "en" ? "en-IN" : `${lang}-IN`;
@@ -119,7 +119,7 @@ export default function LoginActivityPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

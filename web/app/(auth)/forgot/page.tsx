@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
@@ -19,6 +20,7 @@ type Step = "email" | "reset";
 // it just stops /forgot being the one screen still wearing the brand palette.
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const leaveAuth = useBackTo("/login");
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
@@ -84,7 +86,8 @@ export default function ForgotPasswordPage() {
         method: "POST",
         json: { email: email.trim(), code, password },
       });
-      router.push("/login?reset=1");
+      // The reset is done; going back into the form would be meaningless.
+      router.replace("/login?reset=1");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reset password");
       setBusy(false);
@@ -107,7 +110,7 @@ export default function ForgotPasswordPage() {
       <div className="mx-auto w-full max-w-[420px]">
         <button
           type="button"
-          onClick={() => (step === "reset" ? setStep("email") : router.push("/login"))}
+          onClick={() => (step === "reset" ? setStep("email") : leaveAuth())}
           aria-label="Back"
           className="flex size-10 items-center justify-center rounded-full bg-auth-well text-auth-ink transition-colors hover:bg-auth-well/80"
         >

@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   Search,
@@ -59,6 +60,7 @@ export default function HelpCenterPage() {
 
 function HelpCenter() {
   const router = useRouter();
+  const goBack = useBackTo("/profile");
   const { toast } = useToast();
   const { t } = useI18n();
   // Order pages and the ride tracker link here with ?order=<id> so help can
@@ -132,7 +134,7 @@ function HelpCenter() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

@@ -67,7 +67,7 @@ export default function LoginPage() {
           json: { email: email.trim(), code },
         });
         setUser(verified.user);
-        router.push("/home");
+        router.replace("/home");
         return;
       }
 
@@ -83,12 +83,12 @@ export default function LoginPage() {
         return;
       }
       setUser(d.user);
-      router.push("/home");
+      router.replace("/home");
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 403) {
         // Account exists but email unverified — backend has re-sent a code.
         sessionStorage.setItem("pendingEmail", email.trim());
-        router.push("/verify");
+        router.replace("/verify");
         return;
       }
       setError(err instanceof Error ? err.message : "Sign in failed");
@@ -108,7 +108,7 @@ export default function LoginPage() {
         json: { phone: `${dial}${phone.replace(/\D/g, "")}` },
       });
       sessionStorage.setItem("pendingPhone", `${dial}${phone.replace(/\D/g, "")}`);
-      router.push("/verify");
+      router.replace("/verify");
     } catch (err) {
       // The backend returns 501 until an SMS provider is contracted. Say so
       // plainly and point at the path that does work, rather than failing mute.

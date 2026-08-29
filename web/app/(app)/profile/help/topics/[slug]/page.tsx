@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -21,6 +22,7 @@ type Topic = {
 
 export default function HelpTopicPage() {
   const router = useRouter();
+  const goBack = useBackTo("/profile/help");
   const params = useParams<{ slug: string }>();
   const { toast } = useToast();
   const [topic, setTopic] = useState<Topic | null | "missing">(null);
@@ -59,7 +61,7 @@ export default function HelpTopicPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { api } from "@/lib/api";
 import {
   UserRound,
@@ -183,6 +184,7 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
+  const goBack = useBackTo("/home");
   const [location, setLocation] = useState<string | null>(null);
 
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? "U";
@@ -214,7 +216,7 @@ export default function ProfilePage() {
             generic "Flouna" bar instead, which Figma's frame doesn't draw. */}
         <div className="flex items-center gap-3 py-5">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="tap-target rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
@@ -296,7 +298,9 @@ export default function ProfilePage() {
           <button
             onClick={async () => {
               await logout();
-              router.push("/login");
+              // replace, not push: after signing out, back must not return
+              // to a screen this account can no longer see.
+              router.replace("/login");
             }}
             className="mt-7 flex w-full items-center justify-center gap-2 rounded-pill bg-danger py-4 text-[16px] font-bold text-white transition-opacity hover:opacity-90"
           >

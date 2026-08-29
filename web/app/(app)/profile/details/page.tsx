@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   UserRound,
@@ -96,7 +96,7 @@ function Row({
 }
 
 export default function ProfileDetailsPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile");
   const { t } = useI18n();
   const { user, setUser } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -162,7 +162,7 @@ export default function ProfileDetailsPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center gap-3 py-5">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             aria-label="Back"
             className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >

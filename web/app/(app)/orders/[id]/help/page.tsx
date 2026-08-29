@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   Package,
@@ -42,9 +43,11 @@ type Step = "problem" | "details" | "submitted";
 type OrderCard = { title: string; itemCount: number | null; createdAt: string };
 
 export default function OrderHelpPage() {
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const orderId = params.id;
+  // Same fault as the support chat: pushing the order screen as "back" grew
+  // the stack instead of unwinding it.
+  const leaveFlow = useBackTo(`/orders/${params.id}`);
 
   const [step, setStep] = useState<Step>("problem");
   const [order, setOrder] = useState<OrderCard | null>(null);
@@ -135,8 +138,9 @@ export default function OrderHelpPage() {
   }
 
   function back() {
+    // Within the form, back walks the steps; at the first step it leaves.
     if (step === "details") setStep("problem");
-    else router.push(`/orders/${orderId}`);
+    else leaveFlow();
   }
 
   return (
