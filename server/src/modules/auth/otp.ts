@@ -12,7 +12,7 @@ export async function createOtp(opts: {
   userId?: string;
   channel: "email" | "phone";
   target: string;
-  purpose: "signup" | "login" | "reset" | "step_up";
+  purpose: "signup" | "login" | "reset" | "step_up" | "login_2fa" | "two_factor_setup";
 }) {
   const active = await prisma.otpCode.count({
     where: {
@@ -43,7 +43,7 @@ export async function createOtp(opts: {
 
 export async function consumeOtp(opts: {
   target: string;
-  purpose: "signup" | "login" | "reset" | "step_up";
+  purpose: "signup" | "login" | "reset" | "step_up" | "login_2fa" | "two_factor_setup";
   code: string;
 }) {
   const candidates = await prisma.otpCode.findMany({

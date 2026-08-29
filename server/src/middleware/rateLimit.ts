@@ -26,3 +26,20 @@ export const joinLimiter = makeLimiter({
   limit: 15,
   message: "Too many attempts — slow down a moment.",
 });
+
+// Endpoints that take the account password or an emailed code from an
+// already-authenticated caller. A stolen session must not become an offline
+// oracle for guessing the password behind it.
+export const credentialLimiter = makeLimiter({
+  windowMs: 60_000,
+  limit: 10,
+  message: "Too many attempts — try again in a minute.",
+});
+
+// Blocking takes an email address and answers differently for a registered one,
+// which makes it an account-existence oracle if it can be called in a loop.
+export const lookupLimiter = makeLimiter({
+  windowMs: 60_000,
+  limit: 20,
+  message: "Too many attempts — try again in a minute.",
+});
