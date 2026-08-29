@@ -129,7 +129,7 @@ function PlaceSearch({
           }}
           onFocus={() => places.length > 0 && setOpen(true)}
           placeholder={label}
-          className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-cocoa/50"
+          className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-cocoa/50"
         />
         {action}
       </div>

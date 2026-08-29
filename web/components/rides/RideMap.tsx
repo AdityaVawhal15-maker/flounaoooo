@@ -37,8 +37,16 @@ export function RideMap({
       style: STYLE_URL,
       center: [78.4747, 17.385], // Hyderabad
       zoom: 11,
-      attributionControl: { compact: true },
+      // Added explicitly below rather than left at its default. The default
+      // sits bottom-right, which on this screen is underneath the location
+      // sheet — MapTiler and OpenStreetMap both require the credit to stay
+      // legible, so it goes top-left where nothing covers it.
+      attributionControl: false,
     });
+    map.addControl(
+      new maplibregl.AttributionControl({ compact: true }),
+      "top-left",
+    );
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("click", (e) => {
       onPickRef.current?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });

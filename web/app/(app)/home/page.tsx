@@ -354,7 +354,10 @@ function ChatHome() {
         {/* Ask bar — the redesign lifts the send button out of the field into
             its own accent circle beside it (Figma 2177:4763). */}
         <div className="flex items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-pill bg-white py-3 pl-5 pr-4 shadow-card">
+          {/* bg-card, not a hardcoded white: the text inside is text-ink, which
+              flips to near-white in dark mode. Against a fixed white pill that
+              left what you typed at 1.13:1 contrast — invisible. */}
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-pill bg-card py-3 pl-5 pr-4 shadow-card">
             <SearchIcon size={19} className="shrink-0 text-ink/70" />
             <input
               value={input}

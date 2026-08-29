@@ -390,14 +390,14 @@ export default function FoodLandingPage() {
 
       {/* Desktop bottom search — the big docked pill from the Figma desktop */}
       <div className="pointer-events-none fixed inset-x-0 bottom-6 z-20 hidden lg:block">
-        <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-3 rounded-[30px] border border-[#d0c8c0] bg-white py-2.5 pl-6 pr-2.5 shadow-[0px_6px_18px_rgba(0,0,0,0.10)]">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-3 rounded-[30px] border border-[#d0c8c0] bg-card py-2.5 pl-6 pr-2.5 shadow-[0px_6px_18px_rgba(0,0,0,0.10)]">
           <Search size={20} className="shrink-0 text-ink" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("food.searchPlaceholder")}
             maxLength={120}
-            className="h-9 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-cocoa/50"
+            className="h-9 min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-cocoa/50"
           />
           <VoiceButton onTranscript={setQuery} onFinal={setQuery} />
           <span className="flex size-[42px] shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -462,21 +462,26 @@ function DishRow({ q }: { q: FoodQuote }) {
   }
   return (
     <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
-      <div className="flex items-center gap-3">
+      {/* Wraps rather than squeezing: the price and the two buttons are a fixed
+          width, so on a narrow phone they used to crush the dish name down to a
+          single character and break "28 min" across two lines. Giving the text
+          column a minimum basis makes the action group drop to its own line
+          instead, which keeps the name readable at 320px. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <DishArt name={q.name} size={48} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-36">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}
           </span>
           <p className="mt-1 truncate text-[15px] font-bold text-ink">{q.name}</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-cocoa">
-            <Clock size={11} /> {q.etaMinutes} min
+          <p className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-[12px] text-cocoa">
+            <Clock size={11} className="shrink-0" /> {q.etaMinutes} min
             <span className="flex items-center gap-0.5">
-              <Star size={11} className="fill-accent text-accent" /> {q.rating}
+              <Star size={11} className="shrink-0 fill-accent text-accent" /> {q.rating}
             </span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <p className="text-[16px] font-bold text-ink">{rupees(q.effectivePaise)}</p>
           <button
             onClick={addToCart}

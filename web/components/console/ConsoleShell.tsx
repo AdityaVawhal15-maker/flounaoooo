@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
+  Menu,
   Flag,
   ScrollText,
   Users,
@@ -106,6 +108,10 @@ export function ConsoleShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  // The sidebar is a fixed 224px column. On a phone that left roughly 100px
+  // for the page itself, which shredded every stat card and table on the
+  // console. Below lg it becomes a drawer instead.
+  const [navOpen, setNavOpen] = useState(false);
 
   async function signOut() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -123,8 +129,18 @@ export function ConsoleShell({
 
   return (
     <div className="flex min-h-dvh">
+      {/* Scrim behind the drawer on small screens. */}
+      {navOpen && (
+        <button
+          aria-label="Close menu"
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        />
+      )}
       <aside
-        className="flex w-56 shrink-0 flex-col text-white"
+        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col text-white transition-transform lg:static lg:translate-x-0 ${
+          navOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
         style={{ background: "var(--c-crimson)" }}
       >
         <div
@@ -154,6 +170,7 @@ export function ConsoleShell({
                   <Link
                     key={n.href}
                     href={n.href}
+                    onClick={() => setNavOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors"
                     style={
                       active
@@ -200,7 +217,30 @@ export function ConsoleShell({
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto px-8 py-7">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile header: the only way to reach the nav once it's a drawer. */}
+        <header
+          className="flex items-center gap-3 px-4 py-3 text-white lg:hidden"
+          style={{ background: "var(--c-crimson)" }}
+        >
+          <button
+            onClick={() => setNavOpen(true)}
+            aria-label="Open menu"
+            className="rounded-lg p-1.5 transition-colors hover:bg-white/10"
+          >
+            <Menu size={20} />
+          </button>
+          <span className="c-serif text-[15px] font-extrabold tracking-tight">
+            Algorithec
+          </span>
+          <span className="ml-auto text-[11px] uppercase tracking-[0.14em] text-white/60">
+            Console
+          </span>
+        </header>
+        <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 lg:px-8 lg:py-7">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

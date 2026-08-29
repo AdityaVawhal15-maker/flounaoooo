@@ -69,7 +69,7 @@ function StateButton({
     "flex h-[52px] w-full items-center justify-center rounded-[59px] text-[15px] transition-opacity hover:opacity-90",
     variant === "primary"
       ? "bg-state-accent font-bold text-white"
-      : "border border-line bg-white font-semibold text-state-ink",
+      : "border border-line bg-card font-semibold text-state-ink",
   );
 
   // A link where it navigates, a button where it acts — so keyboard and screen

@@ -24,8 +24,8 @@ import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
-// Sidebar (Figma 2177:1233): outlined "New Conversation" pill, an "AI
-// Assistants" card whose rows carry a round icon badge and a chevron, and a
+// Sidebar (Figma 2177:1233): outlined "New Conversation" pill, an
+// nav card whose rows carry a round icon badge and a chevron, and a
 // profile card pinned to the foot. Icons and row text stay black/ink at every
 // row — the design leans on weight and the row tint to mark the active item,
 // not brand-accent colour.
@@ -43,7 +43,7 @@ const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
 ];
 
 // Signed-out variant (Figma 2177:1180-ish "logged out" frame): no account to
-// show recent chats or the AI Assistants nav for, so the card holds the
+// show recent chats or the signed-in nav for, so the card holds the
 // legal/settings links instead. Not reachable today — every (app) route
 // still sits behind RequireAuth — but correct and ready for whenever a
 // guest-browsing surface exists to render it on.
@@ -187,22 +187,14 @@ export function Sidebar({
           )}
         </Link>
 
-        <p
-          className={cn(
-            "mt-6 px-1 text-[13px] font-bold text-muted",
-            collapsed && "lg:hidden",
-          )}
-        >
-          {user ? "AI Assistants" : ""}
-        </p>
-
-        {/* Nav card — AI Assistants for a signed-in account, legal/settings
-            links for a guest (Figma's signed-out frame draws no chat nav,
-            since there's no account to attach recent chats to). */}
+        {/* Nav card — the signed-in destinations, or legal/settings links for a
+            guest (Figma's signed-out frame draws no chat nav, since there's no
+            account to attach recent chats to). It carries its own top margin:
+            the section heading that used to sit above it, and provide that
+            gap, has been removed. */}
         <nav
           className={cn(
-            "overflow-hidden rounded-[20px] bg-card shadow-soft",
-            user ? "mt-2" : "mt-6",
+            "mt-6 overflow-hidden rounded-[20px] bg-card shadow-soft",
             collapsed && "lg:bg-transparent lg:shadow-none",
           )}
         >

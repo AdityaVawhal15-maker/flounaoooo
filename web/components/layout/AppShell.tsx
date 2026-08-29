@@ -7,6 +7,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
 import { useAuth } from "@/components/auth/AuthContext";
+import { AppLock } from "@/components/security/AppLock";
 
 // Layout for all signed-in screens: persistent sidebar on desktop, hamburger
 // drawer on mobile — one codebase, two views. The drawer is the single
@@ -38,9 +39,21 @@ export function AppShell({
   // same hand-built row, so the generic hamburger bar stacking above it is
   // the same redundant double-header everywhere in this family, not just
   // the one screen that happened to get checked first.
-  const hideHeader = onAccountGround;
+  //
+  // Booking History, Need Help and the complaint tracker draw the same
+  // centred back-arrow header, so they belong to that family too.
+  const ownsHeader =
+    onAccountGround ||
+    pathname === "/history" ||
+    pathname.startsWith("/complaints/") ||
+    /^\/orders\/[^/]+\/help$/.test(pathname);
+  const hideHeader = ownsHeader;
 
   return (
+    // Biometric Lock wraps the whole signed-in shell: when this device has a
+    // platform credential registered and the last unlock has expired, nothing
+    // behind it renders until the person passes their fingerprint or face.
+    <AppLock>
     <div className="flex min-h-dvh w-full">
       <PriceAlertListener />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -98,5 +111,6 @@ export function AppShell({
         <main className="flex-1 pb-6">{children}</main>
       </div>
     </div>
+    </AppLock>
   );
 }
