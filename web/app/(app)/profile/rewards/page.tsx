@@ -1,176 +1,220 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { PiggyBank, BadgePercent, Sparkles, Pizza, Car } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-} from "recharts";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Gift, ReceiptText, CircleHelp, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
-import { SubPage } from "@/components/profile/SubPage";
-import { Card } from "@/components/ui/Card";
-import { CountUp } from "@/components/ui/CountUp";
+import { useToast } from "@/components/ui/Toast";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
-import { useI18n } from "@/components/i18n/I18nContext";
+import { cn } from "@/lib/cn";
 
-type Savings = {
-  totalSavedPaise: number;
-  paidOrders: number;
-  byDomain?: { food: number; ride: number };
-  weekly?: { weekStart: string; savedPaise: number }[];
-};
+// Figma "Offers & Rewards": a balance hero, the offers the buyer can actually
+// use, then Reward History and How it works.
+//
+// The balance is the rewards wallet's real ledger sum, and the offers are the
+// live coupon rows — nothing on this screen is a display number. "Apply" puts
+// the code on the clipboard and remembers it, so the next checkout picks it up
+// rather than making the buyer retype it.
 
-const EMPTY: Savings = { totalSavedPaise: 0, paidOrders: 0 };
+type Coupon = { code: string; description: string; minOrderPaise: number };
+
+/** The short badge the design puts in the tile: F100, R50, NEW. */
+function badgeFor(code: string) {
+  const upper = code.toUpperCase();
+  const digits = upper.match(/\d+/)?.[0];
+  // Wordmark codes (NEWUSER) get their first syllable; numbered ones get the
+  // initial plus the number, which is what makes F100 and R50 readable.
+  if (!digits) return upper.slice(0, 3);
+  return `${upper[0]}${digits}`;
+}
 
 export default function RewardsPage() {
-  const { t } = useI18n();
-  const [savings, setSavings] = useState<Savings | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
+  const [balancePaise, setBalancePaise] = useState<number | null>(null);
+  const [coupons, setCoupons] = useState<Coupon[] | null>(null);
+  const [applied, setApplied] = useState<string | null>(null);
 
+  const load = useCallback(() => {
+    api<{ balancePaise: number }>("/api/users/wallet")
+      .then((d) => setBalancePaise(d.balancePaise))
+      .catch(() => setBalancePaise(0));
+    // Food and rides run separate coupon pools; this screen is the account-wide
+    // view, so it shows both rather than pretending one of them is everything.
+    Promise.all([
+      api<{ coupons: Coupon[] }>("/api/coupons?domain=food").catch(() => ({ coupons: [] })),
+      api<{ coupons: Coupon[] }>("/api/coupons?domain=ride").catch(() => ({ coupons: [] })),
+    ])
+      .then(([food, ride]) => {
+        const seen = new Set<string>();
+        setCoupons(
+          [...food.coupons, ...ride.coupons].filter((c) =>
+            seen.has(c.code) ? false : (seen.add(c.code), true),
+          ),
+        );
+      })
+      .catch(() => setCoupons([]));
+  }, []);
+  useEffect(load, [load]);
+
+  // Read in an async task, not in the effect body: local storage is an
+  // external store, and setting state synchronously here cascades a second
+  // render before the first has painted.
   useEffect(() => {
-    api<Savings>("/api/users/savings")
-      .then(setSavings)
-      .catch(() => setSavings(EMPTY));
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      try {
+        setApplied(localStorage.getItem("flouna.coupon"));
+      } catch {
+        // Storage unavailable — the code simply isn't remembered.
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const weekly = savings?.weekly ?? [];
-  const hasTrend = weekly.some((w) => w.savedPaise > 0);
-  const chartData = weekly.map((w) => ({
-    label: new Date(w.weekStart).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-    }),
-    rupees: Math.round(w.savedPaise / 100),
-  }));
-  const food = savings?.byDomain?.food ?? 0;
-  const ride = savings?.byDomain?.ride ?? 0;
-  const splitTotal = food + ride;
+  function apply(code: string) {
+    // Remembered for checkout, which re-validates it server-side; the copy is
+    // the fallback for anyone who'd rather paste it themselves.
+    try {
+      localStorage.setItem("flouna.coupon", code);
+    } catch {
+      // Not fatal — the toast still tells them the code.
+    }
+    void navigator.clipboard?.writeText(code).catch(() => {});
+    setApplied(code);
+    toast(`${code} saved for your next order`);
+  }
 
   return (
-    <SubPage title={t("profile.rewards")}>
-      <FadeIn y={10}>
-        <div
-          className="relative overflow-hidden rounded-card p-5 text-white shadow-lift"
-          style={{ background: "linear-gradient(135deg, #ff8a4c 0%, #e8651a 100%)" }}
-        >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-8 -top-10 size-40 rounded-full bg-white/15 blur-2xl"
-          />
-          <div className="relative flex items-center gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-[16px] bg-white/20 backdrop-blur">
-              <PiggyBank size={24} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[12px] font-medium text-white/80">{t("pp.rew.totalSaved")}</p>
-              <p className="text-[30px] font-bold leading-tight tracking-tight">
-                {savings ? (
-                  <CountUp
-                    value={savings.totalSavedPaise}
-                    format={(n) => rupees(Math.round(n))}
-                  />
-                ) : (
-                  "—"
-                )}
-              </p>
-            </div>
-          </div>
-          <p className="relative mt-3 text-[12px] text-white/85">
-            {savings?.paidOrders
-              ? `Across ${savings.paidOrders} order${savings.paidOrders === 1 ? "" : "s"} — versus the next-best option each time.`
-              : t("pp.rew.emptyNote")}
-          </p>
+    <div className="min-h-dvh bg-acct-bg">
+      <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
+        <div className="flex items-center py-4">
+          <button
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
+          >
+            <ArrowLeft size={18} className="text-acct-ink" />
+          </button>
+          <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
+            Offers &amp; Rewards
+          </h1>
         </div>
-      </FadeIn>
 
-      {/* Weekly savings trend */}
-      {hasTrend && (
-        <FadeIn delay={0.1} className="mt-5">
-          <Card>
-            <p className="text-[13px] font-bold text-ink">{t("pp.rew.weekly")}</p>
-            <p className="text-[11px] text-cocoa">{t("pp.rew.weeklySub")}</p>
-            <div className="mt-3 h-[150px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 6, right: 4, left: 4, bottom: 0 }}>
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 10, fill: "#8b5e3c" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(232,101,26,0.08)" }}
-                    formatter={(v) => [rupees(Number(v) * 100), "Saved"]}
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: "1px solid #eee3da",
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="rupees" fill="#e8651a" radius={[6, 6, 0, 0]} maxBarSize={34} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+        {/* Balance hero */}
+        <FadeIn y={10}>
+          <div
+            className="relative overflow-hidden rounded-[18px] p-5 text-white shadow-lift"
+            style={{ background: "linear-gradient(135deg, #e8651a 0%, #b33b06 100%)" }}
+          >
+            <p className="text-[13px] font-medium text-white/80">Your Balance</p>
+            <p className="mt-1 text-[32px] font-extrabold leading-none">
+              {balancePaise === null ? "—" : rupees(balancePaise)}
+            </p>
+            <p className="mt-1.5 text-[12px] text-white/70">Wallet Balance</p>
+            <Gift
+              size={92}
+              className="pointer-events-none absolute -right-2 top-1/2 -translate-y-1/2 text-white/25"
+              aria-hidden
+            />
+          </div>
         </FadeIn>
-      )}
 
-      {/* Food vs ride split */}
-      {splitTotal > 0 && (
-        <FadeIn delay={0.15} className="mt-3">
-          <Card>
-            <p className="text-[13px] font-bold text-ink">{t("pp.rew.where")}</p>
-            <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-beige">
-              <div
-                className="bg-accent"
-                style={{ width: `${(food / splitTotal) * 100}%` }}
-              />
-              <div
-                className="bg-[#2f7ec9]"
-                style={{ width: `${(ride / splitTotal) * 100}%` }}
-              />
-            </div>
-            <div className="mt-3 flex justify-between text-[12px]">
-              <span className="flex items-center gap-1.5 text-cocoa">
-                <Pizza size={13} className="text-accent" /> Food
-                <b className="text-ink">{rupees(food)}</b>
-              </span>
-              <span className="flex items-center gap-1.5 text-cocoa">
-                <Car size={13} className="text-[#2f7ec9]" /> Rides
-                <b className="text-ink">{rupees(ride)}</b>
-              </span>
-            </div>
-          </Card>
-        </FadeIn>
-      )}
+        <p className="mb-2 mt-6 px-1 text-[13px] font-semibold text-acct-muted">
+          Available Offers
+        </p>
 
-      <h2 className="mt-6 text-[14px] font-bold text-ink">{t("pp.rew.activeOffers")}</h2>
-      <Stagger delayChildren={0.15} className="mt-2 flex flex-col gap-2.5">
-        <StaggerItem>
-          <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
-            <p className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-              <BadgePercent size={15} className="text-accent" /> Flouna launch offer
+        <Stagger className="overflow-hidden rounded-[18px] bg-card shadow-soft">
+          {coupons === null ? (
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+          ) : coupons.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              No offers running right now. Check back soon.
             </p>
-            <p className="mt-1 text-[12px] text-cocoa">
-              Extra savings on in-app orders — applied automatically at checkout.
-            </p>
-          </Card>
-        </StaggerItem>
-        <StaggerItem>
-          <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
-            <p className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
-              <Sparkles size={15} className="text-accent" /> Smart-pick guarantee
-            </p>
-            <p className="mt-1 text-[12px] text-cocoa">
-              Every recommendation shows you exactly how much you saved versus the
-              next-best option.
-            </p>
-          </Card>
-        </StaggerItem>
-      </Stagger>
-    </SubPage>
+          ) : (
+            coupons.map((c, i) => (
+              <StaggerItem key={c.code}>
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3.5",
+                    i < coupons.length - 1 && "border-b border-line",
+                  )}
+                >
+                  <span className="flex h-11 w-12 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint text-[12px] font-extrabold text-acct-accent">
+                    {badgeFor(c.code)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-bold text-acct-ink">
+                      {c.code}
+                    </span>
+                    <span className="block truncate text-[12px] text-acct-muted">
+                      {c.description}
+                    </span>
+                    {c.minOrderPaise > 0 && (
+                      <span className="mt-0.5 block text-[11px] text-acct-muted">
+                        On orders above {rupees(c.minOrderPaise)}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => apply(c.code)}
+                    className={cn(
+                      "tap-target shrink-0 rounded-pill border px-4 py-1.5 text-[13px] font-bold transition-colors",
+                      applied === c.code
+                        ? "border-success bg-success/10 text-success"
+                        : "border-acct-accent text-acct-accent hover:bg-acct-tint",
+                    )}
+                  >
+                    {applied === c.code ? "Applied" : "Apply"}
+                  </button>
+                </div>
+              </StaggerItem>
+            ))
+          )}
+        </Stagger>
+
+        <div className="mt-5 overflow-hidden rounded-[18px] bg-card shadow-soft">
+          <Link
+            href="/profile/rewards/history"
+            className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 transition-colors hover:bg-acct-bg"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+              <ReceiptText size={18} className="text-acct-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">
+                Reward History
+              </span>
+              <span className="block text-[12px] text-acct-muted">
+                View your past rewards
+              </span>
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </Link>
+          <Link
+            href="/profile/rewards/how-it-works"
+            className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+              <CircleHelp size={18} className="text-acct-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">
+                How it works?
+              </span>
+              <span className="block text-[12px] text-acct-muted">
+                Know more about rewards
+              </span>
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
