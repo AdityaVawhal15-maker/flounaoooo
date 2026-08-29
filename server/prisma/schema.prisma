@@ -50,6 +50,17 @@ model User {
   // position on load; they can still pick a pickup by hand or tap the locate
   // control, which is an explicit request rather than a silent read.
   shareLocation     Boolean @default(true)
+  // Who may see this account's name and photo where Flouna shows one user to
+  // another — today that is the group-cart member list, the only place the
+  // product puts two accounts in the same room. "everyone" | "contacts" |
+  // "nobody"; "contacts" means people who have shared a group cart before.
+  profileVisibility String  @default("everyone")
+  // Whether other members of a shared cart see this account as recently active.
+  activityStatus    Boolean @default(true)
+  // Email one-time code required on every password login, on top of the
+  // password itself. Reuses the same OTP machinery the operator console's
+  // step-up already runs on.
+  twoFactorEnabled  Boolean @default(false)
   // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive    Boolean   @default(false)
@@ -82,6 +93,120 @@ model User {
   notifications Notification[]
   complaints    Complaint[]
   paymentMethods PaymentMethod[]
+  walletEntries WalletEntry[]
+  supportChats  SupportChat[]
+  blocks        BlockedUser[]   @relation("Blocker")
+  blockedBy     BlockedUser[]   @relation("Blocked")
+  deviceLocks   DeviceLock[]
+}
+
+// Help Centre conversation. One row per time the customer opens support.
+//
+// The assistant that answers is deterministic and reads the customer's own
+// orders, refunds and complaints — see support.bot.ts. That matters here
+// because it means a transcript is reproducible: the same account state and the
+// same question give the same answer, which is what makes a support log worth
+// keeping.
+model SupportChat {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // What the customer came in about, when they arrived from a Top Topics row.
+  topic    String?
+  // The order under discussion, once the conversation settles on one.
+  orderId  String?
+  // "open" | "resolved" | "escalated" | "closed"
+  status   String  @default("open")
+  // Set when the conversation is handed to a human; the ticket carries it on.
+  ticketId String?
+
+  // Post-chat rating, asked for automatically once the chat ends.
+  ratingStars   Int?
+  ratingComment String?
+  ratedAt       DateTime?
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  updatedAt DateTime  @updatedAt
+
+  messages SupportMessage[]
+
+  @@index([userId, status])
+}
+
+model SupportMessage {
+  id     String      @id @default(cuid())
+  chatId String
+  chat   SupportChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  // "user" | "bot" | "agent" — agent is a human replying from the console.
+  role   String
+  body   String
+  // Quick replies offered alongside a bot message, as a JSON array of
+  // { label, value }. Stored rather than recomputed so the transcript shows
+  // what the customer was actually offered at the time.
+  options   String?
+  createdAt DateTime @default(now())
+
+  @@index([chatId])
+}
+
+// Rewards wallet, kept as an append-only ledger rather than a balance column.
+// The balance is always the sum of these rows, so it cannot drift out of step
+// with the events that produced it, and every rupee on the Offers & Rewards
+// screen can be traced back to the order that earned it. Integer paise, like
+// every other money value here.
+//
+// amountPaise is signed: positive credits, negative debits. A debit is never
+// written without first checking the summed balance inside the same
+// transaction, which is what stops a double-spend from two parallel requests.
+model WalletEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountPaise Int
+  // "cashback" | "spend" | "refund" | "adjustment"
+  reason      String
+  // Human-readable line for the history screen.
+  description String
+  orderId     String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@unique([userId, orderId, reason])
+}
+
+// Someone this account has blocked. Enforced where the product actually puts
+// two users together: a blocked user can't join a cart you host, and you can't
+// join theirs. Kept as its own row (not a JSON list) so the reverse lookup —
+// "did they block me?" — is a plain indexed query.
+model BlockedUser {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("Blocker", fields: [userId], references: [id], onDelete: Cascade)
+  blockedUserId String
+  blockedUser   User     @relation("Blocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, blockedUserId])
+  @@index([userId])
+  @@index([blockedUserId])
+}
+
+// A platform authenticator (fingerprint / face) registered on one device to
+// lock the app on that device. Deliberately NOT a login factor: the assertion
+// is checked by the device's own authenticator and gates the app shell, so this
+// stores which devices have the lock armed rather than a public key it would
+// have to verify signatures against.
+model DeviceLock {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String   @unique
+  label        String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
 }
 
 // Saved payment methods for quick display/reuse — deliberately not a card
@@ -473,6 +598,11 @@ model RefreshToken {
   // rotation so a stepped-up console session keeps the `step` claim on its new
   // access token; ordinary user sessions stay false.
   stepUp    Boolean   @default(false)
+  // Recorded at sign-in so Login Activity can name the device rather than
+  // listing anonymous rows. Carried across refresh rotation.
+  userAgent String?
+  ip        String?
+  lastUsedAt DateTime?
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())

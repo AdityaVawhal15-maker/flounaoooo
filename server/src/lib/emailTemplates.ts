@@ -49,7 +49,15 @@ ${bodyHtml}
 </html>`;
 }
 
-export type OtpPurpose = "signup" | "step_up" | "reset";
+// One purpose per thing a code can do. They are deliberately not interchangeable:
+// consumeOtp matches on purpose, so a code issued for one flow is worthless in
+// another even though every one of them is six digits sent to the same mailbox.
+export type OtpPurpose =
+  | "signup"
+  | "step_up"
+  | "reset"
+  | "login_2fa"
+  | "two_factor_setup";
 
 const OTP_COPY: Record<OtpPurpose, { heading: string; lead: string }> = {
   signup: {
@@ -63,6 +71,14 @@ const OTP_COPY: Record<OtpPurpose, { heading: string; lead: string }> = {
   reset: {
     heading: "Reset your password",
     lead: "Use this code to set a new Flouna password:",
+  },
+  login_2fa: {
+    heading: "Confirm it's you",
+    lead: "Use this code to finish signing in to Flouna:",
+  },
+  two_factor_setup: {
+    heading: "Turn on two-factor sign-in",
+    lead: "Use this code to switch on two-factor authentication:",
   },
 };
 

@@ -1,22 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Pizza, Car, ChevronRight, History as HistoryIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  LayoutGrid,
+  Car,
+  Utensils,
+  ChevronRight,
+  Calendar,
+  CircleCheck,
+  ReceiptText,
+  Star,
+  Clock,
+  Headset,
+  CircleX,
+  TrendingUp,
+  History as HistoryIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
-import { rupees } from "@/lib/money";
-import { Card } from "@/components/ui/Card";
 import { StateScreen, StateGlyph } from "@/components/ui/StateScreen";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
-import { CategoryTile } from "@/components/ui/CategoryTile";
 import { CardSkeleton } from "@/components/ui/Skeleton";
+import { CancelOrderSheet } from "@/components/orders/CancelOrderSheet";
 import { useI18n } from "@/components/i18n/I18nContext";
 import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
+// Figma "Booking History" (Component page): centred title header, Recent
+// History heading, one segmented pill bar with icons, an Activity Snapshot
+// grid on the All tab, and provider cards that carry chips (Cancel /
+// Need Help? / status) instead of an amount column.
+
 type OrderSummary = {
   id: string;
-  domain: "food" | "ride";
+  domain: "food" | "ride" | "shop";
   status: string;
   provider: string;
   title: string;
@@ -26,114 +45,157 @@ type OrderSummary = {
 };
 
 const TABS = [
-  { key: "", labelKey: "history.all" },
-  { key: "food", labelKey: "nav.food" },
-  { key: "ride", labelKey: "nav.rides" },
-] as const satisfies ReadonlyArray<{ key: string; labelKey: TranslationKey }>;
+  { key: "", labelKey: "history.all", icon: LayoutGrid },
+  { key: "ride", labelKey: "nav.rides", icon: Car },
+  { key: "food", labelKey: "nav.food", icon: Utensils },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  labelKey: TranslationKey;
+  icon: typeof LayoutGrid;
+}>;
 
-// Maps a server status to a localized label key; unknown statuses fall back to
-// a humanized version of the raw value.
-const STATUS_KEYS: Record<string, TranslationKey> = {
-  confirmed: "status.confirmed",
-  in_progress: "status.in_progress",
-  completed: "status.completed",
-  pending_payment: "status.pending_payment",
-  cancelled: "status.cancelled",
+// Brand disc colours for the providers the simulator emits. Real logo art
+// arrives with the affiliate agreements; until then the disc carries the
+// brand's own colour and wordmark.
+const PROVIDER_DISC: Record<string, { bg: string; fg: string; text: string }> = {
+  zomato: { bg: "#e23744", fg: "#ffffff", text: "zomato" },
+  swiggy: { bg: "#fc8019", fg: "#ffffff", text: "Swiggy" },
+  uber: { bg: "#000000", fg: "#ffffff", text: "Uber" },
+  ola: { bg: "#1c1c1c", fg: "#cddc39", text: "OLA" },
+  rapido: { bg: "#fbc821", fg: "#1c1c1c", text: "rapido" },
+  ondc: { bg: "#e8651a", fg: "#ffffff", text: "ONDC" },
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  confirmed: "bg-accent-soft text-accent",
-  in_progress: "bg-accent-soft text-accent",
-  completed: "bg-success-soft text-success",
-  pending_payment: "bg-beige text-cocoa",
-  cancelled: "bg-danger-soft text-danger",
-};
+// The design's status chips: Ongoing (clock) and Complete (check), plus the
+// two states the design doesn't show but the data has.
+function statusChip(status: string, t: (k: TranslationKey) => string) {
+  switch (status) {
+    case "completed":
+      return { label: t("history.complete"), icon: CircleCheck, cls: "text-acct-ink" };
+    case "cancelled":
+      return { label: t("status.cancelled"), icon: CircleX, cls: "text-danger" };
+    case "pending_payment":
+      return { label: t("status.pending_payment"), icon: Clock, cls: "text-warning" };
+    default:
+      return { label: t("history.ongoing"), icon: Clock, cls: "text-acct-ink" };
+  }
+}
+
+// "₹5.4k" in the snapshot tiles — paise in, compact rupees out.
+function compactRupees(paise: number) {
+  const r = paise / 100;
+  if (r >= 100000) return `₹${(r / 100000).toFixed(1)}L`;
+  if (r >= 1000) return `₹${(r / 1000).toFixed(1)}k`;
+  return `₹${Math.round(r)}`;
+}
 
 export default function HistoryPage() {
+  const router = useRouter();
   const { t, lang } = useI18n();
   const localeTag = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("");
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
   const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState<OrderSummary | null>(null);
 
-  // Reset-during-render on tab change (React's recommended alternative to
-  // a synchronous setState inside an effect).
   const [prevTab, setPrevTab] = useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
     setOrders(null);
   }
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api<{ orders: OrderSummary[] }>(`/api/orders${tab ? `?domain=${tab}` : ""}`)
       .then((d) => setOrders(d.orders))
       .catch(() => setError(t("history.loadError")));
   }, [tab, t]);
+  useEffect(load, [load]);
+
+  const cancellable = (o: OrderSummary) =>
+    o.status === "confirmed" || o.status === "in_progress";
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-5 lg:px-6 lg:py-8">
+    <div className="mx-auto w-full max-w-2xl px-4 pb-10 lg:px-6">
       <FadeIn y={8}>
-        <h1 className="text-[20px] font-bold text-ink">{t("history.title")}</h1>
+        <div className="flex items-center py-4">
+          <button
+            onClick={() => router.back()}
+            aria-label="Back"
+            className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
+          >
+            <ArrowLeft size={18} className="text-ink" />
+          </button>
+          <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-ink">
+            {t("history.bookingTitle")}
+          </h1>
+        </div>
+        <h2 className="text-[18px] font-extrabold text-ink">{t("history.recent")}</h2>
       </FadeIn>
 
-      <div className="mt-4 flex gap-2">
-        {TABS.map((tabItem) => (
-          <button
-            key={tabItem.key}
-            onClick={() => setTab(tabItem.key)}
-            className={cn(
-              "rounded-pill px-5 py-2 text-[13px] font-semibold transition-colors",
-              tab === tabItem.key
-                ? "bg-cocoa text-white"
-                : "border border-line bg-card text-cocoa hover:bg-beige/40",
-            )}
-          >
-            {t(tabItem.labelKey)}
-          </button>
-        ))}
+      <div className="mt-4 flex gap-1 rounded-pill bg-card p-1 shadow-soft">
+        {TABS.map((tabItem) => {
+          const active = tab === tabItem.key;
+          const Icon = tabItem.icon;
+          return (
+            <button
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-pill py-3 text-[13px] font-semibold transition-colors",
+                active
+                  ? "bg-accent-soft text-accent"
+                  : "text-cocoa hover:bg-beige/40",
+              )}
+            >
+              <Icon size={15} />
+              {t(tabItem.labelKey)}
+            </button>
+          );
+        })}
       </div>
 
       {error && <p className="mt-6 text-[13px] text-danger">{error}</p>}
 
-      {/* Activity snapshot — Figma "Booking History": at-a-glance stats for
-          the current tab. "Total saved" replaces the design's avg-rating tile
-          (savings is the number Flouna is about). */}
-      {orders && orders.length > 0 && (
-        <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          <StatTile
-            label="Total bookings"
-            value={String(orders.length)}
-            accent="border-l-accent"
-          />
-          <StatTile
-            label="Completed"
-            value={String(orders.filter((o) => o.status === "completed").length)}
-            accent="border-l-success"
-          />
-          <StatTile
-            label="Total spend"
-            value={rupees(
-              orders
-                .filter((o) => !["pending_payment", "cancelled"].includes(o.status))
-                .reduce((s, o) => s + o.amount, 0),
-            )}
-            accent="border-l-[#8b5cf6]"
-          />
-          <StatTile
-            label="Total saved"
-            value={rupees(orders.reduce((s, o) => s + (o.savedPaise ?? 0), 0))}
-            accent="border-l-[#e8a020]"
-          />
-        </div>
+      {/* Activity Snapshot — All tab only, per the design. */}
+      {tab === "" && orders && orders.length > 0 && (
+        <>
+          <h3 className="mt-5 flex items-center gap-1.5 text-[16px] font-extrabold text-ink">
+            {t("history.snapshot")} <TrendingUp size={15} className="text-cocoa" />
+          </h3>
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <StatTile
+              icon={Calendar}
+              value={String(orders.length)}
+              label={t("history.totalBookings")}
+            />
+            <StatTile
+              icon={CircleCheck}
+              value={String(orders.filter((o) => o.status === "completed").length)}
+              label={t("status.completed")}
+            />
+            <StatTile
+              icon={ReceiptText}
+              value={compactRupees(
+                orders
+                  .filter((o) => !["pending_payment", "cancelled"].includes(o.status))
+                  .reduce((s, o) => s + o.amount, 0),
+              )}
+              label={t("history.totalSpend")}
+            />
+            <StatTile
+              icon={Star}
+              value={compactRupees(orders.reduce((s, o) => s + (o.savedPaise ?? 0), 0))}
+              label={t("history.totalSavings")}
+              plainLabel
+            />
+          </div>
+        </>
       )}
 
-      <Stagger className="mt-5 flex flex-col gap-2.5">
+      <Stagger className="mt-5 flex flex-col gap-3">
         {orders === null && !error &&
           Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         {orders?.length === 0 && (
-          // Figma "No items yet" — an empty history is a normal first-run
-          // state, not a failure, so it offers the way forward rather than
-          // leaving a bare line of grey text on an otherwise blank screen.
           <StateScreen
             illustration={<StateGlyph icon={HistoryIcon} />}
             title={t("history.emptyTitle")}
@@ -141,75 +203,113 @@ export default function HistoryPage() {
             primary={{ label: t("cart.browse"), href: "/food" }}
           />
         )}
-        {orders?.map((o) => (
-          <StaggerItem key={o.id}>
-          <Link href={`/orders/${o.id}`}>
-            <Card className="transition-all hover:-translate-y-0.5 hover:shadow-card">
-              <div className="flex items-center gap-3">
-                <span className="shrink-0">
-                  <CategoryTile
-                    icon={o.domain === "food" ? Pizza : Car}
-                    theme={o.domain === "food" ? "orange" : "blue"}
-                    size={40}
-                  />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-semibold text-ink">
-                    {o.title}
-                  </p>
-                  <p className="text-[11px] text-cocoa">
-                    {new Date(o.createdAt).toLocaleString(localeTag, {
-                      day: "numeric",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[14px] font-bold text-ink">{rupees(o.amount)}</p>
+        {orders?.map((o) => {
+          const disc = PROVIDER_DISC[o.provider] ?? {
+            bg: "#e8651a",
+            fg: "#ffffff",
+            text: o.provider.slice(0, 6),
+          };
+          const chip = statusChip(o.status, t);
+          const ChipIcon = chip.icon;
+          return (
+            <StaggerItem key={o.id}>
+              <div className="rounded-[18px] bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-card">
+                <Link href={`/orders/${o.id}`} className="flex items-center gap-3">
+                  <span
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: disc.bg }}
+                  >
+                    <span
+                      className="text-[8px] font-extrabold tracking-tight"
+                      style={{ color: disc.fg }}
+                    >
+                      {disc.text}
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-bold text-ink">
+                      {o.title}
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-cocoa">
+                      <Calendar size={12} />
+                      {new Date(o.createdAt).toLocaleDateString(localeTag, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-cocoa/50" />
+                </Link>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {cancellable(o) && (
+                    <button
+                      onClick={() => setCancelling(o)}
+                      className="tap-target flex items-center gap-1.5 rounded-pill border border-line bg-card px-3.5 py-1.5 text-[12px] font-semibold text-acct-ink transition-colors hover:bg-danger-soft hover:text-danger"
+                    >
+                      <CircleX size={13} /> {t("history.cancel")}
+                    </button>
+                  )}
+                  <Link
+                    href={`/orders/${o.id}/help`}
+                    className="tap-target flex items-center gap-1.5 rounded-pill border border-line bg-card px-3.5 py-1.5 text-[12px] font-semibold text-acct-ink transition-colors hover:bg-beige/40"
+                  >
+                    <Headset size={13} /> {t("history.needHelp")}
+                  </Link>
                   <span
                     className={cn(
-                      "inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize",
-                      STATUS_STYLES[o.status] ?? "bg-beige text-cocoa",
+                      "flex items-center gap-1.5 rounded-pill border border-line bg-card px-3.5 py-1.5 text-[12px] font-semibold",
+                      chip.cls,
                     )}
                   >
-                    {STATUS_KEYS[o.status]
-                      ? t(STATUS_KEYS[o.status]!)
-                      : o.status.replace("_", " ")}
+                    <ChipIcon size={13} /> {chip.label}
                   </span>
                 </div>
-                <ChevronRight size={16} className="shrink-0 text-cocoa/50" />
               </div>
-            </Card>
-          </Link>
-          </StaggerItem>
-        ))}
+            </StaggerItem>
+          );
+        })}
       </Stagger>
+
+      {cancelling && (
+        <CancelOrderSheet
+          orderId={cancelling.id}
+          domain={cancelling.domain}
+          onClose={() => setCancelling(null)}
+          onCancelled={() => {
+            setCancelling(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// Figma "Activity Snapshot" tile: white card with a coloured left rail.
+// Snapshot tile — icon in a soft square, big value, tiny label.
 function StatTile({
-  label,
+  icon: Icon,
   value,
-  accent,
+  label,
+  plainLabel,
 }: {
-  label: string;
+  icon: typeof Calendar;
   value: string;
-  accent: string;
+  label: string;
+  plainLabel?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-card border border-line border-l-4 bg-card px-3.5 py-3 shadow-soft",
-        accent,
-      )}
-    >
-      <p className="text-[17px] font-bold text-ink">{value}</p>
-      <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-cocoa">
+    <div className="rounded-[16px] bg-card p-3.5 shadow-soft">
+      <span className="flex size-9 items-center justify-center rounded-[10px] bg-accent-soft">
+        <Icon size={16} className="text-accent" />
+      </span>
+      <p className="mt-2.5 text-[18px] font-extrabold text-ink">{value}</p>
+      <p
+        className={cn(
+          "mt-0.5 text-[10px] font-semibold text-cocoa",
+          !plainLabel && "uppercase tracking-wide",
+        )}
+      >
         {label}
       </p>
     </div>

@@ -41,7 +41,12 @@ export function hashToken(raw: string) {
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
-export async function issueRefreshToken(userId: string, stepUp = false) {
+export async function issueRefreshToken(
+  userId: string,
+  stepUp = false,
+  /** Device details for Login Activity; carried forward on rotation. */
+  device?: { userAgent?: string | null; ip?: string | null },
+) {
   const raw = crypto.randomBytes(48).toString("hex");
   const tokenHash = hashToken(raw);
   await prisma.refreshToken.create({
@@ -49,6 +54,9 @@ export async function issueRefreshToken(userId: string, stepUp = false) {
       userId,
       tokenHash,
       stepUp,
+      userAgent: device?.userAgent ?? null,
+      ip: device?.ip ?? null,
+      lastUsedAt: new Date(),
       expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 86_400_000),
     },
   });
@@ -65,9 +73,13 @@ export async function rotateRefreshToken(raw: string) {
     where: { id: existing.id },
     data: { revokedAt: new Date() },
   });
-  // Carry the step-up status onto the rotated token so a verified operator
-  // session keeps its 2FA standing across refreshes.
-  const next = await issueRefreshToken(existing.userId, existing.stepUp);
+  // Carry the step-up status and the device details onto the rotated token, so
+  // a verified operator session keeps its 2FA standing and Login Activity keeps
+  // naming the device instead of resetting to "Unknown" every fifteen minutes.
+  const next = await issueRefreshToken(existing.userId, existing.stepUp, {
+    userAgent: existing.userAgent,
+    ip: existing.ip,
+  });
   return { userId: existing.userId, token: next, stepUp: existing.stepUp };
 }
 

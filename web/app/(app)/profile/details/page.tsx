@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  UserRound,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Pencil,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth, type User } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -30,18 +40,57 @@ function formatDob(iso: string | null) {
   });
 }
 
-function Row({ label, value }: { label: string; value: string | null }) {
+// Figma draws each field as an icon, a small label with the value beneath, and
+// a chevron. The chevron is not decoration: tapping the row opens the same edit
+// form the button does, so the affordance the design implies actually leads
+// somewhere. Address is the exception — it lives in the address book, so that
+// row goes there instead.
+function Row({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+  href,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | null;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const body = (
+    <>
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-acct-tint">
+        <Icon size={16} className="text-acct-accent" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[12px] text-acct-muted">{label}</span>
+        <span
+          className={`mt-0.5 block truncate text-[15px] font-semibold ${
+            value ? "text-acct-ink" : "text-acct-muted"
+          }`}
+        >
+          {value ?? "Not added"}
+        </span>
+      </span>
+      <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+    </>
+  );
+
+  const cls =
+    "flex w-full items-center gap-3.5 border-b border-line px-4 py-3 text-left last:border-b-0 transition-colors hover:bg-acct-bg";
+
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {body}
+      </Link>
+    );
+  }
   return (
-    <div className="border-b border-line px-4 py-3.5 last:border-b-0">
-      <p className="text-[12px] text-acct-muted">{label}</p>
-      <p
-        className={`mt-0.5 text-[15px] font-semibold ${
-          value ? "text-acct-ink" : "text-acct-muted"
-        }`}
-      >
-        {value ?? "Not added"}
-      </p>
-    </div>
+    <button type="button" onClick={onClick} className={cls}>
+      {body}
+    </button>
   );
 }
 
@@ -57,6 +106,26 @@ export default function ProfileDetailsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [address, setAddress] = useState<string | null>(null);
+
+  // The design shows a real address on this screen. It lives in the address
+  // book rather than on the account, so the default one is read here and the
+  // row links there instead of duplicating an editor.
+  useEffect(() => {
+    let cancelled = false;
+    api<{ addresses: { line1: string; line2: string | null; city: string; state: string; isDefault: boolean }[] }>(
+      "/api/users/addresses",
+    )
+      .then((d) => {
+        if (cancelled) return;
+        const a = d.addresses.find((x) => x.isDefault) ?? d.addresses[0];
+        setAddress(a ? [a.city, a.state, "India"].filter(Boolean).join(", ") : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -199,12 +268,44 @@ export default function ProfileDetailsPage() {
         ) : (
           <>
             <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
-              <Row label="Full Name" value={user?.name ?? null} />
-              <Row label="Email" value={user?.email ?? null} />
-              <Row label="Phone Number" value={user?.phone ?? null} />
-              <Row label="Date of Birth" value={formatDob(user?.dateOfBirth ?? null)} />
-              <Row label="Gender" value={user?.gender ?? null} />
-              <Row label="Address" value={null} />
+              <Row
+                icon={UserRound}
+                label="Full Name"
+                value={user?.name ?? null}
+                onClick={() => setEditing(true)}
+              />
+              <Row
+                icon={Mail}
+                label="Email"
+                value={user?.email ?? null}
+                onClick={() => setEditing(true)}
+              />
+              <Row
+                icon={Phone}
+                label="Phone Number"
+                value={user?.phone ?? null}
+                onClick={() => setEditing(true)}
+              />
+              <Row
+                icon={Calendar}
+                label="Date of Birth"
+                value={formatDob(user?.dateOfBirth ?? null)}
+                onClick={() => setEditing(true)}
+              />
+              <Row
+                icon={UserRound}
+                label="Gender"
+                value={user?.gender ?? null}
+                onClick={() => setEditing(true)}
+              />
+              {/* Address lives in the saved-addresses book, which has its own
+                  screen — linked rather than duplicated here. */}
+              <Row
+                icon={MapPin}
+                label="Address"
+                value={address}
+                href="/profile/addresses"
+              />
             </div>
 
             {message && (
@@ -213,19 +314,11 @@ export default function ProfileDetailsPage() {
 
             <button
               onClick={() => setEditing(true)}
-              className="mt-6 h-[54px] w-full rounded-pill bg-acct-accent text-[16px] font-bold text-white transition-opacity hover:opacity-90"
+              className="mt-6 flex h-[54px] w-full items-center justify-center gap-2 rounded-pill border-[1.5px] border-acct-accent bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-tint"
             >
+              <Pencil size={17} />
               Edit Information
             </button>
-
-            {/* Address lives in the saved-addresses book, which has its own
-                screen — linked rather than duplicated here. */}
-            <Link
-              href="/profile/addresses"
-              className="mt-3 flex h-[54px] w-full items-center justify-center rounded-pill border border-line bg-card text-[16px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
-            >
-              Manage addresses
-            </Link>
           </>
         )}
       </div>

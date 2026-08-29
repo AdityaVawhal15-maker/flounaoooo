@@ -66,6 +66,75 @@ const SEATS: Record<string, number> = { auto: 3, cab: 4 };
 
 // Builds the per-member breakdown + split shown to everyone. Food carts split
 // by what each member added; ride carts split the fare equally.
+/** A member is "active" if one of their sessions was used in this window. */
+const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Applies each member's own Privacy settings to what the viewer is shown.
+ *
+ * profileVisibility decides whether the viewer sees a real name at all:
+ * "everyone" always does, "nobody" never does, and "contacts" does only if the
+ * two have shared some other cart before. activityStatus decides whether the
+ * viewer is told they're online. Neither setting ever hides you from yourself.
+ */
+async function privacyView(
+  viewerId: string,
+  memberIds: string[],
+  cartId: string,
+) {
+  if (memberIds.length === 0) {
+    return { nameFor: (_id: string, name: string) => name, activeFor: () => false };
+  }
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: memberIds } },
+    select: { id: true, profileVisibility: true, activityStatus: true },
+  });
+
+  // Carts the viewer belongs to, so "contacts" can mean something concrete:
+  // people they have actually shared an order with before this one.
+  const viewerCarts = await prisma.groupCartMember.findMany({
+    where: { userId: viewerId, NOT: { cartId } },
+    select: { cartId: true },
+  });
+  const sharedIds = new Set<string>();
+  if (viewerCarts.length > 0) {
+    const shared = await prisma.groupCartMember.findMany({
+      where: {
+        cartId: { in: viewerCarts.map((c) => c.cartId) },
+        userId: { in: memberIds },
+      },
+      select: { userId: true },
+    });
+    for (const s of shared) sharedIds.add(s.userId);
+  }
+
+  const since = new Date(Date.now() - ACTIVE_WINDOW_MS);
+  const recent = await prisma.refreshToken.findMany({
+    where: { userId: { in: memberIds }, revokedAt: null, lastUsedAt: { gte: since } },
+    select: { userId: true },
+  });
+  const activeIds = new Set(recent.map((r) => r.userId));
+
+  const settings = new Map(users.map((u) => [u.id, u]));
+
+  return {
+    nameFor(id: string, name: string) {
+      if (id === viewerId) return name;
+      const s = settings.get(id);
+      if (!s || s.profileVisibility === "everyone") return name;
+      if (s.profileVisibility === "contacts" && sharedIds.has(id)) return name;
+      return "Flouna user";
+    },
+    activeFor(id: string) {
+      if (id === viewerId) return true;
+      const s = settings.get(id);
+      if (!s?.activityStatus) return false;
+      return activeIds.has(id);
+    },
+  };
+}
+
 async function summarize(cartId: string, viewerId: string) {
   const cart = (await prisma.groupCart.findUnique({
     where: { id: cartId },
@@ -90,6 +159,11 @@ async function summarize(cartId: string, viewerId: string) {
     const ride = JSON.parse(cart.rideDetails ?? "{}") as RideSnapshot;
     const memberCount = Math.max(1, cart.members.length);
     const equalSplitPaise = Math.round(ride.farePaise / memberCount);
+    const view = await privacyView(
+      viewerId,
+      cart.members.map((m) => m.userId),
+      cart.id,
+    );
     return {
       ...base,
       ride: {
@@ -103,7 +177,8 @@ async function summarize(cartId: string, viewerId: string) {
       equalSplitPaise,
       members: cart.members.map((m) => ({
         userId: m.userId,
-        name: m.user.name,
+        name: view.nameFor(m.userId, m.user.name),
+        active: view.activeFor(m.userId),
         subtotalPaise: equalSplitPaise,
         isYou: m.userId === viewerId,
       })),
@@ -121,6 +196,12 @@ async function summarize(cartId: string, viewerId: string) {
   const memberCount = Math.max(1, members.size);
   const equalSplitPaise = Math.round(totalPaise / memberCount);
 
+  const view = await privacyView(
+    viewerId,
+    [...new Set([...members.keys(), ...cart.members.map((m) => m.userId)])],
+    cart.id,
+  );
+
   return {
     ...base,
     ride: null,
@@ -128,14 +209,15 @@ async function summarize(cartId: string, viewerId: string) {
     equalSplitPaise,
     members: [...members.entries()].map(([userId, m]) => ({
       userId,
-      name: m.name,
+      name: view.nameFor(userId, m.name),
+      active: view.activeFor(userId),
       subtotalPaise: m.subtotalPaise,
       isYou: userId === viewerId,
     })),
     items: cart.items.map((i) => ({
       id: i.id,
       userId: i.userId,
-      memberName: i.user.name,
+      memberName: view.nameFor(i.userId, i.user.name),
       dishId: i.dishId,
       name: i.name,
       pricePaise: i.pricePaise,
@@ -279,6 +361,22 @@ groupsRouter.post(
       if (!cart) throw new ApiError(404, "No group order with that code");
       if (cart.status !== "open") {
         throw new ApiError(409, "This group order is closed");
+      }
+      // Blocking cuts both ways: the host can keep someone out, and someone who
+      // blocked the host isn't quietly put back in a room with them. The reply
+      // is the same "closed" either way, so a join attempt can't be used to
+      // detect that you've been blocked.
+      if (cart.hostId !== req.userId!) {
+        const block = await prisma.blockedUser.findFirst({
+          where: {
+            OR: [
+              { userId: cart.hostId, blockedUserId: req.userId! },
+              { userId: req.userId!, blockedUserId: cart.hostId },
+            ],
+          },
+          select: { id: true },
+        });
+        if (block) throw new ApiError(409, "This group order is closed");
       }
       // Shared rides have physical seats — don't let a 5th person into a cab.
       if (cart.domain === "ride") {

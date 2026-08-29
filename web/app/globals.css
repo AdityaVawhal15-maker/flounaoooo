@@ -58,6 +58,10 @@
   --color-acct-bg: #f9fafb; /* page ground */
   --color-acct-accent: #b33b06; /* premium badge, row icons */
   --color-acct-tint: #fff6f1; /* icon badges, premium pill */
+  /* Unchecked switch track. Its own token because a translucent black (the
+     obvious choice on the light screens) disappears against the dark card,
+     leaving the white knob floating with nothing to sit in. */
+  --color-switch-off: #d3d7de;
 
   /* Complaint / grievance palette (Figma 2286:*, 2290:*). The ONDC IGM screens
      are drawn on a blue primary with semantic green for a processed refund and
@@ -87,6 +91,43 @@
   --shadow-card: 0 1px 2px rgba(61, 28, 0, 0.04), 0 8px 24px -12px rgba(61, 28, 0, 0.12);
   --shadow-soft: 0 1px 2px rgba(61, 28, 0, 0.03), 0 2px 8px -4px rgba(61, 28, 0, 0.06);
   --shadow-lift: 0 2px 4px rgba(61, 28, 0, 0.05), 0 16px 40px -16px rgba(61, 28, 0, 0.18);
+}
+
+/* iOS Safari zooms the whole page in when you focus a control whose text is
+   under 16px, and it does not zoom back out — the rest of the session is spent
+   fighting a viewport that no longer fits. The fix is the font size, not a
+   maximum-scale meta tag, which would also block the pinch-zoom people rely on.
+
+   Scoped to coarse pointers so the desktop type scale is untouched, and marked
+   important because Tailwind sets these sizes as utility classes that would
+   otherwise win on specificity. Controls already at 16px or above keep their
+   own size. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Extends a control's touch target to the 44px minimum without changing how it
+   looks or where it sits. The design draws several controls as small chips and
+   pill switches, so growing the boxes would break the match; the extra target
+   is an invisible overlay centred on the control instead. Vertical only —
+   these sit in horizontal rows, and widening them would make neighbours
+   overlap and steal each other's taps. */
+@utility tap-target {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
 }
 
 /* ── Dark theme ─────────────────────────────────────────────────────────────
@@ -133,6 +174,8 @@
   --color-acct-ink: #f5f0ec;
   --color-acct-muted: #8d8079;
   --color-acct-tint: #2a1f19;
+  /* Light enough to read as a track against #1c1c1c cards. */
+  --color-switch-off: #55504c;
 
   --color-state-bg: #141414;
   --color-state-ink: #f5f0ec;

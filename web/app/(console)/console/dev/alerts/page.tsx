@@ -59,7 +59,9 @@ export default function AlertsPage() {
               <li key={i} className="flex items-start gap-3 px-4 py-3">
                 <span className="mt-0.5">{ICON[a.severity]}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-(--c-ink)">{a.message}</p>
+                  {/* Raw gateway errors arrive as JSON with no spaces to break on, so a
+                      single token can run past the card on a narrow screen. */}
+                  <p className="break-words text-[13px] text-(--c-ink)">{a.message}</p>
                   <p className="mt-0.5 text-[11px] text-(--c-muted)">
                     {a.source} · {new Date(a.at).toLocaleString("en-IN")}
                   </p>

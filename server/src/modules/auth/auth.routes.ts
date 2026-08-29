@@ -76,6 +76,8 @@ async function startSession(
   res: Parameters<typeof setAuthCookies>[0],
   userId: string,
   stepUp = false,
+  /** Request the session is being started from, for Login Activity. */
+  req?: { get(name: string): string | undefined; ip?: string },
 ) {
   // Bake the current role into the access token so ordinary requests carry it.
   // requireRole still re-checks the DB for privileged routes, so a stale token
@@ -86,7 +88,10 @@ async function startSession(
     select: { role: true },
   });
   const access = signAccessToken(userId, normalizeRole(user?.role), stepUp);
-  const refresh = await issueRefreshToken(userId, stepUp);
+  const refresh = await issueRefreshToken(userId, stepUp, {
+    userAgent: req?.get("user-agent") ?? null,
+    ip: req?.ip ?? null,
+  });
   setAuthCookies(res, access, refresh);
 }
 
@@ -277,13 +282,102 @@ authRouter.post(
         await sendOtpEmail(email, code);
         return res.status(403).json({ error: "Email not verified", next: "verify-email" });
       }
-      await startSession(res, user.id);
+
+      // Two-factor: the password was right, but it isn't enough on its own for
+      // this account. No session is issued here — the code has to come back
+      // through /login/verify first.
+      if (user.twoFactorEnabled) {
+        // Its own purpose, not the console's "step_up": a code minted for one
+        // must never be spendable on the other, even though both are six digits
+        // to the same mailbox.
+        const code = await createOtp({
+          userId: user.id,
+          channel: "email",
+          target: email,
+          purpose: "login_2fa",
+        });
+        await sendOtpEmail(email, code, "login_2fa");
+        return res.json({ next: "two-factor" });
+      }
+
+      await startSession(res, user.id, false, req);
       res.json({ user: publicUser(user) });
     } catch (err) {
       next(err);
     }
   },
 );
+
+// Second step of a two-factor login: the emailed code. Rate limited like the
+// password step, since this is the other half of the same gate.
+authRouter.post(
+  "/login/verify",
+  sensitiveLimit,
+  validateBody(
+    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { email, code } = req.body as { email: string; code: string };
+      const user = await prisma.user.findUnique({ where: { email } });
+      // Re-check at verify time: the factor could have been turned off between
+      // the two steps, and a code must never start a session for an account
+      // that never asked for one.
+      if (!user?.twoFactorEnabled) throw new ApiError(401, "Invalid or expired code");
+
+      const ok = await consumeOtp({ target: email, purpose: "login_2fa", code });
+      if (!ok) throw new ApiError(401, "Invalid or expired code");
+
+      await startSession(res, user.id, false, req);
+      res.json({ user: publicUser(user) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------- login activity (one device at a time) ----------
+//
+// Both live here rather than with the other user endpoints for the same reason
+// revoke-others does: the refresh cookie is scoped to /api/auth, so this is the
+// only place that can tell which session belongs to the caller.
+
+authRouter.get("/sessions/current", requireAuth, async (req, res, next) => {
+  try {
+    const raw = req.cookies?.refresh_token as string | undefined;
+    if (!raw) return res.json({ currentId: null });
+    const row = await prisma.refreshToken.findUnique({
+      where: { tokenHash: hashToken(raw) },
+      select: { id: true, userId: true },
+    });
+    res.json({ currentId: row && row.userId === req.userId! ? row.id : null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.delete("/sessions/:id", sessionLimiter, requireAuth, async (req, res, next) => {
+  try {
+    const token = await prisma.refreshToken.findFirst({
+      where: { id: req.params.id, userId: req.userId!, revokedAt: null },
+      select: { id: true, tokenHash: true },
+    });
+    if (!token) throw new ApiError(404, "Session not found");
+
+    const raw = req.cookies?.refresh_token as string | undefined;
+    if (raw && hashToken(raw) === token.tokenHash) {
+      throw new ApiError(409, "That's this device — use log out instead");
+    }
+
+    await prisma.refreshToken.update({
+      where: { id: token.id },
+      data: { revokedAt: new Date() },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ---------- operator console login (password + email OTP step-up) ----------
 //

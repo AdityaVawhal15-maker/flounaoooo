@@ -10,15 +10,22 @@ import {
   Wallet,
   Trash2,
   ShieldCheck,
+  ChevronRight,
+  Star,
   X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/Toast";
+import { PaymentBrandMark } from "@/components/profile/PaymentBrandMark";
 
-// Figma "Payment Methods" (2195:~1000): saved methods list, each row an icon
-// tile, a label/detail pair, and either a Default badge or a chevron; a
-// trailing "Add Payment Method" row; a security reassurance line at the foot.
+// Figma "Payment Methods": saved methods list, each row a brand mark, a
+// label/detail pair, and either a Default badge or a chevron; a trailing
+// "Add Payment Method" row; a security reassurance card at the foot.
+//
+// The chevron is the design's own affordance and it leads somewhere: tapping a
+// row opens that method's actions (make it the default, remove it) rather than
+// crowding two controls into every row.
 //
 // Deliberately not a card vault — see the PaymentMethod model's own comment.
 // This never asks for a full card number or CVV, only what's needed to
@@ -37,20 +44,21 @@ type Method = {
 };
 
 const CARD_BRANDS = ["Visa", "Mastercard", "Rupay", "Amex"] as const;
-const BRAND_COLOR: Record<string, string> = {
-  Visa: "bg-[#1a1f71]",
-  Mastercard: "bg-gradient-to-br from-[#eb001b] to-[#f79e1b]",
-  Rupay: "bg-[#0f7a3d]",
-  Amex: "bg-[#2e77bc]",
-};
+// The wallets that actually operate in India. Free text on the server, but a
+// fixed list here keeps saved labels consistent enough to draw a mark for.
+const WALLETS = ["Paytm Wallet", "PhonePe Wallet", "Amazon Pay", "Mobikwik"] as const;
+
+type AddType = "card" | "upi" | "wallet";
 
 export default function PaymentMethodsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [methods, setMethods] = useState<Method[] | null>(null);
   const [adding, setAdding] = useState(false);
-  const [type, setType] = useState<"card" | "upi">("card");
+  const [acting, setActing] = useState<Method | null>(null);
+  const [type, setType] = useState<AddType>("card");
   const [brand, setBrand] = useState<(typeof CARD_BRANDS)[number]>("Visa");
+  const [wallet, setWallet] = useState<(typeof WALLETS)[number]>("Paytm Wallet");
   const [last4, setLast4] = useState("");
   const [expiry, setExpiry] = useState(""); // MM/YY
   const [vpa, setVpa] = useState("");
@@ -80,7 +88,9 @@ export default function PaymentMethodsPage() {
               }
               return { type, label: brand, last4, expiryMonth, expiryYear };
             })()
-          : { type, label: "UPI ID", vpa: vpa.trim() };
+          : type === "upi"
+            ? { type, label: "UPI ID", vpa: vpa.trim() }
+            : { type, label: wallet };
       const d = await api<{ method: Method }>("/api/users/payment-methods", {
         method: "POST",
         json: body,
@@ -100,9 +110,11 @@ export default function PaymentMethodsPage() {
 
   async function remove(id: string) {
     const prev = methods;
+    setActing(null);
     setMethods((m) => m?.filter((x) => x.id !== id) ?? null);
     try {
       await api(`/api/users/payment-methods/${id}`, { method: "DELETE" });
+      toast("Payment method removed");
     } catch {
       setMethods(prev ?? null);
       toast("Could not remove that method");
@@ -111,35 +123,52 @@ export default function PaymentMethodsPage() {
 
   async function setDefault(id: string) {
     const prev = methods;
+    setActing(null);
     setMethods((m) => m?.map((x) => ({ ...x, isDefault: x.id === id })) ?? null);
     try {
       await api(`/api/users/payment-methods/${id}/default`, { method: "PATCH" });
+      toast("Default payment method updated");
     } catch {
       setMethods(prev ?? null);
       toast("Could not set that as default");
     }
   }
 
+  /** Second line of a row, per method type. */
+  function detail(m: Method) {
+    if (m.type === "card") {
+      return `Expires ${String(m.expiryMonth).padStart(2, "0")}/${String(m.expiryYear).slice(-2)}`;
+    }
+    return m.type === "upi" ? (m.vpa ?? "") : "Connected";
+  }
+
+  function title(m: Method) {
+    return m.type === "card" ? `${m.label} •••• ${m.last4}` : m.label;
+  }
+
   return (
     <div className="min-h-dvh bg-acct-bg">
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
-        <div className="flex items-center gap-3 py-5">
+        <div className="flex items-center py-4">
           <button
             onClick={() => router.back()}
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
+            className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} className="text-acct-ink" />
           </button>
-          <h1 className="flex-1 text-[18px] font-extrabold text-acct-ink">
+          <h1 className="flex-1 text-center text-[17px] font-extrabold text-acct-ink">
             Payment Methods
           </h1>
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              setError("");
+              setAdding(true);
+            }}
             aria-label="Add payment method"
-            className="rounded-full p-2 text-acct-accent transition-colors hover:bg-acct-accent/10"
+            className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-acct-tint text-acct-accent transition-colors hover:bg-acct-accent/15"
           >
-            <Plus size={22} />
+            <Plus size={20} />
           </button>
         </div>
 
@@ -158,35 +187,29 @@ export default function PaymentMethodsPage() {
             </div>
           ) : (
             methods.map((m, i) => (
-              <div
+              <button
                 key={m.id}
+                onClick={() => setActing(m)}
+                aria-label={`Options for ${title(m)}`}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3.5",
+                  "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-acct-bg",
                   i < methods.length - 1 && "border-b border-line",
                 )}
               >
-                {m.type === "card" ? (
-                  <span
-                    className={cn(
-                      "flex h-8 w-11 shrink-0 items-center justify-center rounded-[6px] text-[9px] font-bold uppercase tracking-wide text-white",
-                      BRAND_COLOR[m.label] ?? "bg-acct-accent",
-                    )}
-                  >
-                    {m.label.slice(0, 4)}
-                  </span>
-                ) : (
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint text-acct-accent">
-                    {m.type === "upi" ? <Smartphone size={17} /> : <Wallet size={17} />}
-                  </span>
-                )}
+                <PaymentBrandMark type={m.type} label={m.label} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-bold text-acct-ink">
-                    {m.type === "card" ? `${m.label} •••• ${m.last4}` : m.label}
+                    {title(m)}
                   </span>
-                  <span className="block truncate text-[12px] text-acct-muted">
-                    {m.type === "card"
-                      ? `Expires ${String(m.expiryMonth).padStart(2, "0")}/${String(m.expiryYear).slice(-2)}`
-                      : m.vpa}
+                  <span
+                    className={cn(
+                      "block truncate text-[12px]",
+                      m.type === "wallet"
+                        ? "font-semibold text-success"
+                        : "text-acct-muted",
+                    )}
+                  >
+                    {detail(m)}
                   </span>
                 </span>
                 {m.isDefault ? (
@@ -194,26 +217,17 @@ export default function PaymentMethodsPage() {
                     Default
                   </span>
                 ) : (
-                  <button
-                    onClick={() => setDefault(m.id)}
-                    className="shrink-0 text-[12px] font-semibold text-acct-accent hover:underline"
-                  >
-                    Set default
-                  </button>
+                  <ChevronRight size={17} className="shrink-0 text-acct-muted" />
                 )}
-                <button
-                  onClick={() => remove(m.id)}
-                  aria-label={`Remove ${m.label}`}
-                  className="shrink-0 rounded-full p-1.5 text-acct-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
+              </button>
             ))
           )}
 
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              setError("");
+              setAdding(true);
+            }}
             className="flex w-full items-center gap-3 border-t border-line px-4 py-3.5 text-left transition-colors hover:bg-acct-bg"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acct-tint text-acct-accent">
@@ -227,14 +241,70 @@ export default function PaymentMethodsPage() {
                 Add new card, UPI or wallet
               </span>
             </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
           </button>
         </div>
 
-        <p className="mt-4 flex items-center justify-center gap-2 px-1 text-center text-[12px] text-acct-muted">
+        <p className="mt-4 flex items-center justify-center gap-2 rounded-[16px] bg-card px-4 py-3.5 text-[12px] text-acct-muted shadow-soft">
           <ShieldCheck size={14} className="shrink-0 text-success" />
           Your payment information is secure
         </p>
       </div>
+
+      {/* Row actions — what the chevron leads to. */}
+      {acting && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 lg:items-center"
+          onClick={() => setActing(null)}
+        >
+          <div
+            role="dialog"
+            aria-label={`Options for ${title(acting)}`}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-t-3xl bg-card p-5 lg:rounded-3xl"
+          >
+            <div className="flex items-center gap-3">
+              <PaymentBrandMark type={acting.type} label={acting.label} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-bold text-acct-ink">
+                  {title(acting)}
+                </span>
+                <span className="block truncate text-[12px] text-acct-muted">
+                  {detail(acting)}
+                </span>
+              </span>
+              <button
+                onClick={() => setActing(null)}
+                aria-label="Close"
+                className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2">
+              {!acting.isDefault && (
+                <button
+                  onClick={() => setDefault(acting.id)}
+                  className="flex items-center gap-3 rounded-[14px] border border-line px-4 py-3.5 text-left transition-colors hover:bg-acct-bg"
+                >
+                  <Star size={17} className="shrink-0 text-acct-accent" />
+                  <span className="text-[15px] font-semibold text-acct-ink">
+                    Set as default
+                  </span>
+                </button>
+              )}
+              <button
+                onClick={() => remove(acting.id)}
+                className="flex items-center gap-3 rounded-[14px] border border-line px-4 py-3.5 text-left text-danger transition-colors hover:bg-danger-soft"
+              >
+                <Trash2 size={17} className="shrink-0" />
+                <span className="text-[15px] font-semibold">Remove</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add method sheet */}
       {adding && (
@@ -260,40 +330,42 @@ export default function PaymentMethodsPage() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setType("card")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2 text-[13px] font-semibold",
-                  type === "card"
-                    ? "border-acct-accent bg-acct-tint text-acct-accent"
-                    : "border-line text-acct-muted",
-                )}
-              >
-                <CreditCard size={15} /> Card
-              </button>
-              <button
-                type="button"
-                onClick={() => setType("upi")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2 text-[13px] font-semibold",
-                  type === "upi"
-                    ? "border-acct-accent bg-acct-tint text-acct-accent"
-                    : "border-line text-acct-muted",
-                )}
-              >
-                <Smartphone size={15} /> UPI
-              </button>
+              {(
+                [
+                  ["card", "Card", CreditCard],
+                  ["upi", "UPI", Smartphone],
+                  ["wallet", "Wallet", Wallet],
+                ] as const
+              ).map(([value, label, Icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setType(value);
+                    setError("");
+                  }}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 rounded-pill border py-2.5 text-[13px] font-semibold",
+                    type === value
+                      ? "border-acct-accent bg-acct-tint text-acct-accent"
+                      : "border-line text-acct-muted",
+                  )}
+                >
+                  <Icon size={15} /> {label}
+                </button>
+              ))}
             </div>
 
             <form onSubmit={addMethod} className="mt-4 flex flex-col gap-3">
-              {type === "card" ? (
+              {type === "card" && (
                 <>
                   <label className="flex flex-col gap-1.5">
                     <span className="text-[12px] text-acct-muted">Card brand</span>
                     <select
                       value={brand}
-                      onChange={(e) => setBrand(e.target.value as (typeof CARD_BRANDS)[number])}
+                      onChange={(e) =>
+                        setBrand(e.target.value as (typeof CARD_BRANDS)[number])
+                      }
                       className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
                     >
                       {CARD_BRANDS.map((b) => (
@@ -311,7 +383,9 @@ export default function PaymentMethodsPage() {
                       inputMode="numeric"
                       maxLength={4}
                       value={last4}
-                      onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      onChange={(e) =>
+                        setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))
+                      }
                       placeholder="4242"
                       className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
                       required
@@ -321,17 +395,18 @@ export default function PaymentMethodsPage() {
                     <span className="text-[12px] text-acct-muted">Expiry (MM/YY)</span>
                     <input
                       value={expiry}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/[^\d/]/g, "").slice(0, 5);
-                        setExpiry(v);
-                      }}
+                      onChange={(e) =>
+                        setExpiry(e.target.value.replace(/[^\d/]/g, "").slice(0, 5))
+                      }
                       placeholder="12/28"
                       className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
                       required
                     />
                   </label>
                 </>
-              ) : (
+              )}
+
+              {type === "upi" && (
                 <label className="flex flex-col gap-1.5">
                   <span className="text-[12px] text-acct-muted">UPI ID</span>
                   <input
@@ -341,6 +416,28 @@ export default function PaymentMethodsPage() {
                     className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
                     required
                   />
+                </label>
+              )}
+
+              {type === "wallet" && (
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-acct-muted">Wallet</span>
+                  <select
+                    value={wallet}
+                    onChange={(e) =>
+                      setWallet(e.target.value as (typeof WALLETS)[number])
+                    }
+                    className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
+                  >
+                    {WALLETS.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[12px] text-acct-muted">
+                    Linking the wallet for a real payment happens at checkout.
+                  </span>
                 </label>
               )}
 

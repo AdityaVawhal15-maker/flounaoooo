@@ -124,6 +124,11 @@ export default function OrderDetailPage({
     d.pickupLng != null &&
     d.dropLat != null &&
     d.dropLng != null;
+  // An order still awaiting payment has no fulfilment to track, and /track
+  // answers 409 for exactly that case. Mounting the tracker anyway left it
+  // polling a route that could never succeed, once every few seconds, for as
+  // long as the page stayed open.
+  const trackable = hasTrackingCoords && order.status !== "pending_payment";
 
   const discount =
     order.details.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
@@ -143,7 +148,7 @@ export default function OrderDetailPage({
       </p>
 
       {/* Live tracking — driver / delivery partner, OTP, moving map (free) */}
-      {hasTrackingCoords && (
+      {trackable && (
         <div className="mt-5">
           <RideTracker
             orderId={order.id}
@@ -272,7 +277,7 @@ export default function OrderDetailPage({
           cancelled once out for delivery), so this hides the obvious cases
           and lets the server refuse the rest with its own message rather
           than duplicating the rules here. */}
-      {!hasTrackingCoords &&
+      {!trackable &&
         order.status !== "cancelled" &&
         order.status !== "completed" &&
         !allDone && (

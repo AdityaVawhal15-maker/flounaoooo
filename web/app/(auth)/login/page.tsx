@@ -36,6 +36,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [askPassword, setAskPassword] = useState(false);
+  // Set when the account has two-factor on: the password was accepted but no
+  // session exists yet, so the form asks for the emailed code before going on.
+  const [askCode, setAskCode] = useState(false);
+  const [code, setCode] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [dial, setDial] = useState(COUNTRIES[0].dial);
   const [phone, setPhone] = useState("");
@@ -55,10 +59,28 @@ export default function LoginPage() {
     }
     setBusy(true);
     try {
-      const d = await api<{ user: User }>("/api/auth/login", {
+      // Two-factor accounts answer the code step instead of the password step.
+      if (askCode) {
+        const verified = await api<{ user: User }>("/api/auth/login/verify", {
+          method: "POST",
+          json: { email: email.trim(), code },
+        });
+        setUser(verified.user);
+        router.push("/home");
+        return;
+      }
+
+      const d = await api<{ user?: User; next?: string }>("/api/auth/login", {
         method: "POST",
         json: { email: email.trim(), password },
       });
+      // Password was right, but this account needs the emailed code as well.
+      if (d.next === "two-factor" || !d.user) {
+        setAskCode(true);
+        setCode("");
+        setInfo("We emailed you a 6-digit code.");
+        return;
+      }
       setUser(d.user);
       router.push("/home");
     } catch (err) {
@@ -139,10 +161,11 @@ export default function LoginPage() {
               onChange={(e) => {
                 setEmail(e.target.value);
                 setAskPassword(false);
+                setAskCode(false);
               }}
               required
             />
-            {askPassword && (
+            {askPassword && !askCode && (
               <AuthField
                 label="Password"
                 type={showPw ? "text" : "password"}
@@ -164,6 +187,21 @@ export default function LoginPage() {
                 required
               />
             )}
+            {askCode && (
+              <AuthField
+                label="Verification code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={6}
+                icon={<Lock size={18} />}
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                required
+              />
+            )}
             {error && (
               <p role="alert" className="text-[14px] text-danger">
                 {error}
@@ -171,11 +209,21 @@ export default function LoginPage() {
             )}
             <AuthButton
               type="submit"
-              disabled={busy || !emailValid || (askPassword && !password)}
+              disabled={
+                busy ||
+                !emailValid ||
+                (askCode ? code.length !== 6 : askPassword && !password)
+              }
             >
-              {busy ? "Signing in…" : askPassword ? "Log In" : "Continue"}
+              {busy
+                ? "Signing in…"
+                : askCode
+                  ? "Verify"
+                  : askPassword
+                    ? "Log In"
+                    : "Continue"}
             </AuthButton>
-            {askPassword && (
+            {askPassword && !askCode && (
               <Link
                 href="/forgot"
                 className="-mt-1 self-center text-[15px] font-semibold text-auth-ink hover:underline"

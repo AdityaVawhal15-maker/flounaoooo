@@ -14,6 +14,12 @@ import {
   listUserTickets,
   TICKET_CATEGORIES,
 } from "../backoffice/tickets.service.js";
+import { createOtp, consumeOtp } from "../auth/otp.js";
+import { sendOtpEmail } from "../../lib/mailer.js";
+import { verifyPassword } from "../../lib/tokens.js";
+import { describeDevice } from "../../lib/device.js";
+import { walletBalance, walletHistory } from "./wallet.service.js";
+import { credentialLimiter, lookupLimiter } from "../../middleware/rateLimit.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -162,9 +168,15 @@ usersRouter.get("/preferences", async (req, res, next) => {
         emailMoneyUpdates: true,
         emailTips: true,
         shareLocation: true,
+        profileVisibility: true,
+        activityStatus: true,
+        twoFactorEnabled: true,
       },
     });
-    res.json(user);
+    const deviceLocks = await prisma.deviceLock.count({
+      where: { userId: req.userId! },
+    });
+    res.json({ ...user, biometricLock: deviceLocks > 0 });
   } catch (err) {
     next(err);
   }
@@ -180,7 +192,14 @@ usersRouter.put(
         emailMoneyUpdates: z.boolean().optional(),
         emailTips: z.boolean().optional(),
         shareLocation: z.boolean().optional(),
+        profileVisibility: z.enum(["everyone", "contacts", "nobody"]).optional(),
+        activityStatus: z.boolean().optional(),
       })
+      // Strict, not stripping: an unknown key here means the caller believes it
+      // is setting something. Silently dropping it (the default) would answer
+      // 200 to a request that changed nothing they asked for — worst of all for
+      // a field like `role`, which is never settable from this surface.
+      .strict()
       .refine((b) => Object.keys(b).length > 0, { message: "Nothing to update" }),
   ),
   async (req, res, next) => {
@@ -191,6 +210,8 @@ usersRouter.put(
         emailMoneyUpdates?: boolean;
         emailTips?: boolean;
         shareLocation?: boolean;
+        profileVisibility?: "everyone" | "contacts" | "nobody";
+        activityStatus?: boolean;
       };
       const user = await prisma.user.update({
         where: { id: req.userId! },
@@ -201,6 +222,9 @@ usersRouter.put(
           emailMoneyUpdates: true,
           emailTips: true,
           shareLocation: true,
+          profileVisibility: true,
+          activityStatus: true,
+          twoFactorEnabled: true,
         },
       });
       res.json(user);
@@ -219,9 +243,19 @@ usersRouter.put(
 
 usersRouter.get("/sessions", async (req, res, next) => {
   try {
+    // Device details ride along so Login Activity can name each row. Which one
+    // is the CALLER'S session can't be answered here: the refresh cookie is
+    // scoped to /api/auth, so it isn't sent to this path. That flag, and
+    // signing out a single device, live on the auth router for that reason.
     const sessions = await prisma.refreshToken.findMany({
       where: { userId: req.userId!, revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, createdAt: true, expiresAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        expiresAt: true,
+        userAgent: true,
+        lastUsedAt: true,
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
@@ -235,6 +269,263 @@ usersRouter.get("/sessions", async (req, res, next) => {
     next(err);
   }
 });
+
+// ---------- Rewards wallet (Offers & Rewards) ----------
+//
+// Balance and history come from the same ledger, so the number in the hero and
+// the lines beneath it can never disagree.
+
+usersRouter.get("/wallet", async (req, res, next) => {
+  try {
+    const [balancePaise, entries] = await Promise.all([
+      walletBalance(req.userId!),
+      walletHistory(req.userId!),
+    ]);
+    res.json({ balancePaise, entries });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- Blocked users (Privacy) ----------
+//
+// Enforced in the one place the product puts two accounts together: group
+// carts. Blocking is one-directional in intent but symmetric in effect —
+// neither side can join a cart the other hosts.
+
+usersRouter.get("/blocked", async (req, res, next) => {
+  try {
+    const rows = await prisma.blockedUser.findMany({
+      where: { userId: req.userId! },
+      select: {
+        id: true,
+        createdAt: true,
+        blockedUser: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({
+      blocked: rows.map((r) => ({
+        id: r.id,
+        createdAt: r.createdAt,
+        user: r.blockedUser,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.post(
+  "/blocked",
+  lookupLimiter,
+  validateBody(z.object({ email: z.string().trim().email().max(200) })),
+  async (req, res, next) => {
+    try {
+      const { email } = req.body as { email: string };
+      const target = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: { id: true, name: true, email: true, avatarUrl: true },
+      });
+      // Deliberately the same answer whether the address has no account or the
+      // block already exists: this endpoint must not become a way to test which
+      // email addresses are registered.
+      if (!target || target.id === req.userId!) {
+        throw new ApiError(404, "No account uses that email address");
+      }
+
+      const row = await prisma.blockedUser.upsert({
+        where: {
+          userId_blockedUserId: { userId: req.userId!, blockedUserId: target.id },
+        },
+        create: { userId: req.userId!, blockedUserId: target.id },
+        update: {},
+        select: { id: true, createdAt: true },
+      });
+      res.status(201).json({ blocked: { id: row.id, createdAt: row.createdAt, user: target } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+usersRouter.delete("/blocked/:id", async (req, res, next) => {
+  try {
+    const row = await prisma.blockedUser.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      select: { id: true },
+    });
+    if (!row) throw new ApiError(404, "Not found");
+    await prisma.blockedUser.delete({ where: { id: row.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- Device lock (Biometric Lock) ----------
+//
+// The fingerprint/face check itself is done by the device's own platform
+// authenticator through WebAuthn in the browser. What the server keeps is which
+// devices have the lock armed, so the setting survives a reinstall and can be
+// turned off from another device. This is an app lock, not a login factor — it
+// never replaces the password or the session cookie.
+
+usersRouter.get("/device-locks", async (req, res, next) => {
+  try {
+    const locks = await prisma.deviceLock.findMany({
+      where: { userId: req.userId! },
+      select: { id: true, credentialId: true, label: true, createdAt: true, lastUsedAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json({ locks });
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.post(
+  "/device-locks",
+  validateBody(
+    z.object({
+      credentialId: z.string().min(8).max(600),
+      label: z.string().trim().max(80).optional(),
+    }),
+  ),
+  async (req, res, next) => {
+    try {
+      const { credentialId, label } = req.body as {
+        credentialId: string;
+        label?: string;
+      };
+
+      // credentialId is globally unique, so an upsert keyed on it alone would
+      // hand back — and quietly refresh — a row belonging to somebody else.
+      // Claim it only if it is unclaimed or already ours; anything else is a
+      // flat conflict that reveals nothing about the owner.
+      const existing = await prisma.deviceLock.findUnique({
+        where: { credentialId },
+        select: { id: true, userId: true },
+      });
+      if (existing && existing.userId !== req.userId!) {
+        throw new ApiError(409, "That credential is already registered");
+      }
+
+      const lock = existing
+        ? await prisma.deviceLock.update({
+            where: { id: existing.id },
+            data: { lastUsedAt: new Date() },
+            select: { id: true, credentialId: true, label: true, createdAt: true },
+          })
+        : await prisma.deviceLock.create({
+            data: {
+              userId: req.userId!,
+              credentialId,
+              label: label ?? describeDevice(req.get("user-agent") ?? null),
+            },
+            select: { id: true, credentialId: true, label: true, createdAt: true },
+          });
+      res.status(201).json({ lock });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+usersRouter.delete("/device-locks", async (req, res, next) => {
+  try {
+    const { count } = await prisma.deviceLock.deleteMany({
+      where: { userId: req.userId! },
+    });
+    res.json({ removed: count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- Two-factor authentication ----------
+//
+// Email one-time code on top of the password, using the same OTP helpers the
+// operator console's step-up runs on. Turning it ON requires proving control of
+// the mailbox that will receive the codes, so a hijacked session can't quietly
+// arm a factor the real owner can't satisfy. Turning it OFF requires the
+// account password for the same reason in reverse.
+
+usersRouter.post("/two-factor/start", credentialLimiter, async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: { email: true, twoFactorEnabled: true },
+    });
+    if (user.twoFactorEnabled) throw new ApiError(409, "Already turned on");
+    const code = await createOtp({
+      userId: req.userId!,
+      channel: "email",
+      target: user.email,
+      purpose: "two_factor_setup",
+    });
+    await sendOtpEmail(user.email, code, "two_factor_setup");
+    res.json({ sent: true, email: user.email });
+  } catch (err) {
+    next(err);
+  }
+});
+
+usersRouter.post(
+  "/two-factor/confirm",
+  credentialLimiter,
+  validateBody(z.object({ code: z.string().regex(/^\d{6}$/) })),
+  async (req, res, next) => {
+    try {
+      const { code } = req.body as { code: string };
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: req.userId! },
+        select: { email: true },
+      });
+      const ok = await consumeOtp({
+        target: user.email,
+        purpose: "two_factor_setup",
+        code,
+      });
+      if (!ok) throw new ApiError(401, "Invalid or expired code");
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { twoFactorEnabled: true },
+      });
+      res.json({ twoFactorEnabled: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+usersRouter.post(
+  "/two-factor/disable",
+  credentialLimiter,
+  validateBody(z.object({ password: z.string().min(1).max(128) })),
+  async (req, res, next) => {
+    try {
+      const { password } = req.body as { password: string };
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { id: req.userId! },
+        select: { passwordHash: true },
+      });
+      // Google-only accounts have no password to check; they also never see the
+      // password login this factor guards, so there is nothing to disable.
+      if (!user.passwordHash) throw new ApiError(400, "This account has no password");
+      if (!(await verifyPassword(password, user.passwordHash))) {
+        throw new ApiError(401, "Incorrect password");
+      }
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { twoFactorEnabled: false },
+      });
+      res.json({ twoFactorEnabled: false });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // Decision profile — the user's learned taste, spend behaviour and routines.
 // Powers personalized recommendations and proactive nudges.
@@ -626,6 +917,28 @@ usersRouter.post(
       if (body.type === "card" && !(CARD_BRANDS as readonly string[]).includes(body.label)) {
         throw new ApiError(400, `label must be one of: ${CARD_BRANDS.join(", ")}`);
       }
+      // A list whose whole job is to let someone recognise a method is useless
+      // with two identical rows in it — and a double tap on a slow connection
+      // is the easiest way to get one. Matched on what the user actually sees:
+      // the UPI id, or the brand plus last four and expiry.
+      const duplicate = await prisma.paymentMethod.findFirst({
+        where:
+          body.type === "upi"
+            ? { userId: req.userId!, type: "upi", vpa: body.vpa }
+            : {
+                userId: req.userId!,
+                type: body.type,
+                label: body.label,
+                last4: body.last4 ?? null,
+                expiryMonth: body.expiryMonth ?? null,
+                expiryYear: body.expiryYear ?? null,
+              },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ApiError(409, "That payment method is already saved");
+      }
+
       if (body.isDefault) {
         await prisma.paymentMethod.updateMany({
           where: { userId: req.userId! },

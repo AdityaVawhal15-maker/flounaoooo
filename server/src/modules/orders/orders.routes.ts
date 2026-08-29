@@ -9,6 +9,8 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { quotesForProduct } from "../shop/shop.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
+import { creditCashback } from "../users/wallet.service.js";
+import { getConfig } from "../backoffice/config.service.js";
 import {
   isPlusActive,
   CONVENIENCE_FEE_PAISE,
@@ -580,6 +582,23 @@ ordersRouter.get("/:id", async (req, res, next) => {
           data: { status: "completed" },
         })),
       };
+
+      // Completing the order is what earns the buyer's cashback. The rate is
+      // the platform's own configured numbers — the ONDC margin floor, and the
+      // share of it handed back — so nothing about the reward is invented here.
+      // The ledger's unique index makes a repeat call a no-op, which matters
+      // because this route is polled.
+      const { ondcMinMarginBps, cashbackUserSharePct } = await getConfig();
+      if (cashbackUserSharePct > 0) {
+        await creditCashback({
+          userId: order.userId,
+          orderId: order.id,
+          marginPaise: Math.floor((order.amount * ondcMinMarginBps) / 10_000),
+          title: order.title,
+        }).catch(() => {
+          // A reward must never break the order it rewards.
+        });
+      }
     }
 
     res.json({

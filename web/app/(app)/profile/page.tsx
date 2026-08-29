@@ -1,8 +1,9 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 import {
   UserRound,
   ShieldCheck,
@@ -91,7 +92,7 @@ const SUPPORT: Row[] = [
     subtitle: "Get help and support",
   },
   {
-    href: "/profile/help",
+    href: "/profile/help/contact",
     icon: MessageCircle,
     title: "Contact Us",
     subtitle: "Reach out to our support team",
@@ -160,8 +161,8 @@ function AppearanceRow() {
           aria-checked={theme === "dark"}
           aria-label="Dark mode"
           onClick={toggle}
-          className={`h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
-            theme === "dark" ? "bg-acct-accent" : "bg-line"
+          className={`tap-target h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
+            theme === "dark" ? "bg-acct-accent" : "bg-switch-off"
           }`}
         >
           <span
@@ -179,8 +180,27 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
+  const [location, setLocation] = useState<string | null>(null);
 
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? "U";
+
+  // The identity strip's third column was a hardcoded city. It comes from the
+  // default saved address now, so it says where this account actually is.
+  useEffect(() => {
+    let cancelled = false;
+    api<{ addresses: { city: string; state: string; isDefault: boolean }[] }>(
+      "/api/users/addresses",
+    )
+      .then((d) => {
+        if (cancelled) return;
+        const a = d.addresses.find((x) => x.isDefault) ?? d.addresses[0];
+        setLocation(a ? `${a.city}, ${a.state}` : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-dvh bg-acct-bg">
@@ -193,7 +213,7 @@ export default function ProfilePage() {
           <button
             onClick={() => router.back()}
             aria-label="Back"
-            className="rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
+            className="tap-target rounded-full p-2 text-acct-ink transition-colors hover:bg-acct-ink/5"
           >
             <ArrowLeft size={20} />
           </button>
@@ -214,7 +234,7 @@ export default function ProfilePage() {
               <Link
                 href="/profile/details"
                 aria-label="Edit profile photo"
-                className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-black text-white transition-opacity hover:opacity-90"
+                className="tap-target absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-black text-white transition-opacity hover:opacity-90"
               >
                 <Camera size={14} />
               </Link>
@@ -234,7 +254,7 @@ export default function ProfilePage() {
             {[
               { icon: Mail, value: user?.email ?? "—", label: "Email" },
               { icon: Phone, value: user?.phone ?? "Add phone", label: "Phone" },
-              { icon: MapPin, value: "Hyderabad, India", label: "Location" },
+              { icon: MapPin, value: location ?? "Add address", label: "Location" },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex min-w-0 flex-col items-center gap-1">
                 <Icon size={17} className="text-acct-accent" />
