@@ -150,7 +150,13 @@ usersRouter.patch(
         .nullable()
         .optional(),
       gender: z.string().trim().max(32).nullable().optional(),
-    }),
+    })
+      // Strict, like every other write route here. A field this schema does not
+      // know was being accepted with a 200 and quietly dropped, so a caller
+      // sending {"role":"super_admin"} was told it worked. Nothing was written,
+      // but the day someone adds a column that shares a name with a request
+      // field, silence becomes the vulnerability.
+      .strict(),
   ),
   async (req, res, next) => {
     try {
