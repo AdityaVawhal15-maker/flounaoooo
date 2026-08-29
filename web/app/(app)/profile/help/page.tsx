@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 import { cn } from "@/lib/cn";
 
 // Figma "Help Center": a search field with voice input, an orange hero with a
@@ -59,6 +60,7 @@ export default function HelpCenterPage() {
 function HelpCenter() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   // Order pages and the ride tracker link here with ?order=<id> so help can
   // start already attached to the order in question.
   const orderId = useSearchParams().get("order");
@@ -120,7 +122,7 @@ function HelpCenter() {
       });
       router.push(`/profile/help/chat/${d.chat.id}`);
     } catch {
-      toast("Could not start a chat just now");
+      toast(t("pp.hc.chatFailed"));
       setStartingOrderChat(false);
     }
   }
@@ -131,13 +133,13 @@ function HelpCenter() {
         <div className="flex items-center py-4">
           <button
             onClick={() => router.back()}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Help Center
+            {t("pp.profile.helpCentre")}
           </h1>
         </div>
 
@@ -146,13 +148,13 @@ function HelpCenter() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for help..."
-            aria-label="Search for help"
+            placeholder={t("pp.hc.searchPh")}
+            aria-label={t("pp.hc.searchLabel")}
             className="min-w-0 flex-1 bg-transparent text-[16px] text-acct-ink outline-none placeholder:text-acct-muted"
           />
           <button
             onClick={startVoice}
-            aria-label="Search by voice"
+            aria-label={t("pp.hc.voiceSearch")}
             className={cn(
               "tap-target shrink-0 rounded-full p-1",
               listening ? "text-acct-accent" : "text-acct-muted hover:text-acct-ink",
@@ -173,12 +175,10 @@ function HelpCenter() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-acct-ink">
-                Get help with this order
+                {t("pp.hc.orderHelp")}
               </span>
               <span className="block text-[12px] text-acct-muted">
-                {startingOrderChat
-                  ? "Starting…"
-                  : "Start a chat with the order already attached"}
+                {startingOrderChat ? t("pp.hc.starting") : t("pp.hc.orderHelpSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -190,20 +190,18 @@ function HelpCenter() {
           className="mt-4 rounded-[18px] p-5 text-white shadow-lift"
           style={{ background: "linear-gradient(135deg, #e8651a 0%, #b33b06 100%)" }}
         >
-          <p className="text-[17px] font-extrabold">How can we help you?</p>
-          <p className="mt-1 text-[12px] text-white/80">
-            Find answers or reach our team instantly
-          </p>
+          <p className="text-[17px] font-extrabold">{t("pp.hc.heroTitle")}</p>
+          <p className="mt-1 text-[12px] text-white/80">{t("pp.hc.heroSub")}</p>
           <a
             href={`tel:${SUPPORT_PHONE}`}
             className="mt-4 inline-flex items-center gap-2 rounded-pill bg-black/25 px-4 py-2.5 text-[14px] font-bold text-white backdrop-blur transition-colors hover:bg-black/35"
           >
-            <Phone size={15} /> Call Support
+            <Phone size={15} /> {t("pp.hc.callSupport")}
           </a>
         </div>
 
         <p className="mb-2 mt-6 px-1 text-[16px] font-extrabold text-acct-ink">
-          {query ? "Results" : "Top Topics"}
+          {query ? t("pp.hc.results") : t("pp.hc.topTopics")}
         </p>
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
@@ -212,10 +210,10 @@ function HelpCenter() {
           ) : top.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-[14px] font-semibold text-acct-ink">
-                Nothing matched &ldquo;{query}&rdquo;
+                {t("pp.hc.noMatch")}
               </p>
               <p className="mt-1 text-[13px] text-acct-muted">
-                Start a chat and describe it in your own words.
+                {t("pp.hc.noMatchSub")}
               </p>
             </div>
           ) : (
@@ -251,7 +249,7 @@ function HelpCenter() {
         </div>
 
         <p className="mb-2 mt-6 px-1 text-[16px] font-extrabold text-acct-ink">
-          Still need help?
+          {t("pp.hc.stillNeed")}
         </p>
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
@@ -263,9 +261,11 @@ function HelpCenter() {
               <MessageCircle size={17} className="text-acct-accent" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold text-acct-ink">Contact Us</span>
+              <span className="block text-[15px] font-bold text-acct-ink">
+                {t("pp.profile.contact")}
+              </span>
               <span className="block text-[12px] text-acct-muted">
-                Chat or call with our support team
+                {t("pp.hc.contactSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -278,9 +278,11 @@ function HelpCenter() {
               <BookOpen size={17} className="text-acct-accent" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold text-acct-ink">FAQs</span>
+              <span className="block text-[15px] font-bold text-acct-ink">
+                {t("pp.hc.faqs")}
+              </span>
               <span className="block text-[12px] text-acct-muted">
-                Find answers to common questions
+                {t("pp.hc.faqsSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />

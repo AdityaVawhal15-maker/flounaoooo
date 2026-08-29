@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { useTheme } from "@/components/theme/ThemeContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 
@@ -41,46 +42,46 @@ import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 type Row = {
   href: string;
   icon: LucideIcon;
-  title: string;
-  subtitle: string;
+  titleKey: TranslationKey;
+  subtitleKey: TranslationKey;
 };
 
 const ACCOUNT: Row[] = [
   {
     href: "/profile/details",
     icon: UserRound,
-    title: "Personal Information",
-    subtitle: "Manage your personal details",
+    titleKey: "pp.profile.personal",
+    subtitleKey: "pp.profile.personalSub",
   },
   {
     href: "/profile/privacy",
     icon: ShieldCheck,
-    title: "Privacy & Security",
-    subtitle: "Manage privacy and security settings",
+    titleKey: "pp.profile.privacy",
+    subtitleKey: "pp.profile.privacySub",
   },
   {
     href: "/profile/alerts",
     icon: Bell,
-    title: "Notifications",
-    subtitle: "Manage your notification preferences",
+    titleKey: "pp.profile.notifs",
+    subtitleKey: "pp.profile.notifsSub",
   },
   {
     href: "/profile/payment-methods",
     icon: CreditCard,
-    title: "Payment Methods",
-    subtitle: "Manage cards, UPI and wallets",
+    titleKey: "pp.profile.payments",
+    subtitleKey: "pp.profile.paymentsSub",
   },
   {
     href: "/profile/rewards",
     icon: Tag,
-    title: "Offers & Rewards",
-    subtitle: "View your offers and rewards",
+    titleKey: "pp.profile.rewards",
+    subtitleKey: "pp.profile.rewardsSub",
   },
   {
     href: "/history",
     icon: Receipt,
-    title: "Ride & Order History",
-    subtitle: "View your past rides and orders",
+    titleKey: "pp.profile.history",
+    subtitleKey: "pp.profile.historySub",
   },
 ];
 
@@ -88,22 +89,23 @@ const SUPPORT: Row[] = [
   {
     href: "/profile/help",
     icon: LifeBuoy,
-    title: "Help Center",
-    subtitle: "Get help and support",
+    titleKey: "pp.profile.helpCentre",
+    subtitleKey: "pp.profile.helpCentreSub",
   },
   {
     href: "/profile/help/contact",
     icon: MessageCircle,
-    title: "Contact Us",
-    subtitle: "Reach out to our support team",
+    titleKey: "pp.profile.contact",
+    subtitleKey: "pp.profile.contactSub",
   },
 ];
 
 function RowList({ rows, trailing }: { rows: Row[]; trailing?: ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
-      {rows.map(({ href, icon: Icon, title, subtitle }, i) => (
-        <StaggerItem key={`${href}-${title}`}>
+      {rows.map(({ href, icon: Icon, titleKey, subtitleKey }, i) => (
+        <StaggerItem key={`${href}-${titleKey}`}>
           <Link
             href={href}
             className={`flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg ${
@@ -115,10 +117,10 @@ function RowList({ rows, trailing }: { rows: Row[]; trailing?: ReactNode }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-bold text-acct-ink">
-                {title}
+                {t(titleKey)}
               </span>
               <span className="block truncate text-[12px] text-acct-muted">
-                {subtitle}
+                {t(subtitleKey)}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -138,6 +140,7 @@ function RowList({ rows, trailing }: { rows: Row[]; trailing?: ReactNode }) {
 // Account is one tap closer).
 function AppearanceRow() {
   const { theme, toggle } = useTheme();
+  const { t } = useI18n();
   return (
     <StaggerItem>
       <div className="flex items-center gap-3.5 px-4 py-3.5">
@@ -150,16 +153,16 @@ function AppearanceRow() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-bold text-acct-ink">
-            Appearance
+            {t("pp.profile.appearance")}
           </span>
           <span className="block truncate text-[12px] text-acct-muted">
-            Change the colors
+            {t("pp.profile.appearanceSub")}
           </span>
         </span>
         <button
           role="switch"
           aria-checked={theme === "dark"}
-          aria-label="Dark mode"
+          aria-label={t("common.darkMode")}
           onClick={toggle}
           className={`tap-target h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
             theme === "dark" ? "bg-acct-accent" : "bg-switch-off"
@@ -217,7 +220,9 @@ export default function ProfilePage() {
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-[20px] font-extrabold text-acct-ink">View Profile</h1>
+          <h1 className="text-[20px] font-extrabold text-acct-ink">
+            {t("pp.profile.title")}
+          </h1>
         </div>
 
         <FadeIn y={10}>
@@ -233,7 +238,7 @@ export default function ProfilePage() {
               </span>
               <Link
                 href="/profile/details"
-                aria-label="Edit profile photo"
+                aria-label={t("common.editPhoto")}
                 className="tap-target absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-acct-bg bg-black text-white transition-opacity hover:opacity-90"
               >
                 <Camera size={14} />
@@ -252,9 +257,17 @@ export default function ProfilePage() {
         <FadeIn delay={0.08}>
           <div className="mt-7 grid grid-cols-3 gap-2 rounded-[18px] bg-card px-3 py-4 text-center shadow-soft">
             {[
-              { icon: Mail, value: user?.email ?? "—", label: "Email" },
-              { icon: Phone, value: user?.phone ?? "Add phone", label: "Phone" },
-              { icon: MapPin, value: location ?? "Add address", label: "Location" },
+              { icon: Mail, value: user?.email ?? "—", label: t("pp.profile.email") },
+              {
+                icon: Phone,
+                value: user?.phone ?? t("pp.profile.addPhone"),
+                label: t("pp.profile.phone"),
+              },
+              {
+                icon: MapPin,
+                value: location ?? t("pp.profile.addAddress"),
+                label: t("pp.profile.location"),
+              },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex min-w-0 flex-col items-center gap-1">
                 <Icon size={17} className="text-acct-accent" />
@@ -269,12 +282,12 @@ export default function ProfilePage() {
 
         <Stagger delayChildren={0.12} className="mt-7">
           <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
-            Account
+            {t("pp.profile.account")}
           </p>
           <RowList rows={ACCOUNT} trailing={<AppearanceRow />} />
 
           <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
-            Support
+            {t("pp.profile.support")}
           </p>
           <RowList rows={SUPPORT} />
         </Stagger>

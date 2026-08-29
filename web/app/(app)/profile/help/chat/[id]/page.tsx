@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, SendHorizonal, Headset, Star, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 import { cn } from "@/lib/cn";
 
 // Help Centre chat.
@@ -40,6 +41,7 @@ export default function SupportChatPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [chat, setChat] = useState<Chat | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -70,7 +72,7 @@ export default function SupportChatPage() {
         { method: "POST", json: { body: text } },
       );
       setChat(d.chat);
-      if (d.escalated) toast("Passed to our support team");
+      if (d.escalated) toast(t("pp.chat.passedToTeam"));
     } catch (err) {
       toast(err instanceof Error ? err.message : "Message didn't send");
     } finally {
@@ -87,7 +89,7 @@ export default function SupportChatPage() {
         json: { stars, ...(comment.trim() ? { comment: comment.trim() } : {}) },
       });
       setChat(d.chat);
-      toast("Thanks for the feedback");
+      toast(t("pp.chat.thanksFeedback"));
       // Back to the Help Centre once the conversation is genuinely over.
       setTimeout(() => router.push("/profile/help"), 1200);
     } catch (err) {
@@ -130,7 +132,7 @@ export default function SupportChatPage() {
         <div className="flex items-center gap-3 py-4">
           <button
             onClick={() => router.push("/profile/help")}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
@@ -140,14 +142,14 @@ export default function SupportChatPage() {
           </span>
           <span className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-extrabold text-acct-ink">
-              Flouna Support
+              {t("pp.chat.title")}
             </h1>
             <span className="block text-[11px] font-semibold text-success">
               {chat.status === "escalated"
-                ? "With our team"
+                ? t("pp.chat.withTeam")
                 : ended
-                  ? "Chat ended"
-                  : "Online"}
+                  ? t("pp.chat.ended")
+                  : t("pp.chat.online")}
             </span>
           </span>
           {!ended && (
@@ -156,7 +158,7 @@ export default function SupportChatPage() {
               disabled={busy}
               className="tap-target shrink-0 rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold text-acct-muted transition-colors hover:bg-card disabled:opacity-50"
             >
-              End chat
+              {t("pp.chat.endChat")}
             </button>
           )}
         </div>
@@ -191,10 +193,10 @@ export default function SupportChatPage() {
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold text-acct-ink">
-                  Our team has it from here
+                  {t("pp.chat.teamHasIt")}
                 </span>
                 <span className="block text-[12px] text-acct-muted">
-                  They reply by email, usually within 24 hours
+                  {t("pp.chat.teamHasItSub")}
                 </span>
               </span>
               <ChevronRight size={16} className="shrink-0 text-acct-muted" />
@@ -223,10 +225,10 @@ export default function SupportChatPage() {
         {awaitingRating ? (
           <div className="rounded-[18px] bg-card p-5 text-center shadow-soft">
             <p className="text-[16px] font-extrabold text-acct-ink">
-              How did we do?
+              {t("pp.chat.howDidWeDo")}
             </p>
             <p className="mt-1 text-[13px] text-acct-muted">
-              Your rating tells us whether this actually helped.
+              {t("pp.chat.ratingSub")}
             </p>
             <div className="mt-4 flex justify-center gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -262,7 +264,7 @@ export default function SupportChatPage() {
                   disabled={busy}
                   className="mt-3 h-[50px] w-full rounded-pill bg-acct-accent text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                 >
-                  {busy ? "Sending…" : "Submit rating"}
+                  {busy ? t("pp.chat.sending") : t("pp.chat.submitRating")}
                 </button>
               </>
             )}
@@ -270,7 +272,7 @@ export default function SupportChatPage() {
               onClick={() => router.push("/profile/help")}
               className="mt-3 text-[13px] font-semibold text-acct-muted hover:underline"
             >
-              Skip
+              {t("pp.chat.skip")}
             </button>
           </div>
         ) : ended ? (
@@ -282,7 +284,7 @@ export default function SupportChatPage() {
               href="/profile/help"
               className="mt-3 inline-flex h-[46px] items-center rounded-pill border border-line px-6 text-[14px] font-bold text-acct-ink transition-colors hover:bg-acct-bg"
             >
-              Back to Help Center
+              {t("pp.chat.backToHelp")}
             </Link>
           </div>
         ) : (
@@ -296,15 +298,15 @@ export default function SupportChatPage() {
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Type your message…"
-              aria-label="Type your message"
+              placeholder={t("pp.chat.typeMessage")}
+              aria-label={t("pp.chat.typeMessage")}
               maxLength={1000}
               className="min-w-0 flex-1 bg-transparent py-2 text-[15px] text-acct-ink outline-none placeholder:text-acct-muted"
             />
             <button
               type="submit"
               disabled={busy || !draft.trim()}
-              aria-label="Send"
+              aria-label={t("common.send")}
               className="flex size-9 shrink-0 items-center justify-center rounded-full bg-acct-accent text-white transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               <SendHorizonal size={16} />

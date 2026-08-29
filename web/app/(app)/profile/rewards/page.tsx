@@ -7,6 +7,7 @@ import { ArrowLeft, Gift, ReceiptText, CircleHelp, ChevronRight } from "lucide-r
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/cn";
 
@@ -33,6 +34,7 @@ function badgeFor(code: string) {
 export default function RewardsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [balancePaise, setBalancePaise] = useState<number | null>(null);
   const [coupons, setCoupons] = useState<Coupon[] | null>(null);
   const [applied, setApplied] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function RewardsPage() {
     }
     void navigator.clipboard?.writeText(code).catch(() => {});
     setApplied(code);
-    toast(`${code} saved for your next order`);
+    toast(`${code} ${t("pp.rew.savedForNext")}`);
   }
 
   return (
@@ -96,13 +98,13 @@ export default function RewardsPage() {
         <div className="flex items-center py-4">
           <button
             onClick={() => router.back()}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Offers &amp; Rewards
+            {t("pp.profile.rewards")}
           </h1>
         </div>
 
@@ -112,11 +114,11 @@ export default function RewardsPage() {
             className="relative overflow-hidden rounded-[18px] p-5 text-white shadow-lift"
             style={{ background: "linear-gradient(135deg, #e8651a 0%, #b33b06 100%)" }}
           >
-            <p className="text-[13px] font-medium text-white/80">Your Balance</p>
+            <p className="text-[13px] font-medium text-white/80">{t("pp.rew.yourBalance")}</p>
             <p className="mt-1 text-[32px] font-extrabold leading-none">
               {balancePaise === null ? "—" : rupees(balancePaise)}
             </p>
-            <p className="mt-1.5 text-[12px] text-white/70">Wallet Balance</p>
+            <p className="mt-1.5 text-[12px] text-white/70">{t("pp.rew.walletBalance")}</p>
             <Gift
               size={92}
               className="pointer-events-none absolute -right-2 top-1/2 -translate-y-1/2 text-white/25"
@@ -126,15 +128,17 @@ export default function RewardsPage() {
         </FadeIn>
 
         <p className="mb-2 mt-6 px-1 text-[13px] font-semibold text-acct-muted">
-          Available Offers
+          {t("pp.rew.available")}
         </p>
 
         <Stagger className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           {coupons === null ? (
-            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              {t("common.loading")}
+            </p>
           ) : coupons.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
-              No offers running right now. Check back soon.
+              {t("pp.rew.noOffers")}
             </p>
           ) : (
             coupons.map((c, i) => (
@@ -157,7 +161,7 @@ export default function RewardsPage() {
                     </span>
                     {c.minOrderPaise > 0 && (
                       <span className="mt-0.5 block text-[11px] text-acct-muted">
-                        On orders above {rupees(c.minOrderPaise)}
+                        {t("pp.rew.minOrder")} {rupees(c.minOrderPaise)}
                       </span>
                     )}
                   </span>
@@ -170,7 +174,7 @@ export default function RewardsPage() {
                         : "border-acct-accent text-acct-accent hover:bg-acct-tint",
                     )}
                   >
-                    {applied === c.code ? "Applied" : "Apply"}
+                    {applied === c.code ? t("pp.rew.applied") : t("pp.rew.apply")}
                   </button>
                 </div>
               </StaggerItem>
@@ -188,10 +192,10 @@ export default function RewardsPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-acct-ink">
-                Reward History
+                {t("pp.rew.history")}
               </span>
               <span className="block text-[12px] text-acct-muted">
-                View your past rewards
+                {t("pp.rew.historySub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -205,10 +209,10 @@ export default function RewardsPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-acct-ink">
-                How it works?
+                {t("pp.rew.how")}
               </span>
               <span className="block text-[12px] text-acct-muted">
-                Know more about rewards
+                {t("pp.rew.howSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />

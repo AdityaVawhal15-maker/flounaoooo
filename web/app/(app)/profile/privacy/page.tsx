@@ -19,6 +19,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 import { cn } from "@/lib/cn";
 import {
   isDeviceLockSupported,
@@ -45,12 +46,6 @@ type Prefs = {
   activityStatus: boolean;
   twoFactorEnabled: boolean;
   biometricLock: boolean;
-};
-
-const VISIBILITY_LABEL: Record<Prefs["profileVisibility"], string> = {
-  everyone: "Everyone",
-  contacts: "People I've ordered with",
-  nobody: "Nobody",
 };
 
 function Toggle({
@@ -186,6 +181,14 @@ export default function PrivacySecurityPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
+
+  // Built here rather than at module scope so the labels follow the language.
+  const VISIBILITY_LABEL: Record<Prefs["profileVisibility"], string> = {
+    everyone: t("pp.priv.visEveryone"),
+    contacts: t("pp.priv.visContacts"),
+    nobody: t("pp.priv.visNobody"),
+  };
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [sessions, setSessions] = useState<number | null>(null);
   const [blockedCount, setBlockedCount] = useState<number | null>(null);
@@ -217,7 +220,7 @@ export default function PrivacySecurityPage() {
       await api("/api/users/preferences", { method: "PUT", json: { [key]: value } });
     } catch {
       setPrefs((p) => (p && previous !== undefined ? { ...p, [key]: previous } : p));
-      toast("Could not save that setting");
+      toast(t("pp.priv.saveFailed"));
     }
   }
 
@@ -228,9 +231,9 @@ export default function PrivacySecurityPage() {
         await api("/api/users/device-locks", { method: "DELETE" });
         forgetDeviceLock();
         setPrefs((p) => (p ? { ...p, biometricLock: false } : p));
-        toast("Biometric lock turned off");
+        toast(t("pp.priv.bioOff"));
       } catch {
-        toast("Could not turn that off");
+        toast(t("pp.priv.bioFailed"));
       } finally {
         setBusy(false);
       }
@@ -238,7 +241,7 @@ export default function PrivacySecurityPage() {
     }
 
     if (!isDeviceLockSupported()) {
-      toast("This device has no fingerprint or face unlock available");
+      toast(t("pp.priv.bioUnsupported"));
       return;
     }
     setBusy(true);
@@ -252,12 +255,12 @@ export default function PrivacySecurityPage() {
         json: { credentialId },
       });
       setPrefs((p) => (p ? { ...p, biometricLock: true } : p));
-      toast("Biometric lock is on for this device");
+      toast(t("pp.priv.bioOn"));
     } catch (err) {
       toast(
         err instanceof Error && err.name === "NotAllowedError"
-          ? "Cancelled"
-          : "Could not set up the biometric lock",
+          ? t("pp.priv.cancelled")
+          : t("pp.priv.bioFailed"),
       );
     } finally {
       setBusy(false);
@@ -285,7 +288,7 @@ export default function PrivacySecurityPage() {
       await api("/api/users/two-factor/confirm", { method: "POST", json: { code } });
       setPrefs((p) => (p ? { ...p, twoFactorEnabled: true } : p));
       setTwoFactorStep(null);
-      toast("Two-factor authentication is on");
+      toast(t("pp.priv.twoFactorOn"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "That code did not work");
     } finally {
@@ -301,7 +304,7 @@ export default function PrivacySecurityPage() {
       setPrefs((p) => (p ? { ...p, twoFactorEnabled: false } : p));
       setTwoFactorStep(null);
       setPassword("");
-      toast("Two-factor authentication is off");
+      toast(t("pp.priv.twoFactorOff"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not turn that off");
     } finally {
@@ -321,16 +324,18 @@ export default function PrivacySecurityPage() {
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Privacy &amp; Security
+            {t("pp.profile.privacy")}
           </h1>
         </div>
 
-        <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">Privacy</p>
+        <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
+          {t("pp.priv.privacy")}
+        </p>
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           <Row
             icon={MapPin}
-            title="Share My Location"
-            subtitle="Allow others to see your location"
+            title={t("pp.priv.shareLoc")}
+            subtitle={t("pp.priv.shareLocSub")}
           >
             <Toggle
               label="Share my location"
@@ -341,15 +346,15 @@ export default function PrivacySecurityPage() {
           </Row>
           <Row
             icon={Eye}
-            title="Profile Visibility"
-            subtitle="Who can see your profile"
+            title={t("pp.priv.visibility")}
+            subtitle={t("pp.priv.visibilitySub")}
             value={prefs ? VISIBILITY_LABEL[prefs.profileVisibility] : undefined}
             onClick={prefs ? () => setPicking(true) : undefined}
           />
           <Row
             icon={Activity}
-            title="Activity Status"
-            subtitle="Show your activity status"
+            title={t("pp.priv.activity")}
+            subtitle={t("pp.priv.activitySub")}
           >
             <Toggle
               label="Activity status"
@@ -360,27 +365,27 @@ export default function PrivacySecurityPage() {
           </Row>
           <Row
             icon={UserX}
-            title="Blocked Users"
-            subtitle="Manage blocked users"
+            title={t("pp.priv.blocked")}
+            subtitle={t("pp.priv.blockedSub")}
             value={blockedCount ? String(blockedCount) : undefined}
             href="/profile/blocked"
           />
         </div>
 
         <p className="mb-2 mt-7 px-1 text-[13px] font-semibold text-acct-muted">
-          Security
+          {t("pp.priv.security")}
         </p>
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           <Row
             icon={Lock}
-            title="Change Password"
-            subtitle="Update your password"
+            title={t("pp.priv.changePw")}
+            subtitle={t("pp.priv.changePwSub")}
             href="/forgot"
           />
           <Row
             icon={Fingerprint}
-            title="Biometric Lock"
-            subtitle="Use fingerprint or face ID"
+            title={t("pp.priv.biometric")}
+            subtitle={t("pp.priv.biometricSub")}
           >
             <Toggle
               label="Biometric lock"
@@ -391,9 +396,11 @@ export default function PrivacySecurityPage() {
           </Row>
           <Row
             icon={ShieldCheck}
-            title="Two-Factor Authentication"
-            subtitle="Add extra security"
-            value={prefs ? (prefs.twoFactorEnabled ? "On" : "Off") : undefined}
+            title={t("pp.priv.twoFactor")}
+            subtitle={t("pp.priv.twoFactorSub")}
+            value={
+              prefs ? (prefs.twoFactorEnabled ? t("pp.priv.on") : t("pp.priv.off")) : undefined
+            }
             onClick={
               !prefs || busy
                 ? undefined
@@ -408,8 +415,8 @@ export default function PrivacySecurityPage() {
           />
           <Row
             icon={Monitor}
-            title="Login Activity"
-            subtitle="See where you're logged in"
+            title={t("pp.priv.loginActivity")}
+            subtitle={t("pp.priv.loginActivitySub")}
             value={sessions === null ? undefined : String(sessions)}
             href="/profile/sessions"
           />
@@ -417,11 +424,8 @@ export default function PrivacySecurityPage() {
       </div>
 
       {picking && prefs && (
-        <Sheet title="Profile Visibility" onClose={() => setPicking(false)}>
-          <p className="mt-1 text-[13px] text-acct-muted">
-            Controls the name other people see next to your items in a shared
-            group order.
-          </p>
+        <Sheet title={t("pp.priv.visibility")} onClose={() => setPicking(false)}>
+          <p className="mt-1 text-[13px] text-acct-muted">{t("pp.priv.visHint")}</p>
           <div className="mt-4 flex flex-col gap-2">
             {(["everyone", "contacts", "nobody"] as const).map((v) => (
               <button

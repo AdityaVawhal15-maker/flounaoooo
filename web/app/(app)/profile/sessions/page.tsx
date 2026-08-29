@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Monitor, Smartphone, LogOut } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 // Privacy & Security → Login Activity.
@@ -27,8 +29,8 @@ function isPhone(ua: string | null) {
   return !!ua && /iPhone|Android|iPad|Mobile/i.test(ua);
 }
 
-function describe(ua: string | null) {
-  if (!ua) return "Unknown device";
+function describe(ua: string | null, unknown: string) {
+  if (!ua) return unknown;
   const browser =
     /EdgA?\//.test(ua) ? "Edge"
     : /OPR\/|Opera\//.test(ua) ? "Opera"
@@ -47,22 +49,24 @@ function describe(ua: string | null) {
     : /Linux/.test(ua) ? "Linux"
     : null;
   if (browser && platform) return `${browser} on ${platform}`;
-  return browser ?? platform ?? "Unknown device";
+  return browser ?? platform ?? unknown;
 }
 
-function when(iso: string | null) {
+function when(iso: string | null, t: (k: TranslationKey) => string, locale: string) {
   if (!iso) return "—";
   const d = new Date(iso);
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min ago`;
-  if (mins < 60 * 24) return `${Math.round(mins / 60)} hr ago`;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  if (mins < 1) return t("pp.sess.justNow");
+  if (mins < 60) return `${mins} ${t("pp.sess.minAgo")}`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)} ${t("pp.sess.hrAgo")}`;
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function LoginActivityPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { t, lang } = useI18n();
+  const locale = lang === "en" ? "en-IN" : `${lang}-IN`;
   const [sessions, setSessions] = useState<Session[] | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -82,7 +86,7 @@ export default function LoginActivityPage() {
     setSessions((s) => s?.filter((x) => x.id !== id) ?? null);
     try {
       await api(`/api/auth/sessions/${id}`, { method: "DELETE" });
-      toast("Signed that device out");
+      toast(t("pp.sess.signedOutOne"));
     } catch (err) {
       setSessions(previous ?? null);
       toast(err instanceof Error ? err.message : "Could not sign that device out");
@@ -102,7 +106,7 @@ export default function LoginActivityPage() {
           : "No other sessions were active",
       );
     } catch {
-      toast("Could not sign out other devices");
+      toast(t("pp.sess.signOutFailed"));
     } finally {
       setBusy(false);
     }
@@ -116,22 +120,24 @@ export default function LoginActivityPage() {
         <div className="flex items-center py-4">
           <button
             onClick={() => router.back()}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Login Activity
+            {t("pp.priv.loginActivity")}
           </h1>
         </div>
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           {sessions === null ? (
-            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              {t("common.loading")}
+            </p>
           ) : sessions.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
-              No active sessions
+              {t("pp.sess.none")}
             </p>
           ) : (
             sessions.map((s) => {
@@ -153,16 +159,17 @@ export default function LoginActivityPage() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="truncate text-[15px] font-bold text-acct-ink">
-                        {describe(s.userAgent)}
+                        {describe(s.userAgent, t("pp.sess.unknownDevice"))}
                       </span>
                       {current && (
                         <span className="shrink-0 rounded-pill bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">
-                          This device
+                          {t("pp.sess.thisDevice")}
                         </span>
                       )}
                     </span>
                     <span className="mt-0.5 block truncate text-[12px] text-acct-muted">
-                      Signed in {when(s.createdAt)} · Last active {when(s.lastUsedAt ?? s.createdAt)}
+                      {t("pp.sess.signedIn")} {when(s.createdAt, t, locale)} ·{" "}
+                      {t("pp.sess.lastActive")} {when(s.lastUsedAt ?? s.createdAt, t, locale)}
                     </span>
                   </span>
                   {!current && (
@@ -170,7 +177,7 @@ export default function LoginActivityPage() {
                       onClick={() => signOut(s.id)}
                       className="tap-target shrink-0 rounded-pill border border-line px-3 py-1.5 text-[12px] font-semibold text-acct-ink transition-colors hover:bg-danger-soft hover:text-danger"
                     >
-                      Sign out
+                      {t("pp.sess.signOut")}
                     </button>
                   )}
                 </div>
@@ -186,13 +193,12 @@ export default function LoginActivityPage() {
             className="mt-5 flex h-[52px] w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[15px] font-bold text-danger transition-colors hover:bg-danger-soft disabled:opacity-50"
           >
             <LogOut size={17} />
-            {busy ? "Signing out…" : "Sign out all other devices"}
+            {busy ? t("pp.sess.signingOut") : t("pp.sess.signOutOthers")}
           </button>
         )}
 
         <p className="mt-4 px-1 text-[12px] leading-relaxed text-acct-muted">
-          Each row is a real sign-in. Signing one out ends that session
-          immediately, and that device will have to log in again.
+          {t("pp.sess.footer")}
         </p>
       </div>
     </div>
