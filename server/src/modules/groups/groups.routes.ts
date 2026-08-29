@@ -10,9 +10,14 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { env } from "../../config/env.js";
 import { sendPushToUser } from "../notifications/push.service.js";
 import { joinLimiter } from "../../middleware/rateLimit.js";
+import { groupChatRouter } from "./chat.routes.js";
 
 export const groupsRouter = Router();
 groupsRouter.use(requireAuth);
+
+// Encrypted chat for one cart. Mounted here so it inherits :id and the same
+// membership rules that guard the cart itself.
+groupsRouter.use("/:id/chat", groupChatRouter);
 
 // Short, unambiguous join code (no 0/O/1/I).
 function generateCode(): string {

@@ -16,6 +16,7 @@ import { paymentsRouter } from "./modules/payments/payments.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { groupsRouter } from "./modules/groups/groups.routes.js";
+import { crewsRouter } from "./modules/groups/crews.routes.js";
 import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
@@ -116,6 +117,7 @@ export function createApp() {
   app.use("/api/payments", paymentsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/groups/crews", crewsRouter);
   app.use("/api/groups", groupsRouter);
   app.use("/api/alerts", alertsRouter);
   app.use("/api/shop", shopRouter);
