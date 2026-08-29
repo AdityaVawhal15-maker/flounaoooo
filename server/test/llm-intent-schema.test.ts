@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import { JSON_SCHEMA, SYSTEM_PROMPT } from "../src/modules/chat/llm/prompt.js";
+import { intentSchema } from "../src/modules/chat/llm/types.js";
+
+// The contract between the model and the recommender.
+//
+// This exists because of a bug that produced no error anywhere. `priority` was
+// in the Zod intent type with `.default("balanced")`, and missing from the JSON
+// schema the structured-output call is bound to. The model therefore could not
+// return it, Zod filled the default, and every request reached the recommender
+// as "balanced" — so "top-rated biryani" picked exactly what "cheapest biryani"
+// picked, and nothing logged a thing.
+//
+// A default is the dangerous part: it turns a broken contract into a plausible
+// answer. So the check is structural rather than behavioural — every field the
+// intent type can carry must be requestable from the model.
+
+/** Field names the Zod object for a domain accepts. */
+function zodFields(key: "food" | "ride" | "shop"): string[] {
+  const shape = intentSchema.shape[key];
+  // .optional() wraps the object; reach through to the shape underneath.
+  const inner = (shape as unknown as { unwrap: () => { shape: object } }).unwrap();
+  return Object.keys(inner.shape);
+}
+
+function schemaFields(key: "food" | "ride" | "shop"): string[] {
+  const props = (JSON_SCHEMA.properties as Record<string, { properties: object }>)[key];
+  return Object.keys(props.properties);
+}
+
+function requiredFields(key: "food" | "ride" | "shop"): string[] {
+  const props = (JSON_SCHEMA.properties as Record<string, { required: string[] }>)[key];
+  return props.required;
+}
+
+describe("the model can return every field the recommender reads", () => {
+  for (const domain of ["food", "ride", "shop"] as const) {
+    it(`${domain}: no field is in the intent type but missing from the schema`, () => {
+      const missing = zodFields(domain).filter((f) => !schemaFields(domain).includes(f));
+      expect(missing, `${domain} fields the model cannot return`).toEqual([]);
+    });
+
+    it(`${domain}: every schema field is required, so a default never hides a gap`, () => {
+      // An optional field the model skips is indistinguishable from a field it
+      // was never asked for. Requiring them all makes an omission loud.
+      const optional = schemaFields(domain).filter((f) => !requiredFields(domain).includes(f));
+      expect(optional, `${domain} fields the model may silently skip`).toEqual([]);
+    });
+
+    it(`${domain}: priority is requestable and constrained to the four rules`, () => {
+      const props = (
+        JSON_SCHEMA.properties as Record<
+          string,
+          { properties: Record<string, { enum?: string[] }> }
+        >
+      )[domain];
+      expect(props.properties.priority).toBeDefined();
+      expect(props.properties.priority.enum).toEqual([
+        "price",
+        "rating",
+        "speed",
+        "balanced",
+      ]);
+    });
+  }
+
+  it("the prompt tells the model how to choose a priority", () => {
+    // The schema makes the field returnable; the prompt is what makes it
+    // correct. Both providers that had this rule inline worked; the shared
+    // prompt, used by the provider actually configured, did not.
+    expect(SYSTEM_PROMPT).toMatch(/priority/i);
+    expect(SYSTEM_PROMPT).toMatch(/cheapest|cheap|budget/i);
+    expect(SYSTEM_PROMPT).toMatch(/top-rated|highest rated/i);
+    expect(SYSTEM_PROMPT).toMatch(/fastest|quick/i);
+  });
+
+  it("parses a complete intent the way a provider would return it", () => {
+    const intent = intentSchema.parse({
+      domain: "food",
+      reply: "Looking for the cheapest biryani.",
+      food: { item: "biryani", budgetPaise: null, dietary: "any", priority: "price" },
+    });
+    expect(intent.food?.priority).toBe("price");
+  });
+
+  it("shows what the bug looked like: an absent priority becomes balanced", () => {
+    // Kept as documentation. This parse succeeds, which is precisely why the
+    // fault was invisible — the guard is the schema check above, not this.
+    const intent = intentSchema.parse({
+      domain: "food",
+      reply: "Looking for a top-rated biryani.",
+      food: { item: "biryani", budgetPaise: null, dietary: "any" },
+    });
+    expect(intent.food?.priority).toBe("balanced");
+  });
+});
