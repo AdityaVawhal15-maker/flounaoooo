@@ -90,7 +90,7 @@ devRouter.get("/errors", async (req, res, next) => {
 // Mark an error fingerprint resolved (engineer triage).
 devRouter.patch(
   "/errors/:id/resolve",
-  validateBody(z.object({ resolved: z.boolean().default(true) })),
+  validateBody(z.object({ resolved: z.boolean().default(true) }).strict()),
   async (req, res, next) => {
     try {
       const { resolved } = req.body as { resolved: boolean };
@@ -122,7 +122,7 @@ devRouter.get("/flags", async (_req, res, next) => {
 
 devRouter.patch(
   "/flags/:key",
-  validateBody(z.object({ enabled: z.boolean() })),
+  validateBody(z.object({ enabled: z.boolean() }).strict()),
   async (req, res, next) => {
     try {
       const { enabled } = req.body as { enabled: boolean };

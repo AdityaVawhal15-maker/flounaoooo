@@ -69,14 +69,30 @@ describe("group ordering", () => {
       .expect(400);
   });
 
-  it("prices items server-side, ignoring client-sent price", async () => {
+  it("refuses a request that tries to name its own price", async () => {
+    const { agent } = await authedAgent();
+    const cart = await agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
+    // This used to answer 201 and quietly drop the price. The item was always
+    // priced from the catalogue, so nothing was ever mispriced — but a 201 tells
+    // whoever is probing that the field was understood, and the whole request is
+    // now refused instead.
+    await agent
+      .post(`/api/groups/${cart.body.id}/items`)
+      .send({ dishId: "masala-dosa", pricePaise: 1 })
+      .expect(400);
+
+    const after = await agent.get(`/api/groups/${cart.body.id}`).expect(200);
+    expect(after.body.totalPaise).toBe(0); // nothing was added
+  });
+
+  it("prices a legitimate item from the catalogue", async () => {
     const { agent } = await authedAgent();
     const cart = await agent.post("/api/groups").send({ platform: "ondc" }).expect(201);
     const res = await agent
       .post(`/api/groups/${cart.body.id}/items`)
-      .send({ dishId: "masala-dosa", pricePaise: 1 })
+      .send({ dishId: "masala-dosa" })
       .expect(201);
-    expect(res.body.totalPaise).toBe(12900); // not 1
+    expect(res.body.totalPaise).toBe(12900);
   });
 
   it("only the host can check out", async () => {

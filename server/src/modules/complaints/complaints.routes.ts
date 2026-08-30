@@ -36,7 +36,7 @@ complaintsRouter.post(
       category: CATEGORY,
       subCategory: CATEGORY.optional(),
       description: z.string().trim().min(5).max(2000),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -94,7 +94,7 @@ complaintsRouter.get("/:id/timeline", async (req, res, next) => {
 
 complaintsRouter.post(
   "/:id/information",
-  validateBody(z.object({ message: z.string().trim().min(2).max(2000) })),
+  validateBody(z.object({ message: z.string().trim().min(2).max(2000) }).strict()),
   async (req, res, next) => {
     try {
       const { message } = req.body as { message: string };
@@ -137,7 +137,7 @@ complaintsRouter.post("/:id/resolution/:resolutionId/reject", async (req, res, n
 
 complaintsRouter.post(
   "/:id/escalate",
-  validateBody(z.object({ reason: z.string().trim().min(5).max(500) })),
+  validateBody(z.object({ reason: z.string().trim().min(5).max(500) }).strict()),
   async (req, res, next) => {
     try {
       const { reason } = req.body as { reason: string };
@@ -157,7 +157,7 @@ complaintsRouter.post(
 complaintsRouter.post(
   "/:id/evidence",
   expressJson({ limit: "8mb" }),
-  validateBody(z.object({ dataUrl: z.string().min(32).max(8_000_000) })),
+  validateBody(z.object({ dataUrl: z.string().min(32).max(8_000_000) }).strict()),
   async (req, res, next) => {
     try {
       const { dataUrl } = req.body as { dataUrl: string };

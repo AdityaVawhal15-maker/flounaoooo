@@ -34,7 +34,7 @@ usersRouter.post(
       category: z.enum(TICKET_CATEGORIES),
       subject: z.string().trim().min(3).max(140),
       body: z.string().trim().min(5).max(2000),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -214,7 +214,7 @@ usersRouter.put(
     z.object({
       // rupees from the client; null clears the budget
       weeklyBudgetRupees: z.number().int().min(100).max(100000).nullable(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -396,7 +396,7 @@ usersRouter.get("/blocked", async (req, res, next) => {
 usersRouter.post(
   "/blocked",
   lookupLimiter,
-  validateBody(z.object({ email: z.string().trim().email().max(200) })),
+  validateBody(z.object({ email: z.string().trim().email().max(200) }).strict()),
   async (req, res, next) => {
     try {
       const { email } = req.body as { email: string };
@@ -467,7 +467,7 @@ usersRouter.post(
     z.object({
       credentialId: z.string().min(8).max(600),
       label: z.string().trim().max(80).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -551,7 +551,7 @@ usersRouter.post("/two-factor/start", credentialLimiter, async (req, res, next) 
 usersRouter.post(
   "/two-factor/confirm",
   credentialLimiter,
-  validateBody(z.object({ code: z.string().regex(/^\d{6}$/) })),
+  validateBody(z.object({ code: z.string().regex(/^\d{6}$/) }).strict()),
   async (req, res, next) => {
     try {
       const { code } = req.body as { code: string };
@@ -579,7 +579,7 @@ usersRouter.post(
 usersRouter.post(
   "/two-factor/disable",
   credentialLimiter,
-  validateBody(z.object({ password: z.string().min(1).max(128) })),
+  validateBody(z.object({ password: z.string().min(1).max(128) }).strict()),
   async (req, res, next) => {
     try {
       const { password } = req.body as { password: string };

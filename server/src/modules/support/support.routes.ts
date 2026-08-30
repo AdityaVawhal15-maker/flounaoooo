@@ -109,7 +109,7 @@ supportRouter.post(
     z.object({
       topic: z.string().trim().max(60).optional(),
       orderId: z.string().cuid().optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -182,7 +182,7 @@ supportRouter.get("/chats/:id", async (req, res, next) => {
 supportRouter.post(
   "/chats/:id/messages",
   chatLimiter,
-  validateBody(z.object({ body: z.string().trim().min(1).max(1000) })),
+  validateBody(z.object({ body: z.string().trim().min(1).max(1000) }).strict()),
   async (req, res, next) => {
     try {
       const chat = await assertOwn(req.params.id!, req.userId!);
@@ -291,7 +291,7 @@ supportRouter.post(
     z.object({
       stars: z.number().int().min(1).max(5),
       comment: z.string().trim().max(500).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

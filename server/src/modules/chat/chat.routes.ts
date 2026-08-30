@@ -335,7 +335,7 @@ chatRouter.post(
       // messages. It never appears in Recent Chats and never feeds the
       // personalisation that reads chat history.
       temporary: z.boolean().optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

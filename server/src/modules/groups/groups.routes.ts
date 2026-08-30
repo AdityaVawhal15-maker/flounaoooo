@@ -378,7 +378,7 @@ groupsRouter.post(
 groupsRouter.post(
   "/join",
   joinLimiter,
-  validateBody(z.object({ code: z.string().trim().toUpperCase().length(6) })),
+  validateBody(z.object({ code: z.string().trim().toUpperCase().length(6) }).strict()),
   async (req, res, next) => {
     try {
       const { code } = req.body as { code: string };
@@ -598,7 +598,7 @@ groupsRouter.post("/:id/suggestion/apply", async (req, res, next) => {
 groupsRouter.post(
   "/:id/items",
   validateBody(
-    z.object({ dishId: z.string().max(60), qty: z.number().int().min(1).max(20).default(1) }),
+    z.object({ dishId: z.string().max(60), qty: z.number().int().min(1).max(20).default(1) }).strict(),
   ),
   async (req, res, next) => {
     try {

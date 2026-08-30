@@ -27,7 +27,7 @@ couponsRouter.post(
       code: z.string().trim().min(2).max(24),
       domain: z.enum(["food", "ride"]).default("food"),
       subtotalPaise: z.number().int().min(0).max(10_000_000),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

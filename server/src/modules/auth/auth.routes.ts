@@ -117,7 +117,7 @@ authRouter.post(
         .trim()
         .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
         .optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -171,7 +171,7 @@ authRouter.post(
   "/verify-email",
   sensitiveLimit,
   validateBody(
-    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }),
+    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -196,7 +196,7 @@ authRouter.post(
 authRouter.post(
   "/resend-otp",
   sensitiveLimit,
-  validateBody(z.object({ email: emailSchema })),
+  validateBody(z.object({ email: emailSchema }).strict()),
   async (req, res, next) => {
     try {
       const { email } = req.body as { email: string };
@@ -227,7 +227,7 @@ const LOCKOUT_MS = 15 * 60_000;
 authRouter.post(
   "/login",
   sensitiveLimit,
-  validateBody(z.object({ email: emailSchema, password: z.string().min(1).max(128) })),
+  validateBody(z.object({ email: emailSchema, password: z.string().min(1).max(128) }).strict()),
   async (req, res, next) => {
     try {
       const { email, password } = req.body as { email: string; password: string };
@@ -314,7 +314,7 @@ authRouter.post(
   "/login/verify",
   sensitiveLimit,
   validateBody(
-    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }),
+    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -391,7 +391,7 @@ authRouter.delete("/sessions/:id", sessionLimiter, requireAuth, async (req, res,
 authRouter.post(
   "/console/login",
   sensitiveLimit,
-  validateBody(z.object({ email: emailSchema, password: z.string().min(1).max(128) })),
+  validateBody(z.object({ email: emailSchema, password: z.string().min(1).max(128) }).strict()),
   async (req, res, next) => {
     try {
       const { email, password } = req.body as { email: string; password: string };
@@ -451,7 +451,7 @@ authRouter.post(
   "/console/verify",
   sensitiveLimit,
   validateBody(
-    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }),
+    z.object({ email: emailSchema, code: z.string().regex(/^\d{6}$/) }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -480,7 +480,7 @@ authRouter.post(
 authRouter.post(
   "/google",
   sensitiveLimit,
-  validateBody(z.object({ credential: z.string().min(10) })),
+  validateBody(z.object({ credential: z.string().min(10) }).strict()),
   async (req, res, next) => {
     try {
       const { credential } = req.body as { credential: string };
@@ -512,10 +512,33 @@ authRouter.post(
       if (!googleClient || !env.GOOGLE_CLIENT_ID) {
         throw new ApiError(503, "Google sign-in is not configured");
       }
-      const ticket = await googleClient.verifyIdToken({
-        idToken: credential,
-        audience: env.GOOGLE_CLIENT_ID,
-      });
+      // A token that does not verify is the caller's problem or a
+      // misconfiguration, never an internal fault — but verifyIdToken throws,
+      // and nothing caught it. Every rejected token therefore reached the user
+      // as "Internal server error" and was written to monitoring as a crash.
+      //
+      // The most common cause is not a bad token at all: it is the browser
+      // being given one client ID and the server verifying against another, so
+      // Google refuses the audience. That is a five-minute fix once somebody is
+      // told, and unreadable when the only symptom is a 500.
+      let ticket;
+      try {
+        ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: env.GOOGLE_CLIENT_ID,
+        });
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        // Logged in full for whoever is on call; the reply stays short.
+        console.error("[auth] Google token rejected:", reason);
+        const wrongAudience = /audience|recipient|aud/i.test(reason);
+        throw new ApiError(
+          401,
+          wrongAudience
+            ? "Google sign-in is not set up correctly for this site. Check that the browser and the server are using the same Google client ID."
+            : "Google sign-in failed. Please try again, or use email instead.",
+        );
+      }
       const payload = ticket.getPayload();
       if (!payload?.email || !payload.sub) {
         throw new ApiError(401, "Google sign-in failed");
@@ -555,7 +578,7 @@ authRouter.post(
 authRouter.post(
   "/forgot",
   sensitiveLimit,
-  validateBody(z.object({ email: emailSchema })),
+  validateBody(z.object({ email: emailSchema }).strict()),
   async (req, res, next) => {
     try {
       const { email } = req.body as { email: string };
@@ -585,7 +608,7 @@ authRouter.post(
       email: emailSchema,
       code: z.string().regex(/^\d{6}$/),
       password: passwordSchema,
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
