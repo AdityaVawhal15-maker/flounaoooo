@@ -109,6 +109,20 @@ export const PRIVACY_REQUEST_SLA = {
   exportDownloadableMs: 7 * DAY,
 } as const;
 
+/**
+ * How long a deletion request can still be cancelled before it is carried out.
+ *
+ * Sits deliberately inside the 45 days the policy allows for processing, not
+ * at it. Erasing exactly on the deadline leaves no room for a slow job or a
+ * clock difference to turn a met promise into a broken one, and the gap costs
+ * nothing: the account is already unusable to its owner during the wait.
+ *
+ * It is also the window in which somebody who was locked out, or who changed
+ * their mind, can still come back. That is the whole reason erasure is
+ * scheduled rather than immediate.
+ */
+export const DELETION_GRACE_MS = 30 * DAY;
+
 /** Retention. Privacy policy 5.2. */
 export const RETENTION = {
   accountAfterDeletionMs: 365 * DAY,

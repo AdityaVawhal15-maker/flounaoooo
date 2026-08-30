@@ -2,6 +2,7 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { pruneDecisionLogs } from "./modules/advisor/decisionLog.service.js";
 import { prisma } from "./lib/prisma.js";
+import { processDueDeletions } from "./modules/compliance/privacy.service.js";
 import { initRealtime } from "./realtime/socket.js";
 import { checkPriceAlerts } from "./modules/alerts/alerts.service.js";
 import {
@@ -123,6 +124,11 @@ const cleanup = setInterval(
       // this?" and to satisfy an audit, then dropped — one row per search
       // would otherwise grow without bound.
       await pruneDecisionLogs(DECISION_LOG_RETENTION_DAYS);
+      // Erasures whose grace period has run out. A deletion that only happens
+      // while somebody is watching a screen is not a deletion, and the promise
+      // in the privacy policy is measured in days, not in attention.
+      const erased = await processDueDeletions();
+      if (erased > 0) console.log(`[cleanup] erased ${erased} account(s) on schedule`);
     } catch (err) {
       console.error("[cleanup] failed:", err);
     }
