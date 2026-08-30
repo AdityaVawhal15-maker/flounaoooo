@@ -126,7 +126,17 @@ export function createApp() {
   const healthHandler: express.RequestHandler = async (_req, res) => {
     const started = Date.now();
     try {
+      // Two checks, because they fail separately and only one of them used to
+      // be made. SELECT 1 proves the database is reachable; it proves nothing
+      // about whether the schema was ever applied to it. A deployment pointed
+      // at an empty Postgres answered "db: ok" here while every real query
+      // threw — so uptime monitors read all-green while nobody could sign in.
+      //
+      // Counting a row from a table the app cannot work without closes that
+      // gap. It is cheap, and it fails loudly the moment the schema is missing
+      // or the client was generated for a different engine.
       await prisma.$queryRaw`SELECT 1`;
+      await prisma.user.count();
       res.json({
         ok: true,
         service: "flouna-api",
@@ -135,11 +145,21 @@ export function createApp() {
         latencyMs: Date.now() - started,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (err) {
+      // "unreachable" and "no schema" need different people doing different
+      // things, and answering the same word for both sends whoever is on call
+      // to check the wrong thing first.
+      const reason = err instanceof Error ? err.message : String(err);
+      const missingSchema =
+        /does not exist|no such table|relation .* does not exist|P2021|P2022/i.test(reason);
+      console.error("[health] database check failed:", reason);
       res.status(503).json({
         ok: false,
         service: "flouna-api",
-        db: "unreachable",
+        db: missingSchema ? "schema-missing" : "unreachable",
+        hint: missingSchema
+          ? "The database is reachable but has no schema. Run the deploy step that applies it."
+          : "The database could not be reached. Check DATABASE_URL and the network path.",
         timestamp: new Date().toISOString(),
       });
     }
