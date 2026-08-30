@@ -27,6 +27,7 @@ import { igmWebhookRouter } from "./modules/complaints/igm.webhooks.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
 import { superRouter } from "./modules/backoffice/super.routes.js";
+import { requestKey } from "./middleware/rateLimit.js";
 
 export function createApp() {
   const app = express();
@@ -70,13 +71,53 @@ export function createApp() {
   );
   app.use(cookieParser());
 
-  // Global safety-net limit; sensitive routes (OTP, chat) add stricter ones.
+  // Two safety nets, because one is always wrong for somebody.
+  //
+  // The first counts a request against its SESSION. A single user with the
+  // group cart and the chat open is already polling several times a minute
+  // before they touch anything, so the per-person allowance has to be generous.
+  //
+  // The second counts against the ADDRESS, and is deliberately far higher. On
+  // Indian mobile networks carrier-grade NAT puts thousands of subscribers
+  // behind one public address; an address bucket sized for a person would
+  // throttle an entire city block for the behaviour of one phone in it. Sized
+  // like this it still stops a single machine hammering the API, without
+  // punishing a crowd for sharing a carrier.
+  //
+  // Sensitive routes (OTP, login, chat) add their own much stricter limits on
+  // top; these two only catch runaway traffic.
   app.use(
     rateLimit({
       windowMs: 60_000,
-      limit: 300,
+      limit: env.NODE_ENV === "test" ? 100_000 : 600,
       standardHeaders: "draft-8",
       legacyHeaders: false,
+      keyGenerator: requestKey,
+      message: { error: "Too many requests. Slow down a moment." },
+    }),
+  );
+  app.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: env.NODE_ENV === "test" ? 100_000 : 3_000,
+      standardHeaders: false,
+      legacyHeaders: false,
+      keyGenerator: (req) => "addr:" + (req.ip ?? ""),
+      // Anonymous traffic only. A signed-in request is already bounded by the
+      // per-session limiter above, so counting it against its address a second
+      // time re-creates exactly the problem that limiter exists to solve: on a
+      // carrier-NAT address, one bucket would have to hold thousands of
+      // legitimate customers, and no number is both large enough for them and
+      // small enough to stop an attacker. Anonymous requests can do very little
+      // — login and sign-up carry their own far stricter limits — so an address
+      // ceiling is the right shape for them and the wrong shape for everyone
+      // who has already signed in.
+      skip: (req) =>
+        Boolean(
+          (req as typeof req & { cookies?: Record<string, string> }).cookies
+            ?.access_token,
+        ),
+      message: { error: "Too many requests from this network." },
     }),
   );
 
