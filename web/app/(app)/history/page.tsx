@@ -17,10 +17,8 @@ import {
   Headset,
   CircleX,
   TrendingUp,
-  History as HistoryIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { StateScreen, StateGlyph } from "@/components/ui/StateScreen";
 import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { CardSkeleton } from "@/components/ui/Skeleton";
 import { CancelOrderSheet } from "@/components/orders/CancelOrderSheet";
@@ -156,8 +154,9 @@ export default function HistoryPage() {
 
       {error && <p className="mt-6 text-[13px] text-danger">{error}</p>}
 
-      {/* Activity Snapshot — All tab only, per the design. */}
-      {tab === "" && orders && orders.length > 0 && (
+      {/* Activity Snapshot — All tab only, per the design, and shown at zero
+          on an empty account rather than hidden. */}
+      {tab === "" && orders && (
         <>
           <h3 className="mt-5 flex items-center gap-1.5 text-[16px] font-extrabold text-ink">
             {t("history.snapshot")} <TrendingUp size={15} className="text-cocoa" />
@@ -196,12 +195,9 @@ export default function HistoryPage() {
         {orders === null && !error &&
           Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
         {orders?.length === 0 && (
-          <StateScreen
-            illustration={<StateGlyph icon={HistoryIcon} />}
-            title={t("history.emptyTitle")}
-            message={t("history.empty")}
-            primary={{ label: t("cart.browse"), href: "/food" }}
-          />
+          <p className="mt-1 text-[18px] font-extrabold text-ink">
+            {t(tab === "ride" ? "history.noBookings" : "history.noOrders")}
+          </p>
         )}
         {orders?.map((o) => {
           const disc = PROVIDER_DISC[o.provider] ?? {

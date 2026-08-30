@@ -14,6 +14,8 @@ export const LANGUAGES: { code: Lang; label: string; speechLang: string }[] = [
 
 export const dictionaries = {
   en: {
+    "history.noOrders": "No Orders Available",
+    "history.noBookings": "No Booking Available",
     "pp.det.editInfo": "Edit Information",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "Personal Information",
@@ -596,8 +598,6 @@ export const dictionaries = {
     "history.ongoing": "Ongoing",
     "history.complete": "Complete",
     "history.all": "All",
-    "history.empty": "Nothing here yet — ask Flouna for food or a ride to get started.",
-    "history.emptyTitle": "No orders yet",
     "history.loadError": "Couldn't load your history. Pull to refresh.",
     "status.confirmed": "Confirmed",
     "status.in_progress": "In progress",
@@ -642,6 +642,8 @@ export const dictionaries = {
   },
 
   hi: {
+    "history.noOrders": "कोई ऑर्डर उपलब्ध नहीं",
+    "history.noBookings": "कोई बुकिंग उपलब्ध नहीं",
     "pp.det.editInfo": "जानकारी संपादित करें",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "व्यक्तिगत जानकारी",
@@ -1217,8 +1219,6 @@ export const dictionaries = {
     "history.ongoing": "जारी है",
     "history.complete": "पूर्ण",
     "history.all": "सभी",
-    "history.empty": "अभी यहाँ कुछ नहीं — शुरू करने के लिए Flouna से खाना या सवारी माँगें।",
-    "history.emptyTitle": "अभी कोई ऑर्डर नहीं",
     "history.loadError": "आपका इतिहास लोड नहीं हो सका। ताज़ा करने के लिए खींचें।",
     "status.confirmed": "पुष्ट",
     "status.in_progress": "जारी है",
@@ -1263,6 +1263,8 @@ export const dictionaries = {
   },
 
   mr: {
+    "history.noOrders": "कोणतीही ऑर्डर उपलब्ध नाही",
+    "history.noBookings": "कोणतेही बुकिंग उपलब्ध नाही",
     "pp.det.editInfo": "माहिती संपादित करा",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "वैयक्तिक माहिती",
@@ -1838,8 +1840,6 @@ export const dictionaries = {
     "history.ongoing": "सुरू आहे",
     "history.complete": "पूर्ण",
     "history.all": "सर्व",
-    "history.empty": "अद्याप इथे काहीच नाही — सुरू करण्यासाठी Flouna ला जेवण किंवा सवारी मागा.",
-    "history.emptyTitle": "अद्याप ऑर्डर नाहीत",
     "history.loadError": "तुमचा इतिहास लोड होऊ शकला नाही. रिफ्रेश करण्यासाठी ओढा.",
     "status.confirmed": "पुष्टी",
     "status.in_progress": "सुरू आहे",
@@ -1884,6 +1884,8 @@ export const dictionaries = {
   },
 
   kn: {
+    "history.noOrders": "ಯಾವುದೇ ಆರ್ಡರ್ ಲಭ್ಯವಿಲ್ಲ",
+    "history.noBookings": "ಯಾವುದೇ ಬುಕಿಂಗ್ ಲಭ್ಯವಿಲ್ಲ",
     "pp.det.editInfo": "ಮಾಹಿತಿ ಸಂಪಾದಿಸಿ",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "ವೈಯಕ್ತಿಕ ಮಾಹಿತಿ",
@@ -2459,8 +2461,6 @@ export const dictionaries = {
     "history.ongoing": "ನಡೆಯುತ್ತಿದೆ",
     "history.complete": "ಪೂರ್ಣ",
     "history.all": "ಎಲ್ಲಾ",
-    "history.empty": "ಇನ್ನೂ ಏನೂ ಇಲ್ಲ — ಪ್ರಾರಂಭಿಸಲು Flouna ಅನ್ನು ಆಹಾರ ಅಥವಾ ರೈಡ್ ಕೇಳಿ.",
-    "history.emptyTitle": "ಇನ್ನೂ ಆರ್ಡರ್‌ಗಳಿಲ್ಲ",
     "history.loadError": "ನಿಮ್ಮ ಇತಿಹಾಸ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ರಿಫ್ರೆಶ್ ಮಾಡಲು ಎಳೆಯಿರಿ.",
     "status.confirmed": "ಖಚಿತಪಡಿಸಲಾಗಿದೆ",
     "status.in_progress": "ನಡೆಯುತ್ತಿದೆ",
@@ -2505,6 +2505,8 @@ export const dictionaries = {
   },
 
   ta: {
+    "history.noOrders": "ஆர்டர்கள் எதுவும் இல்லை",
+    "history.noBookings": "முன்பதிவுகள் எதுவும் இல்லை",
     "pp.det.editInfo": "தகவலைத் திருத்து",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "தனிப்பட்ட தகவல்",
@@ -3080,8 +3082,6 @@ export const dictionaries = {
     "history.ongoing": "நடந்து கொண்டிருக்கிறது",
     "history.complete": "நிறைவு",
     "history.all": "அனைத்தும்",
-    "history.empty": "இன்னும் இங்கே ஒன்றும் இல்லை — தொடங்க Flouna-ஐ உணவு அல்லது ரைடு கேளுங்கள்.",
-    "history.emptyTitle": "இதுவரை ஆர்டர்கள் இல்லை",
     "history.loadError": "உங்கள் வரலாறு ஏற்ற முடியவில்லை. புதுப்பிக்க இழுக்கவும்.",
     "status.confirmed": "உறுதிசெய்யப்பட்டது",
     "status.in_progress": "நடந்துகொண்டிருக்கிறது",
@@ -3126,6 +3126,8 @@ export const dictionaries = {
   },
 
   te: {
+    "history.noOrders": "ఆర్డర్లు ఏవీ అందుబాటులో లేవు",
+    "history.noBookings": "బుకింగ్‌లు ఏవీ అందుబాటులో లేవు",
     "pp.det.editInfo": "సమాచారాన్ని సవరించండి",
     // Personal Information form, privacy sheets, remaining labels
     "pp.det.title": "వ్యక్తిగత సమాచారం",
@@ -3701,8 +3703,6 @@ export const dictionaries = {
     "history.ongoing": "కొనసాగుతోంది",
     "history.complete": "పూర్తి",
     "history.all": "అన్నీ",
-    "history.empty": "ఇంకా ఇక్కడ ఏమీ లేదు — ప్రారంభించడానికి Radiusను భోజనం లేదా రైడ్ అడగండి.",
-    "history.emptyTitle": "ఇంకా ఆర్డర్‌లు లేవు",
     "history.loadError": "మీ చరిత్రను లోడ్ చేయలేకపోయాం. రిఫ్రెష్ చేయడానికి లాగండి.",
     "status.confirmed": "నిర్ధారించబడింది",
     "status.in_progress": "జరుగుతోంది",
