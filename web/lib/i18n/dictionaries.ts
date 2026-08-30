@@ -14,6 +14,8 @@ export const LANGUAGES: { code: Lang; label: string; speechLang: string }[] = [
 
 export const dictionaries = {
   en: {
+    "pp.profile.data": "Your data",
+    "pp.profile.dataSub": "Download, delete, cookies and consent",
     // Incognito chat
     "chat.incognitoTitle": "You're incognito",
     "chat.incognitoAsk": "Ask anything. It stays here.",
@@ -776,6 +778,8 @@ export const dictionaries = {
   },
 
   hi: {
+    "pp.profile.data": "आपका डेटा",
+    "pp.profile.dataSub": "डाउनलोड करें, हटाएँ, कुकीज़ और सहमति",
     // Incognito chat
     "chat.incognitoTitle": "आप गुप्त मोड में हैं",
     "chat.incognitoAsk": "कुछ भी पूछें। यह यहीं रहेगा।",
@@ -1531,6 +1535,8 @@ export const dictionaries = {
   },
 
   mr: {
+    "pp.profile.data": "तुमचा डेटा",
+    "pp.profile.dataSub": "डाउनलोड, हटवा, कुकीज आणि संमती",
     // Incognito chat
     "chat.incognitoTitle": "तुम्ही गुप्त मोडमध्ये आहात",
     "chat.incognitoAsk": "काहीही विचारा. ते इथेच राहील.",
@@ -2286,6 +2292,8 @@ export const dictionaries = {
   },
 
   kn: {
+    "pp.profile.data": "ನಿಮ್ಮ ಡೇಟಾ",
+    "pp.profile.dataSub": "ಡೌನ್‌ಲೋಡ್, ಅಳಿಸಿ, ಕುಕೀಗಳು ಮತ್ತು ಸಮ್ಮತಿ",
     // Incognito chat
     "chat.incognitoTitle": "ನೀವು ಗುಪ್ತ ಮೋಡ್‌ನಲ್ಲಿದ್ದೀರಿ",
     "chat.incognitoAsk": "ಏನಾದರೂ ಕೇಳಿ. ಅದು ಇಲ್ಲಿಯೇ ಉಳಿಯುತ್ತದೆ.",
@@ -3041,6 +3049,8 @@ export const dictionaries = {
   },
 
   ta: {
+    "pp.profile.data": "உங்கள் தரவு",
+    "pp.profile.dataSub": "பதிவிறக்கம், நீக்கம், குக்கீகள் மற்றும் ஒப்புதல்",
     // Incognito chat
     "chat.incognitoTitle": "நீங்கள் அந்தரங்க முறையில் உள்ளீர்கள்",
     "chat.incognitoAsk": "எதையும் கேளுங்கள். அது இங்கேயே இருக்கும்.",
@@ -3796,6 +3806,8 @@ export const dictionaries = {
   },
 
   te: {
+    "pp.profile.data": "మీ డేటా",
+    "pp.profile.dataSub": "డౌన్‌లోడ్, తొలగింపు, కుకీలు మరియు సమ్మతి",
     // Incognito chat
     "chat.incognitoTitle": "మీరు ఇన్‌కాగ్నిటోలో ఉన్నారు",
     "chat.incognitoAsk": "ఏదైనా అడగండి. అది ఇక్కడే ఉంటుంది.",

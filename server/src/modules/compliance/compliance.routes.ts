@@ -39,6 +39,50 @@ const cookieSchema = z
   })
   .strict();
 
+// --- Everything the "Your data" screen needs, in one call ---
+
+// One request rather than three. The alternative was reading the training flag
+// off /api/auth/me, which does not carry it: the page would have shown the
+// toggle off for someone who had opted out, and told them a lie about a right
+// they had exercised.
+complianceRouter.get("/overview", async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: req.userId! },
+      select: {
+        cookieChoiceAt: true,
+        cookieAnalytics: true,
+        cookieAdvertising: true,
+        cookieSocial: true,
+        cookiePerformance: true,
+        aiTrainingOptOut: true,
+        deletionRequestedAt: true,
+        deletionScheduledFor: true,
+      },
+    });
+    res.json({
+      cookies: {
+        chosenAt: user.cookieChoiceAt,
+        choice: {
+          analytics: user.cookieAnalytics,
+          advertising: user.cookieAdvertising,
+          social: user.cookieSocial,
+          performance: user.cookiePerformance,
+        },
+        inUse: COOKIES_IN_USE,
+      },
+      aiTrainingOptOut: user.aiTrainingOptOut,
+      deletion: {
+        requestedAt: user.deletionRequestedAt,
+        scheduledFor: user.deletionScheduledFor,
+      },
+      policyVersion: POLICY_VERSION,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // --- Cookies ---
 
 // What is set, and what this account has chosen. The inventory is served from

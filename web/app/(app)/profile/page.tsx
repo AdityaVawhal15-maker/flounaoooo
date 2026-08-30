@@ -24,6 +24,7 @@ import {
   Moon,
   Sun,
   type LucideIcon,
+  DatabaseZap,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -59,6 +60,14 @@ const ACCOUNT: Row[] = [
     icon: ShieldCheck,
     titleKey: "pp.profile.privacy",
     subtitleKey: "pp.profile.privacySub",
+  },
+  {
+    // Distinct from Privacy & Security above, which is about who can see you.
+    // This is what we hold and what you can make us do with it.
+    href: "/profile/data",
+    icon: DatabaseZap,
+    titleKey: "pp.profile.data",
+    subtitleKey: "pp.profile.dataSub",
   },
   {
     href: "/profile/alerts",
