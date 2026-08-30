@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  Ghost,
   MapPin,
   Pizza,
   Send,
@@ -115,6 +116,16 @@ function ChatHome() {
   }, [resetToken, temporary, router]);
 
   useEffect(() => {
+    // Incognito asks for none of it. Both of these read order history to build
+    // something personal — the usual reorder, the suggested prompts — and the
+    // notice on this screen promises that history is not used here. Fetching it
+    // anyway and merely declining to draw it would make the promise about
+    // storage rather than about use, which is not what it says.
+    if (temporary) {
+      setUsual(null);
+      setSuggestions(FALLBACK_SUGGESTIONS);
+      return;
+    }
     api<{ usual: Usual | null }>("/api/users/usual")
       .then((d) => setUsual(d.usual))
       .catch(() => setUsual(null));
@@ -123,7 +134,7 @@ function ChatHome() {
       .catch(() => {
         /* keep fallbacks */
       });
-  }, []);
+  }, [temporary]);
 
   // "New Chat" (no ?chat param) resets the thread — reset-during-render.
   const [prevChat, setPrevChat] = useState(chatParam);
@@ -210,15 +221,27 @@ function ChatHome() {
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
       )}
     >
-      {temporary && empty && (
-        <p className="mx-auto mt-2 max-w-md text-center text-[12px] leading-relaxed text-cocoa lg:mt-1">
-          This chat won&apos;t appear in your history and won&apos;t be used to
-          personalise your recommendations. Flouna never trains AI models on
-          your conversations.
-        </p>
-      )}
-
-      {empty ? (
+      {empty && temporary ? (
+        // Incognito has its own empty screen rather than the ordinary one with
+        // the personal parts removed. Everything the normal screen offers is
+        // built from history: the reorder shortcut, the suggested prompts, the
+        // proactive banner. Showing that under a notice saying history is not
+        // used here would contradict the notice on the same screen.
+        <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+          <FadeIn y={10} className="flex flex-col items-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-accent-soft">
+              <Ghost size={26} className="text-accent" />
+            </span>
+            <h1 className="mt-4 text-balance text-[26px] font-bold leading-tight tracking-tight text-ink lg:text-[34px]">
+              {t("chat.incognitoTitle")}
+            </h1>
+            <p className="mt-2 text-[15px] text-cocoa">{t("chat.incognitoAsk")}</p>
+            <p className="mx-auto mt-6 max-w-sm text-[12px] leading-relaxed text-muted">
+              {t("chat.incognitoBody")}
+            </p>
+          </FadeIn>
+        </div>
+      ) : empty ? (
         <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
           {/* Proactive heads-up — the engine getting ahead of the user (rain
               near their usual ride, etc.). Renders nothing when quiet. */}
