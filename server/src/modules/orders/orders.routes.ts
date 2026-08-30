@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { cancellationTerms, refundWindowDays } from "./cancellation.service.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
@@ -712,6 +713,27 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
   }
 });
 
+// What the published refund policy says about this order, right now.
+//
+// Served rather than worked out in the client so the countdown the customer
+// sees and the rule the server enforces are the same rule. A five minute
+// window that the screen computes from its own clock is a window that
+// disagrees with the server for anyone whose phone clock is off.
+ordersRouter.get("/:id/cancellation", async (req, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      include: { payment: true },
+    });
+    if (!order) throw new ApiError(404, "Order not found");
+    const terms = cancellationTerms(order, order.payment);
+    const [lo, hi] = refundWindowDays(order.payment?.method ?? null);
+    res.json({ ...terms, refundDays: { min: lo, max: hi } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Cancel an order. Rides: allowed while live (searching → in progress), like
 // Uber/Ola. Food: allowed only until the delivery partner picks the order up
 // (before the out_for_delivery stage) — the Swiggy/Zomato policy; once food is
@@ -764,6 +786,15 @@ ordersRouter.post(
       const { reason } = req.body as { reason?: string };
       const details = JSON.parse(order.details) as Record<string, unknown>;
       if (reason) details.cancelReason = reason;
+
+      // Which side of the published window this fell on, decided here and
+      // written down. Working it out later from timestamps would re-derive a
+      // customer's entitlement from a clock that has since moved on, and the
+      // answer has to be the one that was true at the moment they cancelled.
+      const payment = await prisma.payment.findUnique({ where: { orderId: order.id } });
+      const terms = cancellationTerms(order, payment);
+      details.cancelledWithinFreeWindow = terms.freeWindow;
+      details.cancelledAt = new Date().toISOString();
 
       const updated = await prisma.order.update({
         where: { id: order.id },
