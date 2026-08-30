@@ -64,7 +64,9 @@ export const REFUND_TIMELINE = {
  * stamp a deadline on a ticket, and a number that has to be parsed before it
  * can be used is a number that will eventually be parsed wrongly.
  */
-export const SUPPORT_SLA: Record<string, { respondMs: number; resolveMs: number }> = {
+export type SlaTarget = { respondMs: number; resolveMs: number };
+
+export const SUPPORT_SLA = {
   account: { respondMs: 2 * HOUR, resolveMs: 1 * DAY },
   payment: { respondMs: 2 * HOUR, resolveMs: 1 * DAY },
   order: { respondMs: 4 * HOUR, resolveMs: 1 * DAY },
@@ -76,9 +78,16 @@ export const SUPPORT_SLA: Record<string, { respondMs: number; resolveMs: number 
   feedback: { respondMs: 48 * HOUR, resolveMs: 30 * DAY },
 };
 
-/** Falls back to the slowest published tier, never to something faster. */
-export function slaFor(category: string) {
-  return SUPPORT_SLA[category] ?? SUPPORT_SLA.general;
+/**
+ * Falls back to the slowest published tier, never to something faster.
+ *
+ * Returns a concrete target rather than a possibly-missing one: an unknown
+ * category must still get a deadline, because the alternative is a ticket with
+ * no promise attached that nobody is measured on.
+ */
+export function slaFor(category: string): SlaTarget {
+  const row = (SUPPORT_SLA as Record<string, SlaTarget | undefined>)[category];
+  return row ?? SUPPORT_SLA.general;
 }
 
 /** Grievance procedure. Support policy 3.7, privacy policy 10.3. */
