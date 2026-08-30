@@ -225,16 +225,18 @@ function ChatHome() {
         // bordered panel, which is what a private window looks like elsewhere,
         // and the border is the same accent as the switch that turned it on.
         temporary &&
-          "my-2 h-[calc(100dvh-5rem)] rounded-[22px] border border-accent/35 bg-card/50 px-3 lg:my-3 lg:h-[calc(100dvh-1.5rem)] lg:px-5",
+          "my-2.5 h-[calc(100dvh-5.25rem)] rounded-[20px] border border-line bg-card px-3.5 shadow-soft lg:my-3 lg:h-[calc(100dvh-1.5rem)] lg:px-5",
       )}
     >
       {empty && temporary ? (
+        // Sized to its content and placed high, so the composer that follows
+        // sits directly beneath the heading as one group.
         // Incognito has its own empty screen rather than the ordinary one with
         // the personal parts removed. Everything the normal screen offers is
         // built from history: the reorder shortcut, the suggested prompts, the
         // proactive banner. Showing that under a notice saying history is not
         // used here would contradict the notice on the same screen.
-        <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
+        <div className="flex shrink-0 flex-col items-center px-2 pt-[14vh] text-center lg:pt-[18vh]">
           <FadeIn y={10} className="flex flex-col items-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-accent-soft">
               <Ghost size={26} className="text-accent" />
@@ -353,7 +355,13 @@ function ChatHome() {
           e.preventDefault();
           send(input);
         }}
-        className="sticky bottom-0 z-10 pb-4 pt-2"
+        className={cn(
+          "z-10",
+          // Anchored to the floor whenever there is a conversation above it to
+          // be anchored against. On the empty incognito screen there is not,
+          // so it stays with the heading instead.
+          empty && temporary ? "mt-5 shrink-0" : "sticky bottom-0 pb-4 pt-2",
+        )}
       >
         {/* Ask bar — the redesign lifts the send button out of the field into
             its own accent circle beside it (Figma 2177:4763). */}
@@ -361,7 +369,16 @@ function ChatHome() {
           {/* bg-card, not a hardcoded white: the text inside is text-ink, which
               flips to near-white in dark mode. Against a fixed white pill that
               left what you typed at 1.13:1 contrast — invisible. */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-pill bg-card py-3 pl-5 pr-4 shadow-card">
+          <div
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-2.5 rounded-pill bg-card py-3 pl-5 pr-4",
+              // The incognito panel is bg-card too, so the field's shadow has
+              // nothing to lift it off and the two surfaces merge into one flat
+              // area with a cursor floating in it. Inside the panel the field
+              // earns its edge from a border instead.
+              temporary ? "border border-line" : "shadow-card",
+            )}
+          >
             <SearchIcon size={19} className="shrink-0 text-ink/70" />
             <input
               value={input}
@@ -382,6 +399,10 @@ function ChatHome() {
           </button>
         </div>
       </form>
+
+      {/* The room a conversation would have occupied. Without it the panel
+          shrinks to fit the heading and the frame stops being a frame. */}
+      {empty && temporary && <div className="flex-1" />}
     </div>
   );
 }
