@@ -11,6 +11,7 @@ import {
 import { sweepPlusMemberships } from "./modules/subscription/subscription.service.js";
 import { initMonitoring, captureError } from "./lib/monitoring.js";
 import { seedDemoCoupons } from "./data/coupons.js";
+import { shouldSync, syncSchema } from "./lib/schemaSync.js";
 
 initMonitoring();
 
@@ -32,6 +33,23 @@ process.on("uncaughtException", (err) => {
   captureError(err, { kind: "uncaughtException" });
   process.exit(1);
 });
+
+// Bring the database up to the schema BEFORE accepting a request. Starting
+// first and migrating after would mean serving 500s to whoever arrives in
+// between — which is exactly the outage this was written for.
+//
+// If it fails, the process exits rather than starting. That is the point: a
+// deployment that cannot reach its own schema must not replace one that can,
+// and the platform's healthcheck and restart policy will keep the previous
+// release serving instead.
+if (shouldSync()) {
+  try {
+    await syncSchema();
+  } catch {
+    console.error("[startup] refusing to start against a schema that could not be applied");
+    process.exit(1);
+  }
+}
 
 const app = createApp();
 

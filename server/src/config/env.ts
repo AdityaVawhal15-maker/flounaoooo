@@ -4,6 +4,13 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1),
+  // Which engine the schema is generated against. The build script reads this
+  // too; it is declared here so the boot-time schema sync can tell a deployed
+  // Postgres from local SQLite without guessing.
+  DB_PROVIDER: z.enum(["sqlite", "postgresql"]).optional(),
+  // An escape hatch for the case where the schema must be applied by hand —
+  // a destructive change under review, say — and the app still has to start.
+  SKIP_SCHEMA_SYNC: z.enum(["0", "1"]).optional(),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   // Root for uploaded complaint evidence. Relative paths resolve from the
   // server working directory. Tests point this at a temp dir so a run never
