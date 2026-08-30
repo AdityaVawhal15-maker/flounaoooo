@@ -16,7 +16,6 @@ export const dictionaries = {
   en: {
     // Incognito chat
     "chat.incognitoTitle": "You're incognito",
-    "chat.incognitoBody": "This chat is not saved to your history and is never used to personalise what you are shown. Nothing here trains any model.",
     "chat.incognitoAsk": "Ask anything. It stays here.",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "Setting up encryption on this device...",
@@ -779,7 +778,6 @@ export const dictionaries = {
   hi: {
     // Incognito chat
     "chat.incognitoTitle": "आप गुप्त मोड में हैं",
-    "chat.incognitoBody": "यह चैट आपके इतिहास में सेव नहीं होती और आपको दिखाई देने वाली चीज़ों को व्यक्तिगत बनाने में कभी इस्तेमाल नहीं होती। यहाँ की कोई बात किसी मॉडल को नहीं सिखाई जाती।",
     "chat.incognitoAsk": "कुछ भी पूछें। यह यहीं रहेगा।",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "इस डिवाइस पर एन्क्रिप्शन तैयार हो रहा है...",
@@ -1535,7 +1533,6 @@ export const dictionaries = {
   mr: {
     // Incognito chat
     "chat.incognitoTitle": "तुम्ही गुप्त मोडमध्ये आहात",
-    "chat.incognitoBody": "ही चॅट तुमच्या इतिहासात सेव्ह होत नाही आणि तुम्हाला दिसणाऱ्या गोष्टी वैयक्तिक करण्यासाठी कधीही वापरली जात नाही. इथले काहीही कोणत्याही मॉडेलला शिकवले जात नाही.",
     "chat.incognitoAsk": "काहीही विचारा. ते इथेच राहील.",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "या डिव्हाइसवर एन्क्रिप्शन तयार होत आहे...",
@@ -2291,7 +2288,6 @@ export const dictionaries = {
   kn: {
     // Incognito chat
     "chat.incognitoTitle": "ನೀವು ಗುಪ್ತ ಮೋಡ್‌ನಲ್ಲಿದ್ದೀರಿ",
-    "chat.incognitoBody": "ಈ ಚಾಟ್ ನಿಮ್ಮ ಇತಿಹಾಸದಲ್ಲಿ ಉಳಿಯುವುದಿಲ್ಲ ಮತ್ತು ನಿಮಗೆ ತೋರಿಸುವುದನ್ನು ವೈಯಕ್ತಿಕಗೊಳಿಸಲು ಎಂದಿಗೂ ಬಳಸುವುದಿಲ್ಲ. ಇಲ್ಲಿನ ಯಾವುದೂ ಯಾವ ಮಾದರಿಗೂ ಕಲಿಸುವುದಿಲ್ಲ.",
     "chat.incognitoAsk": "ಏನಾದರೂ ಕೇಳಿ. ಅದು ಇಲ್ಲಿಯೇ ಉಳಿಯುತ್ತದೆ.",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "ಈ ಸಾಧನದಲ್ಲಿ ಎನ್‌ಕ್ರಿಪ್ಶನ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...",
@@ -3047,7 +3043,6 @@ export const dictionaries = {
   ta: {
     // Incognito chat
     "chat.incognitoTitle": "நீங்கள் அந்தரங்க முறையில் உள்ளீர்கள்",
-    "chat.incognitoBody": "இந்த அரட்டை உங்கள் வரலாற்றில் சேமிக்கப்படுவதில்லை, உங்களுக்குக் காட்டப்படுவதைத் தனிப்பயனாக்கப் பயன்படுத்தப்படுவதுமில்லை. இங்குள்ள எதுவும் எந்த மாதிரிக்கும் கற்பிக்கப்படுவதில்லை.",
     "chat.incognitoAsk": "எதையும் கேளுங்கள். அது இங்கேயே இருக்கும்.",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "இந்தச் சாதனத்தில் மறையாக்கம் அமைக்கப்படுகிறது...",
@@ -3803,7 +3798,6 @@ export const dictionaries = {
   te: {
     // Incognito chat
     "chat.incognitoTitle": "మీరు ఇన్‌కాగ్నిటోలో ఉన్నారు",
-    "chat.incognitoBody": "ఈ చాట్ మీ చరిత్రలో సేవ్ కాదు, మీకు చూపించేదాన్ని వ్యక్తిగతీకరించడానికి ఎప్పుడూ ఉపయోగించబడదు. ఇక్కడిది ఏదీ ఏ మోడల్‌కూ నేర్పబడదు.",
     "chat.incognitoAsk": "ఏదైనా అడగండి. అది ఇక్కడే ఉంటుంది.",
     // Sender-key protocol: device list, safety number
     "chat.settingUp": "ఈ పరికరంలో ఎన్‌క్రిప్షన్ సిద్ధమవుతోంది...",

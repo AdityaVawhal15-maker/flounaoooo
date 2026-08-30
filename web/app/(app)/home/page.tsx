@@ -219,6 +219,13 @@ function ChatHome() {
         // 4rem = the mobile app header; desktop has none.
         "mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6",
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
+        // Incognito is a mode you can end up in without meaning to, so it has
+        // to be readable from the shape of the screen rather than from a line
+        // of text somebody has to notice. The conversation sits inside its own
+        // bordered panel, which is what a private window looks like elsewhere,
+        // and the border is the same accent as the switch that turned it on.
+        temporary &&
+          "my-2 h-[calc(100dvh-5rem)] rounded-[22px] border border-accent/35 bg-card/50 px-3 lg:my-3 lg:h-[calc(100dvh-1.5rem)] lg:px-5",
       )}
     >
       {empty && temporary ? (
@@ -236,9 +243,6 @@ function ChatHome() {
               {t("chat.incognitoTitle")}
             </h1>
             <p className="mt-2 text-[15px] text-cocoa">{t("chat.incognitoAsk")}</p>
-            <p className="mx-auto mt-6 max-w-sm text-[12px] leading-relaxed text-muted">
-              {t("chat.incognitoBody")}
-            </p>
           </FadeIn>
         </div>
       ) : empty ? (
