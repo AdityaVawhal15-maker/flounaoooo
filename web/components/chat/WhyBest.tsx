@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import { DisagreeSheet } from "./DisagreeSheet";
 import { rupees } from "@/lib/money";
 import type { FoodQuote } from "./types";
 
@@ -18,6 +20,7 @@ export function WhyBest({
   best: FoodQuote;
   alternatives: FoodQuote[];
 }) {
+  const [disagreeing, setDisagreeing] = useState(false);
   const reasons: string[] = [];
 
   if (alternatives.length > 0) {
@@ -67,6 +70,20 @@ export function WhyBest({
           </li>
         ))}
       </ul>
+
+      {/* The other half of showing your reasoning is accepting that it can be
+          wrong. AI policy 2.5 promises a way to say so and 2.6 promises a
+          person will look if you ask, and neither was reachable from anywhere
+          in the app. This is the entry point, next to the claim it disputes. */}
+      <button
+        type="button"
+        onClick={() => setDisagreeing(true)}
+        className="tap-target self-start text-[13px] font-medium text-accent underline underline-offset-2"
+      >
+        I disagree with this pick
+      </button>
+
+      {disagreeing && <DisagreeSheet onClose={() => setDisagreeing(false)} />}
     </div>
   );
 }

@@ -125,24 +125,23 @@ export default function YourDataPage() {
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const o = await api<{
-        cookies: CookieInfo;
-        aiTrainingOptOut: boolean;
-        deletion: { scheduledFor: string | null };
-      }>("/api/privacy/overview");
-      setCookies(o.cookies);
-      setTraining(o.aiTrainingOptOut);
-      setDeletion(o.deletion);
-    } catch {
-      toast("Could not load your privacy settings");
-    }
+  // Not async, so the state lands in a promise callback rather than
+  // synchronously inside the effect, which is what the rest of the account
+  // screens do and what React 19 wants.
+  const load = useCallback(() => {
+    api<{
+      cookies: CookieInfo;
+      aiTrainingOptOut: boolean;
+      deletion: { scheduledFor: string | null };
+    }>("/api/privacy/overview")
+      .then((o) => {
+        setCookies(o.cookies);
+        setTraining(o.aiTrainingOptOut);
+        setDeletion(o.deletion);
+      })
+      .catch(() => toast("Could not load your privacy settings"));
   }, [toast]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(load, [load]);
 
   async function saveCookies(next: CookieChoice) {
     // Optimistic, then reconciled. A consent toggle that lags feels broken,

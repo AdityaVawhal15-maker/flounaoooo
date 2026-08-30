@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -44,6 +44,45 @@ function doNotTrackEnabled(): boolean {
   return signals.some((s) => s === "1" || s === "yes");
 }
 
+// localStorage genuinely is an external store, so it is read as one rather
+// than copied into state by an effect. That also means the answer is correct
+// on the very first render instead of one render late, which is the difference
+// between the notice appearing and the notice appearing with a flicker.
+
+function shouldAsk(): boolean {
+  if (typeof window === "undefined") return false;
+  // Do Not Track is an answer, so it is not also a question.
+  if (doNotTrackEnabled()) return false;
+  try {
+    return !localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Unreadable storage means we ask rather than assume consent, which is
+    // the safe direction to be wrong in.
+    return true;
+  }
+}
+
+const listeners = new Set<() => void>();
+
+function subscribe(fn: () => void) {
+  listeners.add(fn);
+  // Another tab answering the notice should settle it here too.
+  window.addEventListener("storage", fn);
+  return () => {
+    listeners.delete(fn);
+    window.removeEventListener("storage", fn);
+  };
+}
+
+function notify() {
+  for (const fn of listeners) fn();
+}
+
+// The server renders nothing: it cannot know what this browser has stored, and
+// guessing would mean a hydration mismatch or a banner flashing at somebody
+// who already answered.
+const serverSnapshot = () => false;
+
 const ALL_OFF = {
   analytics: false,
   advertising: false,
@@ -60,27 +99,44 @@ const ALL_ON = {
 
 export function CookieNotice() {
   const { user } = useAuth();
-  const [visible, setVisible] = useState(false);
+  const visible = useSyncExternalStore(subscribe, shouldAsk, serverSnapshot);
+  const box = useRef<HTMLDivElement>(null);
 
+  // While the notice is up it sits over the foot of the page, and anything
+  // underneath it cannot be tapped. On a phone that is regularly a form's
+  // submit button, so the page is padded by exactly the notice's height and
+  // the padding is removed the moment it goes.
+  //
+  // Measured rather than guessed at, because the copy wraps to a different
+  // number of lines at different widths and in six languages.
   useEffect(() => {
-    // Do Not Track is an answer, so it is not also a question. Showing the
-    // banner to somebody who has already told their browser to say no would
-    // be asking them to repeat themselves and hoping for a different reply.
-    if (doNotTrackEnabled()) {
-      try {
-        localStorage.setItem(STORAGE_KEY, "dnt");
-      } catch {
-        // A browser with storage blocked still gets the right behaviour;
-        // it just asks again next time, which is the safe direction.
-      }
-      return;
-    }
+    if (!visible) return;
+    const el = box.current;
+    if (!el) return;
+    const apply = () => {
+      document.body.style.paddingBottom = `${el.offsetHeight + 24}px`;
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.body.style.paddingBottom = "";
+    };
+  }, [visible]);
+
+  // Records the fact that this browser asked not to be tracked. It does not
+  // decide whether the notice shows, which shouldAsk already handled: this is
+  // only so the reason is visible if anyone ever looks at why nothing was
+  // asked here.
+  useEffect(() => {
+    if (!doNotTrackEnabled()) return;
     try {
-      if (localStorage.getItem(STORAGE_KEY)) return;
+      localStorage.setItem(STORAGE_KEY, "dnt");
     } catch {
-      // Same: unreadable storage means we ask, rather than assume consent.
+      // A browser with storage blocked still behaves correctly; it simply
+      // re-derives the same answer from the signal next time.
     }
-    setVisible(true);
   }, []);
 
   async function choose(choice: typeof ALL_OFF) {
@@ -89,7 +145,7 @@ export function CookieNotice() {
     } catch {
       // Recording it on the account below is the durable half anyway.
     }
-    setVisible(false);
+    notify();
     // Only persisted for a signed-in account: there is nobody to attach a
     // consent record to otherwise, and inventing an identifier to remember
     // the answer of someone who has not signed in would create exactly the
@@ -110,9 +166,14 @@ export function CookieNotice() {
     <div
       role="dialog"
       aria-label="Cookie choices"
-      className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4"
+      // pointer-events are re-enabled on the panel only, so the strip of
+      // padding either side of it does not block the page behind.
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4"
     >
-      <div className="mx-auto max-w-xl rounded-2xl border border-line bg-card p-4 shadow-lift">
+      <div
+        ref={box}
+        className="pointer-events-auto mx-auto max-w-xl rounded-2xl border border-line bg-card p-4 shadow-lift"
+      >
         <p className="text-[14px] font-bold text-ink">Cookies</p>
         <p className="mt-1.5 text-[13px] leading-relaxed text-cocoa">
           Flouna sets two cookies, both of which keep you signed in. We do not

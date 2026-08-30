@@ -18,6 +18,7 @@ import {
   MessageCircle,
   BookOpen,
   Headset,
+  ShieldAlert,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
@@ -277,7 +278,7 @@ function HelpCenter() {
           </Link>
           <Link
             href="/profile/help/faqs"
-            className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg"
+            className="flex items-center gap-3.5 border-b border-line px-4 py-3.5 transition-colors hover:bg-acct-bg"
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint">
               <BookOpen size={17} className="text-acct-accent" />
@@ -288,6 +289,25 @@ function HelpCenter() {
               </span>
               <span className="block text-[12px] text-acct-muted">
                 {t("pp.hc.faqsSub")}
+              </span>
+            </span>
+            <ChevronRight size={17} className="shrink-0 text-acct-muted" />
+          </Link>
+          {/* The step above support, with its own published deadlines. Last in
+              the list on purpose: it is the escalation, not the front door. */}
+          <Link
+            href="/profile/help/grievance"
+            className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-acct-bg"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-acct-tint">
+              <ShieldAlert size={17} className="text-acct-accent" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-acct-ink">
+                {t("pp.hc.grievance")}
+              </span>
+              <span className="block text-[12px] text-acct-muted">
+                {t("pp.hc.grievanceSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
