@@ -9,6 +9,12 @@ import { PriceAlertListener } from "@/components/alerts/PriceAlertListener";
 import { useAuth } from "@/components/auth/AuthContext";
 import { AppLock } from "@/components/security/AppLock";
 import { registerDeviceQuietly } from "@/lib/groupChatSetup";
+import { Ghost } from "lucide-react";
+import { cn } from "@/lib/cn";
+import {
+  TemporaryChatProvider,
+  useTemporaryChat,
+} from "@/components/chat/TemporaryChatContext";
 
 // Layout for all signed-in screens: persistent sidebar on desktop, hamburger
 // drawer on mobile — one codebase, two views. The drawer is the single
@@ -44,6 +50,11 @@ export function AppShell({
   // app cream. The sticky header sits directly above them, so it has to take
   // the same ground or a hard colour seam shows across the top of the page.
   const onAccountGround = pathname.startsWith("/profile");
+  // The conversation screen. Its header carries the incognito switch instead of
+  // the avatar: the profile is already one tap away in the sidebar, and a
+  // second way to reach it costs the only slot a private-mode control could
+  // have.
+  const onChat = pathname === "/home";
 
   // Every profile screen draws its own back-arrow title — Settings,
   // Details, Privacy, all of them, same as View Profile. Confirmed against
@@ -66,6 +77,9 @@ export function AppShell({
     // platform credential registered and the last unlock has expired, nothing
     // behind it renders until the person passes their fingerprint or face.
     <AppLock>
+    {/* The incognito switch lives in the header and the state it controls lives
+        in the conversation below it, so the provider has to sit above both. */}
+    <TemporaryChatProvider>
     <div className="flex min-h-dvh w-full">
       <PriceAlertListener />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -92,7 +106,9 @@ export function AppShell({
               {title ?? "Flouna"}
             </span>
 
-            {user ? (
+            {onChat ? (
+              <IncognitoToggle />
+            ) : user ? (
               <Link
                 href="/profile"
                 aria-label="Your profile"
@@ -123,6 +139,43 @@ export function AppShell({
         <main className="flex-1 pb-6">{children}</main>
       </div>
     </div>
+    </TemporaryChatProvider>
     </AppLock>
+  );
+}
+
+/**
+ * The incognito switch, in the header slot the avatar used to hold.
+ *
+ * On means nothing about this conversation is stored: it does not appear in
+ * recent chats and it never feeds the personalisation that reads chat history.
+ * The state has to be legible at a glance, so on is a filled accent circle
+ * rather than the same grey icon with a different tooltip.
+ */
+function IncognitoToggle() {
+  const { temporary, toggle } = useTemporaryChat();
+  return (
+    <button
+      onClick={toggle}
+      aria-pressed={temporary}
+      aria-label={
+        temporary
+          ? "Temporary chat is on. Nothing in this conversation is saved. Tap to turn it off."
+          : "Turn on temporary chat, so this conversation is not saved"
+      }
+      title={
+        temporary
+          ? "Temporary chat is on, this conversation is not being saved"
+          : "Start a temporary chat that is not saved"
+      }
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center rounded-full transition-colors",
+        temporary
+          ? "bg-accent text-white"
+          : "bg-card text-cocoa shadow-soft hover:bg-beige/60",
+      )}
+    >
+      <Ghost size={19} />
+    </button>
   );
 }

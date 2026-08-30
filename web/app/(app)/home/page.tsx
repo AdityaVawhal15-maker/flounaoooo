@@ -14,8 +14,6 @@ import {
   Coffee,
   Moon,
   Search as SearchIcon,
-  Eye,
-  EyeOff,
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -34,6 +32,7 @@ import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
 import { type TILE_THEMES } from "@/components/ui/CategoryTile";
 import type { ChatMessage, FoodQuote } from "@/components/chat/types";
 import { cn } from "@/lib/cn";
+import { useTemporaryChat } from "@/components/chat/TemporaryChatContext";
 
 type Usual = FoodQuote & { timesOrdered: number };
 
@@ -96,10 +95,24 @@ function ChatHome() {
   const [lastAsk, setLastAsk] = useState("");
   // Temporary chat: nothing is persisted server-side and the thread lives only
   // in this component's state.
-  const [temporary, setTemporary] = useState(false);
+  const { temporary, resetToken } = useTemporaryChat();
   const [usual, setUsual] = useState<Usual | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Switching in or out of temporary mode starts a fresh conversation either
+  // way. Carrying a saved thread into a private one, or the reverse, would do
+  // the opposite of what the switch promises.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return;
+    }
+    setMessages([]);
+    setSessionId(undefined);
+    if (temporary) router.replace("/home", { scroll: false });
+  }, [resetToken, temporary, router]);
 
   useEffect(() => {
     api<{ usual: Usual | null }>("/api/users/usual")
@@ -197,42 +210,6 @@ function ChatHome() {
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
       )}
     >
-      {/* Temporary chat toggle — the incognito switch. On = nothing about this
-          conversation is stored.
-
-          These used to be pinned into the mobile app header, but the redesign
-          fills that bar with hamburger / wordmark / avatar, so they sit in the
-          chat column on every width now rather than overlapping the avatar. */}
-      <div className="flex w-full items-center justify-end gap-2 pt-2 lg:pt-3">
-        <button
-          onClick={() => {
-            setTemporary((v) => {
-              const next = !v;
-              // Switching modes starts a clean thread either way.
-              setMessages([]);
-              setSessionId(undefined);
-              if (next) router.replace("/home", { scroll: false });
-              return next;
-            });
-          }}
-          aria-pressed={temporary}
-          title={
-            temporary
-              ? "Temporary chat is on, this conversation isn't being saved"
-              : "Start a temporary chat that isn't saved"
-          }
-          className={cn(
-            "flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-[12px] font-semibold transition-colors",
-            temporary
-              ? "border-accent bg-accent-soft text-accent"
-              : "border-line bg-card text-cocoa hover:bg-beige/50",
-          )}
-        >
-          {temporary ? <EyeOff size={14} /> : <Eye size={14} />}
-          {temporary ? "Temporary chat on" : "Temporary chat"}
-        </button>
-      </div>
-
       {temporary && empty && (
         <p className="mx-auto mt-2 max-w-md text-center text-[12px] leading-relaxed text-cocoa lg:mt-1">
           This chat won&apos;t appear in your history and won&apos;t be used to
