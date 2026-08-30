@@ -27,6 +27,13 @@ export type Dish = {
   reviewSummary: string;
   image?: string;
   listings: Listing[];
+  /** How many people the portion feeds. Absent means one. Party-size items
+   *  set this, and it is what makes a group suggestion checkable rather than
+   *  a guess: a pack is only offered when it actually feeds the group. */
+  serves?: number;
+  /** What is in a party-size item, for the "Includes" list on the suggestion
+   *  card. Display copy — the price is still the listing's. */
+  includes?: string[];
 };
 
 export const dishes: Dish[] = [
@@ -321,4 +328,119 @@ export const dishes: Dish[] = [
       },
     ],
   },
+
+  // ---------- party sizes ----------
+  //
+  // Priced below the sum of the equivalent single portions, which is the whole
+  // reason a group would switch to one. The saving is the restaurant's, not a
+  // discount Flouna invents at checkout.
+  {
+    id: "family-biryani-pack",
+    name: "Family Biryani Pack",
+    restaurant: "Hotel Paradise",
+    keywords: ["biryani", "rice", "hyderabadi", "pack", "family"],
+    dietary: "nonveg",
+    rating: 4.6,
+    tag: "Serves 3-4",
+    reviewSummary:
+      "The pack most groups end up ordering: enough biryani for four, with raita and a dessert included.",
+    serves: 4,
+    includes: ["2 x Chicken Biryani", "1 x Mutton Biryani", "2 x Raita", "1 x Dessert"],
+    listings: [
+      {
+        platform: "ondc",
+        basePaise: 76500,
+        deliveryFeePaise: 1500,
+        etaMinutes: 35,
+        offers: [],
+      },
+      {
+        platform: "swiggy",
+        basePaise: 82900,
+        deliveryFeePaise: 2900,
+        etaMinutes: 30,
+        offers: [],
+      },
+      {
+        platform: "zomato",
+        basePaise: 80900,
+        deliveryFeePaise: 2400,
+        etaMinutes: 32,
+        offers: [],
+      },
+    ],
+  },
+  {
+    id: "dosa-party-platter",
+    name: "Dosa Party Platter",
+    restaurant: "Udupi Grand",
+    keywords: ["dosa", "south indian", "pack", "family", "platter"],
+    dietary: "veg",
+    rating: 4.5,
+    tag: "Serves 3-4",
+    reviewSummary:
+      "Four dosas with sambar, three chutneys and a pot of filter coffee. Built for a table, not a person.",
+    serves: 4,
+    includes: ["4 x Masala Dosa", "Sambar and 3 chutneys", "1 x Filter Coffee pot"],
+    listings: [
+      {
+        platform: "ondc",
+        basePaise: 42000,
+        deliveryFeePaise: 1000,
+        etaMinutes: 28,
+        offers: [],
+      },
+      {
+        platform: "swiggy",
+        basePaise: 46900,
+        deliveryFeePaise: 2500,
+        etaMinutes: 24,
+        offers: [],
+      },
+      {
+        platform: "zomato",
+        basePaise: 45900,
+        deliveryFeePaise: 2200,
+        etaMinutes: 26,
+        offers: [],
+      },
+    ],
+  },
+  {
+    id: "pizza-party-box",
+    name: "Pizza Party Box",
+    restaurant: "Napoli Corner",
+    keywords: ["pizza", "italian", "pack", "family", "party"],
+    dietary: "veg",
+    rating: 4.4,
+    tag: "Serves 3-4",
+    reviewSummary:
+      "Two large pizzas, garlic bread and a bottle of cola. Cheaper than four people ordering their own.",
+    serves: 4,
+    includes: ["2 x Large Margherita", "1 x Garlic Bread", "1 x Cola 750ml"],
+    listings: [
+      {
+        platform: "ondc",
+        basePaise: 70000,
+        deliveryFeePaise: 1500,
+        etaMinutes: 30,
+        offers: [],
+      },
+      {
+        platform: "swiggy",
+        basePaise: 76900,
+        deliveryFeePaise: 2900,
+        etaMinutes: 26,
+        offers: [],
+      },
+      {
+        platform: "zomato",
+        basePaise: 74900,
+        deliveryFeePaise: 2400,
+        etaMinutes: 28,
+        offers: [],
+      },
+    ],
+  },
 ];
+

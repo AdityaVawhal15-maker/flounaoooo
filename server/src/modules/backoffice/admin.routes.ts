@@ -145,7 +145,7 @@ adminRouter.get("/users/:id", async (req, res, next) => {
 
 adminRouter.patch(
   "/users/:id/suspend",
-  validateBody(z.object({ suspended: z.boolean() })),
+  validateBody(z.object({ suspended: z.boolean() }).strict()),
   async (req, res, next) => {
     try {
       const { suspended } = req.body as { suspended: boolean };
@@ -229,7 +229,7 @@ adminRouter.patch(
       priority: z.enum(TICKET_PRIORITIES).optional(),
       resolution: z.string().max(2000).optional(),
       assignToMe: z.boolean().optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

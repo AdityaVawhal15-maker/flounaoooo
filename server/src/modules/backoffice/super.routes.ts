@@ -63,7 +63,7 @@ superRouter.get("/operators", async (_req, res, next) => {
 
 superRouter.patch(
   "/operators/:id/role",
-  validateBody(z.object({ role: z.enum(ROLES) })),
+  validateBody(z.object({ role: z.enum(ROLES) }).strict()),
   async (req, res, next) => {
     try {
       const { role } = req.body as { role: string };
@@ -88,7 +88,7 @@ superRouter.patch(
 
 superRouter.patch(
   "/operators/:id/suspend",
-  validateBody(z.object({ suspended: z.boolean() })),
+  validateBody(z.object({ suspended: z.boolean() }).strict()),
   async (req, res, next) => {
     try {
       const { suspended } = req.body as { suspended: boolean };
@@ -172,7 +172,7 @@ superRouter.post("/refunds/:paymentId/approve", async (req, res, next) => {
 
 superRouter.post(
   "/refunds/:paymentId/reject",
-  validateBody(z.object({ reason: z.string().trim().min(3).max(300) })),
+  validateBody(z.object({ reason: z.string().trim().min(3).max(300) }).strict()),
   async (req, res, next) => {
     try {
       const { reason } = req.body as { reason: string };
@@ -204,7 +204,7 @@ superRouter.post(
       title: z.string().trim().min(3).max(80),
       body: z.string().trim().min(3).max(300),
       url: z.string().trim().max(200).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -289,7 +289,7 @@ superRouter.post(
       scope: z.enum(["read", "read_write"]).default("read"),
       // ISO date string or null; optional expiry.
       expiresAt: z.string().datetime().nullable().optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -358,7 +358,7 @@ superRouter.patch(
       apiFailureRatePct: z.number().int().min(0).max(100).optional(),
       decisionLatencyAlertSec: z.number().int().min(1).max(120).optional(),
       ondcPingAlertMs: z.number().int().min(10).max(10000).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

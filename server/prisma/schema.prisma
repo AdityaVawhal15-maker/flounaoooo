@@ -20,84 +20,91 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String
-  passwordHash  String?
-  googleId      String?   @unique
-  phone         String?   @unique
-  emailVerified Boolean   @default(false)
-  phoneVerified Boolean   @default(false)
-  avatarUrl     String?
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  name                  String
+  passwordHash          String?
+  googleId              String?   @unique
+  phone                 String?   @unique
+  emailVerified         Boolean   @default(false)
+  phoneVerified         Boolean   @default(false)
+  avatarUrl             String?
   // Collected at sign-up (optional). Stored so the account actually keeps what
   // the user typed — previously the form asked for it and threw it away.
-  dateOfBirth   String? // ISO yyyy-mm-dd
+  dateOfBirth           String? // ISO yyyy-mm-dd
   // Free text rather than an enum: the Personal Information screen offers a
   // short list, but a fixed set in the database would make adding an option a
   // migration, and would force users whose answer isn't listed into a wrong one.
-  gender        String?
+  gender                String?
   weeklyFoodBudgetPaise Int? // Budget Guardian — null = not set
   // Notification preferences (Settings). OTP/security mail always sends;
   // emailUpdates gates non-essential mail (receipts, announcements) and
   // smartSuggestions gates the AI suggestion surfaces in the app.
-  emailUpdates     Boolean @default(true)
-  smartSuggestions Boolean @default(true)
+  emailUpdates          Boolean   @default(true)
+  smartSuggestions      Boolean   @default(true)
   // Outbox category toggles. Security mail always sends (no toggle);
   // emailUpdates keeps gating order/receipt mail.
-  emailMoneyUpdates Boolean @default(true) // savings, price drops, Plus ROI
-  emailTips         Boolean @default(true) // lifecycle nudges & announcements
+  emailMoneyUpdates     Boolean   @default(true) // savings, price drops, Plus ROI
+  emailTips             Boolean   @default(true) // lifecycle nudges & announcements
   // Privacy & Security. Gates the rides screen auto-detecting the rider's
   // position on load; they can still pick a pickup by hand or tap the locate
   // control, which is an explicit request rather than a silent read.
-  shareLocation     Boolean @default(true)
+  shareLocation         Boolean   @default(true)
   // Who may see this account's name and photo where Flouna shows one user to
   // another — today that is the group-cart member list, the only place the
   // product puts two accounts in the same room. "everyone" | "contacts" |
   // "nobody"; "contacts" means people who have shared a group cart before.
-  profileVisibility String  @default("everyone")
+  profileVisibility     String    @default("everyone")
   // Whether other members of a shared cart see this account as recently active.
-  activityStatus    Boolean @default(true)
+  activityStatus        Boolean   @default(true)
   // Email one-time code required on every password login, on top of the
   // password itself. Reuses the same OTP machinery the operator console's
   // step-up already runs on.
-  twoFactorEnabled  Boolean @default(false)
+  twoFactorEnabled      Boolean   @default(false)
   // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
-  plusActive    Boolean   @default(false)
-  plusSince     DateTime?
-  plusUntil     DateTime? // current period end; expired = treated as inactive
-  failedLogins  Int       @default(0) // consecutive failed login attempts
-  lockedUntil   DateTime? // set after too many failures (backoff window)
+  plusActive            Boolean   @default(false)
+  plusSince             DateTime?
+  plusUntil             DateTime? // current period end; expired = treated as inactive
+  failedLogins          Int       @default(0) // consecutive failed login attempts
+  lockedUntil           DateTime? // set after too many failures (backoff window)
   // RBAC: "user" | "developer" | "admin" | "super_admin". Stored as a string
   // (SQLite/Postgres parity) and validated in code. Only a super_admin can
   // change this; never settable via signup or profile update. Default keeps
   // every account a plain user until explicitly promoted.
-  role          String    @default("user")
+  role                  String    @default("user")
   // Operator accounts (non-user roles) suspended by a super_admin can't sign in.
-  suspendedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  suspendedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  addresses     Address[]
-  chatSessions  ChatSession[]
-  orders        Order[]
-  payments      Payment[]
-  otpCodes      OtpCode[]
-  refreshTokens RefreshToken[]
-  pushSubscriptions PushSubscription[]
-  hostedCarts   GroupCart[]     @relation("HostedCarts")
-  groupCartItems GroupCartItem[]
+  addresses            Address[]
+  chatSessions         ChatSession[]
+  orders               Order[]
+  payments             Payment[]
+  otpCodes             OtpCode[]
+  refreshTokens        RefreshToken[]
+  pushSubscriptions    PushSubscription[]
+  hostedCarts          GroupCart[]         @relation("HostedCarts")
+  groupCartItems       GroupCartItem[]
   groupCartMemberships GroupCartMember[]
-  priceAlerts   PriceAlert[]
-  supportTickets SupportTicket[]
-  notifications Notification[]
-  complaints    Complaint[]
-  paymentMethods PaymentMethod[]
-  walletEntries WalletEntry[]
-  supportChats  SupportChat[]
-  blocks        BlockedUser[]   @relation("Blocker")
-  blockedBy     BlockedUser[]   @relation("Blocked")
-  deviceLocks   DeviceLock[]
+  ownedCrews           GroupCrew[]         @relation("OwnedCrews")
+  crewMemberships      GroupCrewMember[]
+  chatDevices          ChatDevice[]
+  sentSenderKeys       SenderKeyEnvelope[] @relation("SentSenderKeys")
+  receivedSenderKeys   SenderKeyEnvelope[] @relation("ReceivedSenderKeys")
+  historySyncs         HistorySync[]
+  groupMessages        GroupMessage[]
+  priceAlerts          PriceAlert[]
+  supportTickets       SupportTicket[]
+  notifications        Notification[]
+  complaints           Complaint[]
+  paymentMethods       PaymentMethod[]
+  walletEntries        WalletEntry[]
+  supportChats         SupportChat[]
+  blocks               BlockedUser[]       @relation("Blocker")
+  blockedBy            BlockedUser[]       @relation("Blocked")
+  deviceLocks          DeviceLock[]
 }
 
 // Help Centre conversation. One row per time the customer opens support.
@@ -135,17 +142,17 @@ model SupportChat {
 }
 
 model SupportMessage {
-  id     String      @id @default(cuid())
-  chatId String
-  chat   SupportChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  chatId    String
+  chat      SupportChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   // "user" | "bot" | "agent" — agent is a human replying from the console.
-  role   String
-  body   String
+  role      String
+  body      String
   // Quick replies offered alongside a bot message, as a JSON array of
   // { label, value }. Stored rather than recomputed so the transcript shows
   // what the customer was actually offered at the time.
   options   String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
 
   @@index([chatId])
 }
@@ -171,8 +178,8 @@ model WalletEntry {
   orderId     String?
   createdAt   DateTime @default(now())
 
-  @@index([userId])
   @@unique([userId, orderId, reason])
+  @@index([userId])
 }
 
 // Someone this account has blocked. Enforced where the product actually puts
@@ -198,12 +205,12 @@ model BlockedUser {
 // stores which devices have the lock armed rather than a public key it would
 // have to verify signatures against.
 model DeviceLock {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  credentialId String   @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
   label        String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
   @@index([userId])
@@ -286,7 +293,7 @@ model Complaint {
 
   // Identifiers assigned by the network once the issue is sent. Null until then,
   // which is also how "not yet transmitted" is represented.
-  ondcIssueId     String? @unique
+  ondcIssueId       String? @unique
   ondcTransactionId String?
 
   // Set when the seller asks for more information, cleared when it is supplied —
@@ -294,8 +301,8 @@ model Complaint {
   infoRequestedAt DateTime?
   infoRequest     String?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   resolvedAt DateTime?
   closedAt   DateTime?
 
@@ -333,12 +340,12 @@ model ComplaintActor {
 // nothing is ever mutated in place. lastActionId chains actions so the case can
 // be replayed in order, which is what ONDC asks to see.
 model ComplaintAction {
-  id          String    @id @default(cuid())
-  complaintId String
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  complaintId  String
+  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
   // Protocol action id where one exists; ours otherwise. Unique so a replayed
   // callback cannot append the same action twice.
-  actionId     String   @unique
+  actionId     String    @unique
   // ACKNOWLEDGED | INFO_REQUESTED | INFO_PROVIDED | RESOLUTION_PROPOSED |
   // RESOLUTION_ACCEPTED | RESOLUTION_REJECTED | ESCALATED | REFUND_INITIATED |
   // REFUND_COMPLETED | CREATED | STATUS_REQUESTED
@@ -348,7 +355,7 @@ model ComplaintAction {
   actionBy     String // actor type that performed it
   actorId      String?
   lastActionId String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([complaintId, createdAt])
 }
@@ -395,18 +402,18 @@ model ComplaintEvidence {
 // and different ones per item. Modelling this as a single column on Complaint
 // would make item-specific proposals unrepresentable.
 model ComplaintResolution {
-  id           String    @id @default(cuid())
-  complaintId  String
-  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  resolutionId String    @unique // protocol id
-  itemId       String? // null = applies to the whole order
+  id               String    @id @default(cuid())
+  complaintId      String
+  complaint        Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  resolutionId     String    @unique // protocol id
+  itemId           String? // null = applies to the whole order
   // REFUND | REPLACEMENT | PARTIAL_REFUND | NO_ACTION — from the spec.
-  type         String
+  type             String
   // Integer paise, like every other money value in this schema. Null when the
   // resolution isn't financial.
-  amountPaise  Int?
-  description  String
-  proposedBy   String    @default("SELLER-NP")
+  amountPaise      Int?
+  description      String
+  proposedBy       String    @default("SELLER-NP")
   // null = awaiting the customer, then "accepted" | "rejected".
   customerDecision String?
   decidedAt        DateTime?
@@ -454,7 +461,7 @@ model ComplaintEscalation {
 model Notification {
   id        String    @id @default(cuid())
   userId    String
-  type      String    // registry key, e.g. "security.password_changed"
+  type      String // registry key, e.g. "security.password_changed"
   payload   String    @default("{}") // JSON string (SQLite has no Json type)
   dedupeKey String?   @unique // same key twice = second enqueue is a no-op
   status    String    @default("queued") // queued | sent | skipped | failed
@@ -472,27 +479,218 @@ model Notification {
 // Group ordering: a shared cart one person hosts and others join via a code.
 // Each member adds their own items; the bill splits equally on checkout.
 model GroupCart {
-  id          String   @id @default(cuid())
-  code        String   @unique // short human-shareable join code
+  id          String     @id @default(cuid())
+  code        String     @unique // short human-shareable join code
   hostId      String
-  host        User     @relation("HostedCarts", fields: [hostId], references: [id], onDelete: Cascade)
+  host        User       @relation("HostedCarts", fields: [hostId], references: [id], onDelete: Cascade)
   // "food": members add dishes, host checks out the combined cart.
   // "ride": one shared trip, fare split equally among members.
-  domain      String   @default("food")
+  domain      String     @default("food")
   platform    String // food: source network id · ride: provider id
   // Ride carts only: JSON snapshot of the trip taken at creation —
   // pickup/drop labels + coords, product/display name, vehicle, fare estimate.
   // The fare is recomputed server-side at checkout; this is the display copy.
   rideDetails String?
-  status      String   @default("open") // "open" | "locked" | "ordered" | "cancelled"
+  status      String     @default("open") // "open" | "locked" | "ordered" | "cancelled"
+  // What the group is called ("Biryani Group") plus an optional emoji. Set by
+  // the host; falls back to a generated name so a cart is never nameless.
+  name        String?
+  emoji       String?
+  // The saved crew this cart was opened from, if any. Kept so reopening the
+  // crew can offer what they ordered last time.
+  crewId      String?
+  crew        GroupCrew? @relation(fields: [crewId], references: [id], onDelete: SetNull)
   orderId     String? // set once the host places the combined order
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  items   GroupCartItem[]
-  members GroupCartMember[]
+  items      GroupCartItem[]
+  members    GroupCartMember[]
+  messages   GroupMessage[]
+  senderKeys SenderKeyEnvelope[]
+  histories  HistorySync[]
 
   @@index([hostId])
+  @@index([crewId])
+}
+
+// A saved crew: the people you order with again and again ("Friday biryani").
+// Reopening one creates a fresh cart with the same members already invited, so
+// the second order costs one tap instead of another round of link-sharing.
+model GroupCrew {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation("OwnedCrews", fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  emoji      String?
+  // Crews are per-domain: a food crew and a ride crew are different habits
+  // even when they contain the same people.
+  domain     String   @default("food")
+  platform   String
+  // The most recent cart opened from this crew, so "order the usual" has
+  // something concrete to copy.
+  lastCartId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  members GroupCrewMember[]
+  carts   GroupCart[]
+
+  @@unique([ownerId, name, domain])
+  @@index([ownerId])
+}
+
+model GroupCrewMember {
+  id        String    @id @default(cuid())
+  crewId    String
+  crew      GroupCrew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([crewId, userId])
+  @@index([userId])
+}
+
+// ---------- end-to-end encrypted group chat ----------
+//
+// The server is a courier here, not a reader. It holds public keys, sealed
+// envelopes it cannot open, and ciphertext it cannot decrypt. The private half
+// of every key is generated in the browser and never leaves the device.
+
+/**
+ * One browser's identity key. The public half only — the private half stays
+ * in that browser's IndexedDB as a non-extractable CryptoKey.
+ */
+model ChatDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /**
+   * Random id the browser generates for itself.
+   */
+  deviceId   String
+  /**
+   * Base64 SPKI of an ECDH P-256 public key. Used to seal things TO this
+   * device.
+   */
+  publicKey  String
+  /**
+   * Base64 SPKI of an ECDSA P-256 public key. Used to prove something came
+   * FROM this device. Without it every member shares one key, and any member
+   * can write a message that looks like it came from another.
+   */
+  signingKey String?
+  label      String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+/**
+ * The group's symmetric key, sealed for exactly one device. Written by a
+ * member who already holds the key; openable only by that device.
+ */
+/**
+ * A Sender Key Distribution Message, sealed for exactly one recipient device.
+ * This is the Signal/WhatsApp group design rather than one shared group key.
+ * Every sending device owns its own chain: a random chain key that ratchets
+ * forward one way per message, so a key captured today cannot open yesterday's
+ * messages. The chain is handed to each recipient device once, sealed to that
+ * device's public key, and after that the sender simply sends.
+ */
+model SenderKeyEnvelope {
+  id              String    @id @default(cuid())
+  cartId          String
+  cart            GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User      @relation("SentSenderKeys", fields: [senderId], references: [id], onDelete: Cascade)
+  senderDevice    String
+  recipientId     String
+  recipient       User      @relation("ReceivedSenderKeys", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientDevice String
+  /**
+   * Base64 SPKI of the ephemeral public key used for the ECDH that sealed it.
+   */
+  senderKey       String
+  iv              String
+  /**
+   * Chain key, chain index and the sender's group signing key, encrypted.
+   * Meaningless to the server.
+   */
+  payload         String
+  createdAt       DateTime  @default(now())
+
+  @@unique([cartId, senderDevice, recipientDevice])
+  @@index([cartId, recipientDevice])
+}
+
+/**
+ * A conversation's past, handed from one of a user's own devices to another of
+ * their devices.
+ * A ratchet means a new device genuinely cannot derive the keys for messages
+ * sent before it existed — that is forward secrecy working, not a bug. So
+ * history moves the way WhatsApp moves it: an existing device of the SAME user,
+ * holding the plaintext locally, re-encrypts it and seals it for the new
+ * device. Never across users: nobody else's device should be able to hand you a
+ * version of the conversation.
+ */
+model HistorySync {
+  id         String    @id @default(cuid())
+  cartId     String
+  cart       GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromDevice String
+  toDevice   String
+  senderKey  String
+  iv         String
+  /**
+   * The past messages, encrypted for the receiving device alone.
+   */
+  payload    String
+  createdAt  DateTime  @default(now())
+
+  @@unique([cartId, toDevice])
+  @@index([cartId, userId])
+}
+
+/**
+ * One chat message. The server stores the nonce and the ciphertext and knows
+ * who sent it and when — it cannot know what it says.
+ */
+model GroupMessage {
+  id           String    @id @default(cuid())
+  cartId       String
+  cart         GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  senderId     String
+  sender       User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /**
+   * Which of the sender's devices wrote it. A user with a phone and a laptop
+   * has two chains, and a message only opens by ratcheting the right one.
+   */
+  senderDevice String    @default("")
+  /**
+   * Position in that device's chain. The receiver ratchets forward to here.
+   */
+  index        Int       @default(0)
+  /**
+   * Protocol version, so a later change never has to guess at old rows.
+   */
+  version      Int       @default(2)
+  iv           String
+  ciphertext   String
+  /**
+   * ECDSA signature by the sending device's group signing key. This is what
+   * stops one member writing a message that looks like another member's.
+   */
+  signature    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([cartId, createdAt])
+  @@index([cartId, senderDevice, index])
 }
 
 // Explicit membership: created when someone joins via code (and for the host).
@@ -546,13 +744,13 @@ model PriceAlert {
 // Observed best prices over time. Every quote generation logs one row, so the
 // timing advisor can learn real hour-of-day patterns instead of fixed rules.
 model PriceObservation {
-  id          String   @id @default(cuid())
-  domain      String // "food" | "ride"
-  key         String // dishId (food) or vehicle type (ride)
-  hour        Int // 0–23, local hour the quote was seen
-  weekday     Int // 0–6 (Mon=0)
-  bestPaise   Int // cheapest effective price at that moment
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  domain    String // "food" | "ride"
+  key       String // dishId (food) or vehicle type (ride)
+  hour      Int // 0–23, local hour the quote was seen
+  weekday   Int // 0–6 (Mon=0)
+  bestPaise Int // cheapest effective price at that moment
+  createdAt DateTime @default(now())
 
   @@index([domain, key, hour])
 }
@@ -590,44 +788,44 @@ model OtpCode {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
   // Whether this session cleared operator step-up (2FA). Carried across refresh
   // rotation so a stepped-up console session keeps the `step` claim on its new
   // access token; ordinary user sessions stay false.
-  stepUp    Boolean   @default(false)
+  stepUp     Boolean   @default(false)
   // Recorded at sign-in so Login Activity can name the device rather than
   // listing anonymous rows. Carried across refresh rotation.
-  userAgent String?
-  ip        String?
+  userAgent  String?
+  ip         String?
   lastUsedAt DateTime?
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
 }
 
 model Address {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label     String // "Home" | "Work" | custom
-  line1     String // flat / house no.
-  line2     String? // building / street name
-  landmark  String?
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String // "Home" | "Work" | custom
+  line1        String // flat / house no.
+  line2        String? // building / street name
+  landmark     String?
   // Who receives the delivery at this address — may differ from the account.
   contactName  String?
   contactPhone String?
-  city      String
-  state     String
-  pincode   String
-  lat       Float?
-  lng       Float?
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
+  city         String
+  state        String
+  pincode      String
+  lat          Float?
+  lng          Float?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
 }
 
 model ChatSession {
@@ -657,7 +855,7 @@ model ChatMessage {
   provider      String? // "anthropic" | "google" | "deepseek" | "demo"
   providerDepth Int? // 0 = first choice served it; >0 = a fallback did
 
-  createdAt DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@index([sessionId])
   // Training pulls select by provider and date; ops query "how often are we
@@ -691,20 +889,20 @@ model Order {
 }
 
 model Payment {
-  id              String    @id @default(cuid())
-  orderId         String    @unique
-  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gateway         String    @default("cashfree")
-  gatewayOrderId  String?   @unique // Cashfree order id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gateway         String   @default("cashfree")
+  gatewayOrderId  String?  @unique // Cashfree order id
   amount          Int // paise
-  currency        String    @default("INR")
+  currency        String   @default("INR")
   status          String // "created" | "processing" | "success" | "failed" | "refunded"
   method          String? // "upi" | "card" | "netbanking"
   gatewayResponse String? // JSON: last webhook/verify payload
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model TrackingEvent {
@@ -825,20 +1023,20 @@ model ApiKey {
 // envelope shape, so the viewer — and any downstream tooling — works unchanged
 // the moment the network goes live. `simulated` flags pre-registration rows.
 model OndcTransaction {
-  id          String   @id @default(cuid())
-  txnId       String // Beckn transaction_id (one per order/journey)
-  messageId   String // Beckn message_id (one per request/callback pair)
-  action      String // "search" | "on_search" | "select" | "confirm" | "on_confirm" | "status" | "on_status"
-  domain      String // ONDC domain code, e.g. "ONDC:RET11" (food) / "ONDC:TRV11"
-  orderId     String? // our order this relates to, when applicable
-  bppId       String? // the seller app (BPP) the message went to/from
-  request     String? // JSON: the Beckn request envelope (context + message)
-  response    String? // JSON: the matching callback envelope, when present
-  status      String // "ack" | "nack" | "error"
-  signed      Boolean  @default(true) // request carried an Ed25519 signature
-  latencyMs   Int? // round-trip for request→callback, when known
-  simulated   Boolean  @default(true) // pre-registration synthetic record
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  txnId     String // Beckn transaction_id (one per order/journey)
+  messageId String // Beckn message_id (one per request/callback pair)
+  action    String // "search" | "on_search" | "select" | "confirm" | "on_confirm" | "status" | "on_status"
+  domain    String // ONDC domain code, e.g. "ONDC:RET11" (food) / "ONDC:TRV11"
+  orderId   String? // our order this relates to, when applicable
+  bppId     String? // the seller app (BPP) the message went to/from
+  request   String? // JSON: the Beckn request envelope (context + message)
+  response  String? // JSON: the matching callback envelope, when present
+  status    String // "ack" | "nack" | "error"
+  signed    Boolean  @default(true) // request carried an Ed25519 signature
+  latencyMs Int? // round-trip for request→callback, when known
+  simulated Boolean  @default(true) // pre-registration synthetic record
+  createdAt DateTime @default(now())
 
   @@index([txnId])
   @@index([action, createdAt])
@@ -850,42 +1048,42 @@ model OndcTransaction {
 // single row with key "default"; values are integers/basis-points to avoid
 // floats. Read by services that enforce or display these limits.
 model PlatformConfig {
-  id                       String   @id @default(cuid())
-  key                      String   @unique @default("default")
+  id                      String   @id @default(cuid())
+  key                     String   @unique @default("default")
   // Commission thresholds in basis points (1% = 100 bps) — integer money rule.
-  ondcMinMarginBps         Int      @default(300) // 3.0%
-  ondcMaxMarginBps         Int      @default(600) // 6.0%
-  partnerAffiliateMinBps   Int      @default(120) // 1.2%
-  cashbackUserSharePct     Int      @default(30) // % of cashback passed to user
+  ondcMinMarginBps        Int      @default(300) // 3.0%
+  ondcMaxMarginBps        Int      @default(600) // 6.0%
+  partnerAffiliateMinBps  Int      @default(120) // 1.2%
+  cashbackUserSharePct    Int      @default(30) // % of cashback passed to user
   // Alert thresholds.
-  apiFailureRatePct        Int      @default(1) // alert when failure% exceeds
-  decisionLatencyAlertSec  Int      @default(5)
-  ondcPingAlertMs          Int      @default(500)
-  updatedById              String?
-  updatedAt                DateTime @updatedAt
-  createdAt                DateTime @default(now())
+  apiFailureRatePct       Int      @default(1) // alert when failure% exceeds
+  decisionLatencyAlertSec Int      @default(5)
+  ondcPingAlertMs         Int      @default(500)
+  updatedById             String?
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
 }
 
 // Promo codes entered by the buyer at checkout. The discount is always
 // recomputed server-side from these rules — the client only ever sends a code.
 model Coupon {
-  id              String    @id @default(cuid())
-  code            String    @unique // stored uppercase
-  description     String
+  id               String    @id @default(cuid())
+  code             String    @unique // stored uppercase
+  description      String
   // "percent" (percentOff of the item subtotal, capped by maxDiscountPaise)
   // or "flat" (valuePaise straight off).
-  kind            String
-  percentOff      Int? // 1–100 when kind = "percent"
-  valuePaise      Int? // when kind = "flat"
+  kind             String
+  percentOff       Int? // 1–100 when kind = "percent"
+  valuePaise       Int? // when kind = "flat"
   maxDiscountPaise Int? // cap for percent coupons
-  minOrderPaise   Int       @default(0)
-  domain          String    @default("food") // "food" | "ride" | "any"
-  firstOrderOnly  Boolean   @default(false)
-  active          Boolean   @default(true)
-  expiresAt       DateTime?
-  usageLimit      Int? // total redemptions allowed across all users
-  usedCount       Int       @default(0)
-  createdAt       DateTime  @default(now())
+  minOrderPaise    Int       @default(0)
+  domain           String    @default("food") // "food" | "ride" | "any"
+  firstOrderOnly   Boolean   @default(false)
+  active           Boolean   @default(true)
+  expiresAt        DateTime?
+  usageLimit       Int? // total redemptions allowed across all users
+  usedCount        Int       @default(0)
+  createdAt        DateTime  @default(now())
 
   redemptions CouponRedemption[]
 }
@@ -893,12 +1091,12 @@ model Coupon {
 // One row per successful redemption — enforces per-user limits and gives ops a
 // real audit trail instead of inferring from order JSON.
 model CouponRedemption {
-  id             String   @id @default(cuid())
-  couponId       String
-  userId         String
-  orderId        String   @unique
-  discountPaise  Int
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  couponId      String
+  userId        String
+  orderId       String   @unique
+  discountPaise Int
+  createdAt     DateTime @default(now())
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
@@ -909,14 +1107,14 @@ model CouponRedemption {
 // denormalised so community averages can be computed without re-parsing order
 // JSON. These averages feed back into the recommendation scoring.
 model OrderRating {
-  id          String   @id @default(cuid())
-  orderId     String   @unique
-  userId      String
-  domain      String // "food" | "ride"
-  itemKey     String // dishId for food, provider for rides
-  stars       Int // 1–5
-  comment     String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  userId    String
+  domain    String // "food" | "ride"
+  itemKey   String // dishId for food, provider for rides
+  stars     Int // 1–5
+  comment   String?
+  createdAt DateTime @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -935,10 +1133,10 @@ model OrderRating {
 // Written fire-and-forget on the quote path, so a failure here never affects a
 // user's request. Retained for a bounded window by the maintenance job.
 model DecisionLog {
-  id      String  @id @default(cuid())
-  userId  String? // null for unauthenticated or demo traffic
-  domain  String // "food" | "ride"
-  query   String // the user's search text, or a route summary for rides
+  id     String  @id @default(cuid())
+  userId String? // null for unauthenticated or demo traffic
+  domain String // "food" | "ride"
+  query  String // the user's search text, or a route summary for rides
 
   // The ranking configuration actually applied to this search.
   priority     String // "price" | "rating" | "speed" | "balanced"

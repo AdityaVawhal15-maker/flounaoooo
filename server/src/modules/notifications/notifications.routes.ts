@@ -73,7 +73,7 @@ notificationsRouter.post(
 
 notificationsRouter.post(
   "/unsubscribe",
-  validateBody(z.object({ endpoint: z.string().url().max(1000) })),
+  validateBody(z.object({ endpoint: z.string().url().max(1000) }).strict()),
   async (req, res, next) => {
     try {
       const { endpoint } = req.body as { endpoint: string };

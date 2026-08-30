@@ -1,4 +1,11 @@
-import { dishes, type Dish, type Listing } from "../../data/restaurants.js";
+import { dishes as catalogue, type Dish, type Listing } from "../../data/restaurants.js";
+
+// Party-size items are real catalogue entries, but they are never an answer to
+// one person asking what to eat: a serves-four pack offered to a solo diner is
+// a bigger bill dressed as a recommendation. They are reachable by id, so the
+// group deal engine and order pricing still see them, and invisible to search
+// and recommendation, which is where a single person is being advised.
+const dishes = catalogue.filter((d) => !d.serves);
 import {
   scoreOptions,
   appliedWeights,
@@ -77,7 +84,7 @@ function toQuotes(dish: Dish): FoodQuote[] {
 // (price alerts, order pricing) get a stable answer regardless of how the
 // text search is tuned.
 export function quotesForDish(dishId: string): FoodQuote[] {
-  const dish = dishes.find((d) => d.id === dishId);
+  const dish = catalogue.find((d) => d.id === dishId);
   if (!dish) return [];
   return toQuotes(dish).sort((a, b) => a.effectivePaise - b.effectivePaise);
 }

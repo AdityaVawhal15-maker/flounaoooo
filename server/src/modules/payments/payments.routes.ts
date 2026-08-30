@@ -221,7 +221,7 @@ paymentsRouter.post(
       // online gateway. Anything else goes through Cashfree (or the simulated
       // path when no keys are configured).
       method: z.enum(["upi", "card", "cash"]).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -297,7 +297,7 @@ paymentsRouter.post(
 // Simulated success — only exists while Cashfree keys are absent, never in prod.
 paymentsRouter.post(
   "/simulate",
-  validateBody(z.object({ orderId: z.string().cuid(), method: z.enum(["upi", "card"]) })),
+  validateBody(z.object({ orderId: z.string().cuid(), method: z.enum(["upi", "card"]) }).strict()),
   async (req, res, next) => {
     try {
       if (cashfreeConfigured || isProd) {
@@ -322,7 +322,7 @@ paymentsRouter.post(
 // webhook is delayed or misconfigured. Idempotent via markPaid's status claim.
 paymentsRouter.post(
   "/verify",
-  validateBody(z.object({ orderId: z.string().cuid() })),
+  validateBody(z.object({ orderId: z.string().cuid() }).strict()),
   async (req, res, next) => {
     try {
       const { orderId } = req.body as { orderId: string };

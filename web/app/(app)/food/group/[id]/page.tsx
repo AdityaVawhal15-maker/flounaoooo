@@ -1,420 +1,320 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Users,
-  Copy,
+  BellRing,
   Check,
-  Plus,
-  Trash2,
-  Search,
-  ChevronLeft,
-  Send,
-  MessageCircle,
-  Share2,
   Clock,
+  Pencil,
+  UserPlus,
+  Utensils,
+  Bookmark,
+  ShoppingBag,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { GroupHeader } from "@/components/food/GroupHeader";
 import type { GroupCart } from "@/components/food/GroupCartTypes";
 import { useI18n } from "@/components/i18n/I18nContext";
-import type { FoodQuote } from "@/components/chat/types";
+import { useToast } from "@/components/ui/Toast";
+import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { cn } from "@/lib/cn";
+import { joinChatQuietly } from "@/lib/groupChatSetup";
 
-type Share = {
-  userId: string;
-  name: string;
-  sharePaise: number;
-  isHost: boolean;
-  upiLink: string | null;
-};
+// Figma "Group Status": the named group, then every member with where they have
+// got to, then the one action the host has while waiting.
+//
+// Joined and ordered are two different things and the design shows both, so
+// this screen never says "Joined" about someone who is still reading the menu.
 
-const REFRESH_MS = 5000;
+const POLL_MS = 4000;
 
-export default function GroupCartPage({
+export default function GroupStatusPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { t } = useI18n();
   const router = useRouter();
+  const { t } = useI18n();
+  const { toast } = useToast();
   const [cart, setCart] = useState<GroupCart | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<FoodQuote[]>([]);
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [hostUpi, setHostUpi] = useState("");
-  const [shares, setShares] = useState<Share[] | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api<GroupCart>(`/api/groups/${id}`)
-      .then(setCart)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
-  }, [id]);
+      .then((c) => {
+        setCart(c);
+        // A cart that has been ordered has a tracking screen; sitting on the
+        // member list after checkout is a dead end.
+        if (c.status === "ordered" && c.orderId) router.replace(`/orders/${c.orderId}`);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : t("grp.loadFailed")));
+  }, [id, router, t]);
 
-  // Poll so members see each other's additions live.
   useEffect(() => {
     load();
-    const t = setInterval(load, REFRESH_MS);
-    return () => clearInterval(t);
+    const timer = setInterval(load, POLL_MS);
+    return () => clearInterval(timer);
   }, [load]);
 
-  // Dish search scoped to the cart's platform.
-  const platform = cart?.platform;
+  // Publish this device's chat keys on arrival, not when the chat is first
+  // opened. A distribution message carries the chain's current position, so a
+  // device that appears after a message was sent can never read that message —
+  // being in the room is what has to register you, exactly as being in a
+  // WhatsApp group registers your phone whether the thread is open or not.
   useEffect(() => {
-    const term = query.trim();
-    const t = setTimeout(
-      () => {
-        if (!term || !platform) {
-          setResults([]);
-          return;
-        }
-        api<{ quotes: FoodQuote[] }>(`/api/food/search?q=${encodeURIComponent(term)}`)
-          .then((d) => setResults(d.quotes.filter((q) => q.platform === platform)))
-          .catch(() => setResults([]));
-      },
-      term ? 250 : 0,
-    );
-    return () => clearTimeout(t);
-  }, [query, platform]);
+    void joinChatQuietly(id);
+  }, [id]);
 
-  async function addItem(dishId: string) {
+  async function rename() {
+    const name = draftName.trim();
+    if (!name) return;
     setBusy(true);
     try {
-      const updated = await api<GroupCart>(`/api/groups/${id}/items`, {
-        method: "POST",
-        json: { dishId },
-      });
-      setCart(updated);
-      setQuery("");
-      setResults([]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add item");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function removeItem(itemId: string) {
-    const updated = await api<GroupCart>(`/api/groups/${id}/items/${itemId}`, {
-      method: "DELETE",
-    }).catch(() => null);
-    if (updated) setCart(updated);
-  }
-
-  async function checkout() {
-    setBusy(true);
-    setError("");
-    try {
-      const res = await api<{ orderId: string; shares: Share[] }>(
-        `/api/groups/${id}/checkout`,
-        { method: "POST", json: hostUpi.trim() ? { hostUpiId: hostUpi.trim() } : {} },
+      setCart(
+        await api<GroupCart>(`/api/groups/${id}`, {
+          method: "PATCH",
+          json: { name },
+        }),
       );
-      // Show the per-member split + share links before the host pays.
-      setOrderId(res.orderId);
-      setShares(res.shares);
+      setRenaming(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not place order");
+      toast(e instanceof Error ? e.message : t("grp.renameFailed"));
     } finally {
       setBusy(false);
     }
   }
 
-  async function shareUpi(share: Share) {
-    if (!share.upiLink) return;
-    const text = `Hi ${share.name}, your share of our Flouna group order is ${rupees(share.sharePaise)}. Pay here: ${share.upiLink}`;
-    if (navigator.share) {
-      await navigator.share({ text }).catch(() => {});
-      return;
+  async function remind() {
+    setBusy(true);
+    try {
+      const d = await api<{ reminded: number }>(`/api/groups/${id}/remind`, {
+        method: "POST",
+        json: {},
+      });
+      toast(
+        d.reminded === 0
+          ? t("grp.everyoneOrdered")
+          : t("grp.remindedCount").replace("{n}", String(d.reminded)),
+      );
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t("grp.remindFailed"));
+    } finally {
+      setBusy(false);
     }
-    await navigator.clipboard.writeText(text).catch(() => {});
   }
 
-  const joinUrl =
-    typeof window !== "undefined" && cart
-      ? `${window.location.origin}/food/group?code=${cart.code}`
-      : "";
-
-  async function shareCode() {
-    if (!cart) return;
-    if (navigator.share) {
-      await navigator
-        .share({ text: `Join my Flouna group order — code ${cart.code}`, url: joinUrl })
-        .catch(() => {});
-      return;
+  async function saveCrew() {
+    const name = (cart?.name ?? "").trim() || t("grp.defaultCrewName");
+    setBusy(true);
+    try {
+      await api(`/api/groups/crews`, {
+        method: "POST",
+        json: { cartId: id, name, emoji: cart?.emoji ?? undefined },
+      });
+      toast(t("grp.crewSaved").replace("{name}", name));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : t("grp.crewSaveFailed"));
+    } finally {
+      setBusy(false);
     }
-    await navigator.clipboard.writeText(joinUrl || cart.code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
+  if (error) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-10">
+        <p className="text-[14px] text-danger">{error}</p>
+      </div>
+    );
+  }
   if (!cart) {
     return (
       <div className="mx-auto max-w-xl px-4 py-10">
-        <p className="text-[14px] text-cocoa">{error || "Loading…"}</p>
+        <p className="text-[13px] text-cocoa">{t("common.loading")}</p>
       </div>
     );
   }
 
-  const ordered = cart.status === "ordered";
+  const title = `${cart.emoji ?? ""} ${cart.name ?? t("grp.untitled")}`.trim();
+  const ordered = cart.members.filter((m) => m.hasOrdered).length;
+  const waiting = cart.members.length - ordered;
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-6 lg:px-6">
-      <button
-        onClick={() => router.push("/food")}
-        className="flex items-center gap-1 text-[13px] font-medium text-cocoa hover:text-ink"
-      >
-        <ChevronLeft size={16} /> {t("nav.food")}
-      </button>
+    <div className="mx-auto w-full max-w-xl px-4 pb-28 lg:max-w-2xl lg:px-6 lg:pb-10">
+      <GroupHeader
+        title={t("grp.statusTitle")}
+        backTo="/food/group"
+        chatHref={`/food/group/${id}/chat`}
+      />
 
-      <h1 className="mt-3 flex items-center gap-2 text-[20px] font-bold text-ink">
-        <Users size={20} className="text-accent" /> {t("grp.groupOrder")}
-      </h1>
-      {cart.members.length > 0 && (
-        <span className="mt-1 inline-flex items-center gap-1.5 rounded-pill bg-success/10 px-2.5 py-1 text-[12px] font-semibold text-success">
-          <span className="size-1.5 rounded-full bg-success" />
-          {cart.members.length} Joined
-        </span>
-      )}
-
-      {/* Join code */}
-      <Card className="mt-4 bg-accent-soft/50">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[12px] text-cocoa">{t("grp.shareCode")}</p>
-            <p className="mt-0.5 font-mono text-[26px] font-bold tracking-[0.3em] text-ink">
-              {cart.code}
-            </p>
-          </div>
-          <button
-            onClick={shareCode}
-            className="flex items-center gap-1.5 rounded-pill bg-accent px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#d4570f]"
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "Copied" : "Share"}
-          </button>
-        </div>
-      </Card>
-
-      {/* Share via — direct deep links where one exists (WhatsApp, Telegram),
-          the native share sheet for everything else. Figma draws a fourth
-          icon for Instagram, but Instagram has no web scheme for sharing a
-          plain link — a button that can't do what it says is worse than one
-          fewer button. */}
-      <div className="mt-3 flex items-center justify-center gap-6">
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(`Join my Flouna group order — ${joinUrl}`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center gap-1.5"
-        >
-          <span className="flex size-12 items-center justify-center rounded-full bg-[#25D366]/15 text-[#25D366]">
-            <MessageCircle size={22} />
-          </span>
-          <span className="text-[11px] text-cocoa">WhatsApp</span>
-        </a>
-        <a
-          href={`https://t.me/share/url?url=${encodeURIComponent(joinUrl)}&text=${encodeURIComponent("Join my Flouna group order")}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center gap-1.5"
-        >
-          <span className="flex size-12 items-center justify-center rounded-full bg-[#229ED9]/15 text-[#229ED9]">
-            <Send size={20} />
-          </span>
-          <span className="text-[11px] text-cocoa">Telegram</span>
-        </a>
-        <button onClick={shareCode} className="flex flex-col items-center gap-1.5">
-          <span className="flex size-12 items-center justify-center rounded-full bg-beige/70 text-cocoa">
-            <Share2 size={20} />
-          </span>
-          <span className="text-[11px] text-cocoa">More</span>
-        </button>
-      </div>
-
-      {/* Add items */}
-      {!ordered && (
-        <div className="mt-5">
-          <div className="flex items-center gap-2 rounded-pill border border-line bg-card px-4 py-2.5">
-            <Search size={16} className="text-cocoa/60" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Add your items…"
-              className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-cocoa/50"
-            />
-          </div>
-          {results.length > 0 && (
-            <div className="mt-2 flex flex-col gap-2">
-              {results.map((q) => (
-                <Card key={`${q.dishId}-${q.platform}`} className="py-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold text-ink">{q.name}</p>
-                      <p className="text-[12px] text-cocoa">{rupees(q.effectivePaise)}</p>
-                    </div>
+      {/* The group itself */}
+      <FadeIn y={8}>
+        <Card className="py-3.5">
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[20px]">
+              {cart.emoji ?? <Utensils size={19} className="text-accent" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              {renaming ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value.slice(0, 40))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void rename();
+                      if (e.key === "Escape") setRenaming(false);
+                    }}
+                    placeholder={t("grp.namePlaceholder")}
+                    className="min-w-0 flex-1 rounded-pill border border-line bg-cream px-3 py-1.5 text-[14px] text-ink outline-none focus:border-accent"
+                  />
+                  <button
+                    onClick={rename}
+                    disabled={busy}
+                    className="tap-target shrink-0 rounded-pill bg-accent px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60"
+                  >
+                    {t("common.save")}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <p className="min-w-0 truncate text-[16px] font-extrabold text-ink">
+                    {title}
+                  </p>
+                  {cart.isHost && (
                     <button
-                      onClick={() => addItem(q.dishId)}
-                      disabled={busy}
-                      className="flex items-center gap-1 rounded-pill bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f] disabled:opacity-50"
+                      onClick={() => {
+                        setDraftName(cart.name ?? "");
+                        setRenaming(true);
+                      }}
+                      aria-label={t("grp.rename")}
+                      className="tap-target shrink-0 rounded-full p-1 text-cocoa hover:bg-beige/50"
                     >
-                      <Plus size={13} /> Add
+                      <Pencil size={13} />
                     </button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Live cart */}
-      <h2 className="mt-6 text-[14px] font-bold text-ink">
-        Everyone&apos;s items ({cart.items.length})
-      </h2>
-      <div className="mt-2 flex flex-col gap-2">
-        {cart.items.length === 0 && (
-          <p className="py-4 text-center text-[13px] text-cocoa">
-            No items yet — add yours above.
-          </p>
-        )}
-        {cart.items.map((item) => (
-          <Card key={item.id} className="py-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-[14px] font-semibold text-ink">
-                  {item.name}
-                  {item.qty > 1 && <span className="text-cocoa"> ×{item.qty}</span>}
-                </p>
-                <p className="text-[12px] text-cocoa">
-                  {item.isYou ? "You" : item.memberName} · {rupees(item.pricePaise * item.qty)}
-                </p>
-              </div>
-              {item.isYou && !ordered && (
-                <button
-                  onClick={() => removeItem(item.id)}
-                  aria-label="Remove item"
-                  className="rounded-full p-1.5 text-cocoa/60 hover:bg-danger/10 hover:text-danger"
-                >
-                  <Trash2 size={15} />
-                </button>
+                  )}
+                </div>
               )}
+              <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-success">
+                <span className="size-1.5 rounded-full bg-success" />
+                {t("grp.orderedOfJoined")
+                  .replace("{a}", String(ordered))
+                  .replace("{b}", String(cart.members.length))}
+              </p>
             </div>
-          </Card>
-        ))}
+            <Link
+              href={`/food/group/${id}/invite`}
+              aria-label={t("grp.inviteMore")}
+              className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-beige/60 text-cocoa transition-colors hover:bg-beige"
+            >
+              <UserPlus size={17} />
+            </Link>
+          </div>
+        </Card>
+      </FadeIn>
+
+      {/* Members */}
+      <div className="mt-5 flex items-center gap-2">
+        <h2 className="text-[15px] font-extrabold text-ink">{t("grp.members")}</h2>
+        <span className="rounded-pill bg-beige/70 px-2 py-0.5 text-[11px] font-semibold text-cocoa">
+          {cart.members.length}
+        </span>
       </div>
 
-      {/* Split summary — Figma's "Waiting..." badge for anyone who hasn't
-          added an item yet, derived from subtotalPaise rather than a new
-          field: 0 ordered *is* waiting, for any member. */}
-      {cart.members.length > 0 && (
-        <Card className="mt-5">
-          <p className="text-[14px] font-bold text-ink">{t("grp.splitEqually")}</p>
-          <div className="mt-2 flex flex-col gap-1.5">
-            {cart.members.map((m) => (
-              <div key={m.userId} className="flex items-center justify-between text-[13px]">
-                <span className="text-cocoa">
-                  {m.isYou ? "You" : m.name}
+      <Stagger className="mt-3 overflow-hidden rounded-[18px] bg-card shadow-soft">
+        {cart.members.map((m, i) => (
+          <StaggerItem key={m.userId}>
+            <div
+              className={cn(
+                "flex items-center gap-3 px-4 py-3.5",
+                i < cart.members.length - 1 && "border-b border-line",
+              )}
+            >
+              <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[15px] font-bold text-accent">
+                {m.name.trim().charAt(0).toUpperCase() || "?"}
+                {m.active && (
+                  <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-success" />
+                )}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-bold text-ink">
+                  {m.isYou ? t("grp.you").replace("{name}", m.name) : m.name}
                 </span>
-                {m.subtotalPaise > 0 ? (
-                  <span className="text-ink">{rupees(m.subtotalPaise)} ordered</span>
-                ) : (
-                  <span className="flex items-center gap-1 rounded-pill border border-accent/40 px-2 py-0.5 text-[11px] font-semibold text-accent">
-                    <Clock size={11} /> Waiting…
+                {m.hasOrdered && (
+                  <span className="block text-[12px] text-cocoa">
+                    {rupees(m.subtotalPaise)}
                   </span>
                 )}
-              </div>
-            ))}
-          </div>
-          <div className="my-2 h-px bg-line" />
-          <div className="flex items-center justify-between text-[13px]">
-            <span className="text-cocoa">{t("grp.total")}</span>
-            <span className="font-bold text-ink">{rupees(cart.totalPaise)}</span>
-          </div>
-          <div className="flex items-center justify-between text-[14px]">
-            <span className="font-semibold text-ink">
-              Each pays ({cart.members.length} people)
-            </span>
-            <span className="font-bold text-accent">{rupees(cart.equalSplitPaise)}</span>
-          </div>
-        </Card>
-      )}
-
-      {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
-
-      {/* Step: after checkout, show each member's share + UPI links to send */}
-      {shares && orderId ? (
-        <Card className="mt-5">
-          <p className="text-[14px] font-bold text-ink">Collect everyone&apos;s share</p>
-          <p className="mt-1 text-[12px] text-cocoa">
-            You&apos;re paying the full bill now. Send each friend their share to
-            settle up.
-          </p>
-          <div className="mt-3 flex flex-col gap-2">
-            {shares.map((s) => (
-              <div
-                key={s.userId}
-                className="flex items-center justify-between gap-3 border-b border-line/60 pb-2 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-ink">
-                    {s.isHost ? `${s.name} (you)` : s.name}
-                  </p>
-                  <p className="text-[12px] text-cocoa">{rupees(s.sharePaise)}</p>
-                </div>
-                {s.isHost ? (
-                  <span className="text-[11px] text-cocoa">paying the bill</span>
-                ) : s.upiLink ? (
-                  <button
-                    onClick={() => shareUpi(s)}
-                    className="flex items-center gap-1 rounded-pill bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-[#d4570f]"
-                  >
-                    <Send size={12} /> Send link
-                  </button>
-                ) : (
-                  <span className="text-[11px] text-cocoa/70">no UPI set</span>
+              </span>
+              {m.isHost && (
+                <span className="shrink-0 rounded-pill bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">
+                  {t("grp.admin")}
+                </span>
+              )}
+              <span
+                className={cn(
+                  "flex shrink-0 items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-semibold",
+                  m.hasOrdered
+                    ? "bg-success/10 text-success"
+                    : "bg-warning/10 text-warning",
                 )}
-              </div>
-            ))}
-          </div>
-          <Button onClick={() => router.push(`/pay/${orderId}`)} className="mt-4 w-full">
-            Pay {rupees(cart.totalPaise)} &amp; place order
-          </Button>
-        </Card>
-      ) : ordered ? (
-        <Button
-          onClick={() => cart.orderId && router.push(`/orders/${cart.orderId}`)}
-          className="mt-5 w-full"
-        >
-          View order
-        </Button>
-      ) : cart.isHost ? (
-        <Card className="mt-5">
-          <Input
-            label="Your UPI ID (optional — to collect shares)"
-            placeholder="name@bank"
-            value={hostUpi}
-            onChange={(e) => setHostUpi(e.target.value.trim())}
-          />
-          <Button
-            onClick={checkout}
-            disabled={busy || cart.items.length === 0}
-            className="mt-3 w-full"
+              >
+                {m.hasOrdered ? <Check size={12} /> : <Clock size={12} />}
+                {m.hasOrdered ? t("grp.ordered") : t("grp.waiting")}
+              </span>
+            </div>
+          </StaggerItem>
+        ))}
+      </Stagger>
+
+      {cart.isHost && (
+        <div className="mt-4 flex flex-col gap-2.5">
+          <button
+            onClick={remind}
+            disabled={busy || waiting === 0}
+            className="tap-target flex h-[52px] w-full items-center justify-center gap-2 rounded-pill border border-accent/40 bg-card text-[15px] font-bold text-accent transition-colors hover:bg-accent-soft disabled:opacity-45"
           >
-            Place group order · {rupees(cart.totalPaise)}
-          </Button>
-        </Card>
-      ) : (
-        <p className="mt-5 text-center text-[13px] text-cocoa">
-          Waiting for the host to place the order…
-        </p>
+            <BellRing size={17} />
+            {waiting === 0 ? t("grp.everyoneOrdered") : t("grp.remindFriends")}
+          </button>
+          <button
+            onClick={saveCrew}
+            disabled={busy}
+            className="tap-target flex h-[48px] w-full items-center justify-center gap-2 rounded-pill border border-line bg-card text-[14px] font-semibold text-cocoa transition-colors hover:bg-beige/40 disabled:opacity-50"
+          >
+            <Bookmark size={16} />
+            {t("grp.saveCrew")}
+          </button>
+        </div>
       )}
+
+      {/* Sticky action */}
+      <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-xl px-4 lg:static lg:mt-6 lg:px-0">
+        <div className="flex gap-2.5">
+          <Link
+            href={`/food/group/${id}/menu`}
+            className="flex h-[56px] flex-1 items-center justify-center gap-2 rounded-[22px] bg-accent text-[15px] font-semibold text-white shadow-card transition-colors hover:bg-[#d4570f]"
+          >
+            <Utensils size={17} /> {t("grp.openMenu")}
+          </Link>
+          {cart.items.length > 0 && (
+            <Link
+              href={`/food/group/${id}/cart`}
+              aria-label={t("grp.viewCart")}
+              className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[22px] bg-card text-ink shadow-card transition-colors hover:bg-beige/50"
+            >
+              <ShoppingBag size={19} />
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

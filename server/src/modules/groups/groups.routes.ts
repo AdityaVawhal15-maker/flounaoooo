@@ -10,9 +10,15 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { env } from "../../config/env.js";
 import { sendPushToUser } from "../notifications/push.service.js";
 import { joinLimiter } from "../../middleware/rateLimit.js";
+import { groupChatRouter } from "./chat.routes.js";
+import { suggestForCart } from "./suggestion.service.js";
 
 export const groupsRouter = Router();
 groupsRouter.use(requireAuth);
+
+// Encrypted chat for one cart. Mounted here so it inherits :id and the same
+// membership rules that guard the cart itself.
+groupsRouter.use("/:id/chat", groupChatRouter);
 
 // Short, unambiguous join code (no 0/O/1/I).
 function generateCode(): string {
@@ -31,6 +37,9 @@ type CartWithItems = {
   platform: string;
   rideDetails: string | null;
   status: string;
+  name: string | null;
+  emoji: string | null;
+  crewId: string | null;
   orderId: string | null;
   items: {
     id: string;
@@ -151,7 +160,11 @@ async function summarize(cartId: string, viewerId: string) {
     domain: cart.domain,
     platform: cart.platform,
     status: cart.status,
+    name: cart.name,
+    emoji: cart.emoji,
+    crewId: cart.crewId,
     orderId: cart.orderId,
+    hostId: cart.hostId,
     isHost: cart.hostId === viewerId,
   };
 
@@ -180,21 +193,31 @@ async function summarize(cartId: string, viewerId: string) {
         name: view.nameFor(m.userId, m.user.name),
         active: view.activeFor(m.userId),
         subtotalPaise: equalSplitPaise,
+        hasOrdered: true, // a seat in the cab is the order
+        isHost: m.userId === cart.hostId,
         isYou: m.userId === viewerId,
       })),
       items: [],
     };
   }
 
+  // Seed with everyone who has joined, so a member who has not ordered yet is
+  // still on the list — the design shows them as "Waiting", and they cannot be
+  // shown at all if the list is built from items alone.
   const members = new Map<string, { name: string; subtotalPaise: number }>();
+  for (const m of cart.members) {
+    members.set(m.userId, { name: m.user.name, subtotalPaise: 0 });
+  }
   for (const item of cart.items) {
     const cur = members.get(item.userId) ?? { name: item.user.name, subtotalPaise: 0 };
     cur.subtotalPaise += item.pricePaise * item.qty;
     members.set(item.userId, cur);
   }
   const totalPaise = cart.items.reduce((s, i) => s + i.pricePaise * i.qty, 0);
-  const memberCount = Math.max(1, members.size);
-  const equalSplitPaise = Math.round(totalPaise / memberCount);
+  // Split across the people who actually ordered. Counting a member who has
+  // not added anything would quietly bill them for everyone else's food.
+  const ordering = new Set(cart.items.map((i) => i.userId));
+  const equalSplitPaise = Math.round(totalPaise / Math.max(1, ordering.size));
 
   const view = await privacyView(
     viewerId,
@@ -212,6 +235,11 @@ async function summarize(cartId: string, viewerId: string) {
       name: view.nameFor(userId, m.name),
       active: view.activeFor(userId),
       subtotalPaise: m.subtotalPaise,
+      // "Joined" on the status screen means they are in the room; ordering is
+      // a separate thing, and conflating them would mislabel a member who is
+      // still reading the menu.
+      hasOrdered: m.subtotalPaise > 0,
+      isHost: userId === cart.hostId,
       isYou: userId === viewerId,
     })),
     items: cart.items.map((i) => ({
@@ -350,7 +378,7 @@ groupsRouter.post(
 groupsRouter.post(
   "/join",
   joinLimiter,
-  validateBody(z.object({ code: z.string().trim().toUpperCase().length(6) })),
+  validateBody(z.object({ code: z.string().trim().toUpperCase().length(6) }).strict()),
   async (req, res, next) => {
     try {
       const { code } = req.body as { code: string };
@@ -406,11 +434,171 @@ groupsRouter.get("/:id", async (req, res, next) => {
   }
 });
 
+// ---------- name the group ----------
+//
+// The design puts a name and an emoji at the top of every group screen. Host
+// only: a name is how members recognise the room, and letting anyone rewrite it
+// mid-order is a small but real way to confuse people into the wrong cart.
+groupsRouter.patch(
+  "/:id",
+  validateBody(
+    z
+      .object({
+        name: z.string().trim().min(1).max(40).optional(),
+        emoji: z
+          .string()
+          .trim()
+          .max(8)
+          .refine((v) => v.length === 0 || [...v].length <= 2, "One emoji, please")
+          .optional(),
+      })
+      .strict()
+      .refine((v) => v.name !== undefined || v.emoji !== undefined, "Nothing to change"),
+  ),
+  async (req, res, next) => {
+    try {
+      const cart = await assertMember(req.params.id!, req.userId!);
+      if (cart.hostId !== req.userId!) {
+        throw new ApiError(403, "Only the host can rename the group");
+      }
+      const { name, emoji } = req.body as { name?: string; emoji?: string };
+      await prisma.groupCart.update({
+        where: { id: cart.id },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(emoji !== undefined ? { emoji: emoji || null } : {}),
+        },
+      });
+      res.json(await summarize(cart.id, req.userId!));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------- nudge the people who have not ordered ----------
+//
+// Rate-limited by its own nature: it only reaches members with nothing in the
+// cart, so once someone orders they stop being remindable. That is a better
+// throttle than a timer, because it makes the nudge impossible to weaponise
+// into a stream of notifications.
+groupsRouter.post("/:id/remind", async (req, res, next) => {
+  try {
+    const cart = await assertMember(req.params.id!, req.userId!);
+    if (cart.hostId !== req.userId!) {
+      throw new ApiError(403, "Only the host can send a reminder");
+    }
+    if (cart.status !== "open") throw new ApiError(409, "This group order is closed");
+
+    const members = await prisma.groupCartMember.findMany({
+      where: { cartId: cart.id, NOT: { userId: req.userId! } },
+      select: { userId: true },
+    });
+    const ordered = await prisma.groupCartItem.findMany({
+      where: { cartId: cart.id },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
+    const done = new Set(ordered.map((o) => o.userId));
+    const waiting = members.filter((m) => !done.has(m.userId));
+
+    const label = `${cart.emoji ?? ""} ${cart.name ?? "Group order"}`.trim();
+    for (const m of waiting) {
+      void sendPushToUser(m.userId, {
+        title: label,
+        body: "Everyone is waiting on your order.",
+        url: `/food/group/${cart.id}`,
+      });
+    }
+    res.json({ reminded: waiting.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------- the group deal ----------
+groupsRouter.get("/:id/suggestion", async (req, res, next) => {
+  try {
+    const cart = await assertMember(req.params.id!, req.userId!);
+    if (cart.domain !== "food") return res.json({ suggestion: null });
+    const [items, memberCount] = await Promise.all([
+      prisma.groupCartItem.findMany({
+        where: { cartId: cart.id },
+        select: { id: true, userId: true, dishId: true, pricePaise: true, qty: true },
+      }),
+      prisma.groupCartMember.count({ where: { cartId: cart.id } }),
+    ]);
+    res.json({
+      suggestion: suggestForCart({
+        items,
+        platform: cart.platform,
+        memberCount: Math.max(1, memberCount),
+      }),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Swaps the matched items for the pack. Host only, because it removes other
+// people's choices from the cart — and it re-derives the suggestion here rather
+// than trusting the client's copy, so a stale screen cannot delete items the
+// current cart no longer justifies removing.
+groupsRouter.post("/:id/suggestion/apply", async (req, res, next) => {
+  try {
+    const cart = await assertMember(req.params.id!, req.userId!);
+    if (cart.hostId !== req.userId!) {
+      throw new ApiError(403, "Only the host can apply a group deal");
+    }
+    if (cart.status !== "open") throw new ApiError(409, "This group order is closed");
+
+    const [items, memberCount] = await Promise.all([
+      prisma.groupCartItem.findMany({
+        where: { cartId: cart.id },
+        select: { id: true, userId: true, dishId: true, pricePaise: true, qty: true },
+      }),
+      prisma.groupCartMember.count({ where: { cartId: cart.id } }),
+    ]);
+    const suggestion = suggestForCart({
+      items,
+      platform: cart.platform,
+      memberCount: Math.max(1, memberCount),
+    });
+    if (!suggestion) throw new ApiError(409, "That deal no longer applies to this cart");
+
+    const quote = quotesForDish(suggestion.dishId).find((q) => q.platform === cart.platform);
+    if (!quote) throw new ApiError(404, "That pack is no longer available");
+
+    await prisma.$transaction([
+      prisma.groupCartItem.deleteMany({
+        where: { cartId: cart.id, id: { in: suggestion.replacesItemIds } },
+      }),
+      prisma.groupCartItem.create({
+        data: {
+          cartId: cart.id,
+          userId: req.userId!,
+          dishId: suggestion.dishId,
+          name: quote.name,
+          pricePaise: quote.effectivePaise,
+          qty: 1,
+        },
+      }),
+    ]);
+
+    res.json({
+      applied: suggestion.savingPaise,
+      cart: await summarize(cart.id, req.userId!),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ---------- add item ----------
 groupsRouter.post(
   "/:id/items",
   validateBody(
-    z.object({ dishId: z.string().max(60), qty: z.number().int().min(1).max(20).default(1) }),
+    z.object({ dishId: z.string().max(60), qty: z.number().int().min(1).max(20).default(1) }).strict(),
   ),
   async (req, res, next) => {
     try {

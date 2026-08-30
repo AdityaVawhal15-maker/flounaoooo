@@ -719,7 +719,7 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
 ordersRouter.post(
   "/:id/cancel",
   validateBody(
-    z.object({ reason: z.string().trim().max(200).optional() }),
+    z.object({ reason: z.string().trim().max(200).optional() }).strict(),
   ),
   async (req, res, next) => {
     try {
@@ -816,7 +816,7 @@ ordersRouter.post(
     z.object({
       stars: z.number().int().min(1).max(5),
       comment: z.string().trim().max(300).optional(),
-    }),
+    }).strict(),
   ),
   async (req, res, next) => {
     try {

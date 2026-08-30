@@ -16,6 +16,7 @@ import { paymentsRouter } from "./modules/payments/payments.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { groupsRouter } from "./modules/groups/groups.routes.js";
+import { crewsRouter } from "./modules/groups/crews.routes.js";
 import { alertsRouter } from "./modules/alerts/alerts.routes.js";
 import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
@@ -26,6 +27,7 @@ import { igmWebhookRouter } from "./modules/complaints/igm.webhooks.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
 import { adminRouter } from "./modules/backoffice/admin.routes.js";
 import { superRouter } from "./modules/backoffice/super.routes.js";
+import { requestKey } from "./middleware/rateLimit.js";
 
 export function createApp() {
   const app = express();
@@ -69,13 +71,53 @@ export function createApp() {
   );
   app.use(cookieParser());
 
-  // Global safety-net limit; sensitive routes (OTP, chat) add stricter ones.
+  // Two safety nets, because one is always wrong for somebody.
+  //
+  // The first counts a request against its SESSION. A single user with the
+  // group cart and the chat open is already polling several times a minute
+  // before they touch anything, so the per-person allowance has to be generous.
+  //
+  // The second counts against the ADDRESS, and is deliberately far higher. On
+  // Indian mobile networks carrier-grade NAT puts thousands of subscribers
+  // behind one public address; an address bucket sized for a person would
+  // throttle an entire city block for the behaviour of one phone in it. Sized
+  // like this it still stops a single machine hammering the API, without
+  // punishing a crowd for sharing a carrier.
+  //
+  // Sensitive routes (OTP, login, chat) add their own much stricter limits on
+  // top; these two only catch runaway traffic.
   app.use(
     rateLimit({
       windowMs: 60_000,
-      limit: 300,
+      limit: env.NODE_ENV === "test" ? 100_000 : 600,
       standardHeaders: "draft-8",
       legacyHeaders: false,
+      keyGenerator: requestKey,
+      message: { error: "Too many requests. Slow down a moment." },
+    }),
+  );
+  app.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: env.NODE_ENV === "test" ? 100_000 : 3_000,
+      standardHeaders: false,
+      legacyHeaders: false,
+      keyGenerator: (req) => "addr:" + (req.ip ?? ""),
+      // Anonymous traffic only. A signed-in request is already bounded by the
+      // per-session limiter above, so counting it against its address a second
+      // time re-creates exactly the problem that limiter exists to solve: on a
+      // carrier-NAT address, one bucket would have to hold thousands of
+      // legitimate customers, and no number is both large enough for them and
+      // small enough to stop an attacker. Anonymous requests can do very little
+      // — login and sign-up carry their own far stricter limits — so an address
+      // ceiling is the right shape for them and the wrong shape for everyone
+      // who has already signed in.
+      skip: (req) =>
+        Boolean(
+          (req as typeof req & { cookies?: Record<string, string> }).cookies
+            ?.access_token,
+        ),
+      message: { error: "Too many requests from this network." },
     }),
   );
 
@@ -84,7 +126,17 @@ export function createApp() {
   const healthHandler: express.RequestHandler = async (_req, res) => {
     const started = Date.now();
     try {
+      // Two checks, because they fail separately and only one of them used to
+      // be made. SELECT 1 proves the database is reachable; it proves nothing
+      // about whether the schema was ever applied to it. A deployment pointed
+      // at an empty Postgres answered "db: ok" here while every real query
+      // threw — so uptime monitors read all-green while nobody could sign in.
+      //
+      // Counting a row from a table the app cannot work without closes that
+      // gap. It is cheap, and it fails loudly the moment the schema is missing
+      // or the client was generated for a different engine.
       await prisma.$queryRaw`SELECT 1`;
+      await prisma.user.count();
       res.json({
         ok: true,
         service: "flouna-api",
@@ -93,11 +145,21 @@ export function createApp() {
         latencyMs: Date.now() - started,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (err) {
+      // "unreachable" and "no schema" need different people doing different
+      // things, and answering the same word for both sends whoever is on call
+      // to check the wrong thing first.
+      const reason = err instanceof Error ? err.message : String(err);
+      const missingSchema =
+        /does not exist|no such table|relation .* does not exist|P2021|P2022/i.test(reason);
+      console.error("[health] database check failed:", reason);
       res.status(503).json({
         ok: false,
         service: "flouna-api",
-        db: "unreachable",
+        db: missingSchema ? "schema-missing" : "unreachable",
+        hint: missingSchema
+          ? "The database is reachable but has no schema. Run the deploy step that applies it."
+          : "The database could not be reached. Check DATABASE_URL and the network path.",
         timestamp: new Date().toISOString(),
       });
     }
@@ -116,6 +178,7 @@ export function createApp() {
   app.use("/api/payments", paymentsRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/notifications", notificationsRouter);
+  app.use("/api/groups/crews", crewsRouter);
   app.use("/api/groups", groupsRouter);
   app.use("/api/alerts", alertsRouter);
   app.use("/api/shop", shopRouter);

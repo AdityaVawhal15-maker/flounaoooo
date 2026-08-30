@@ -205,19 +205,37 @@ describe("privacy settings cannot be set on someone else's behalf", () => {
     expect(after.role).toBe("user");
   });
 
-  it("cannot escalate role or flip plus/budget through the profile endpoint", async () => {
+  it("refuses a profile update that smuggles role or plus alongside a real field", async () => {
     const { agent, email } = await authedAgent();
-    await agent
+    // This used to answer 200 and quietly drop the smuggled fields. Nothing was
+    // ever written from them, but a 200 tells a prober the field was understood,
+    // and the whole request is now refused instead — so the day a column arrives
+    // whose name matches a request field, the door is already shut.
+    const res = await agent
       .patch("/api/users/me")
       .send({ name: "Attacker", role: "super_admin", plusActive: true })
-      .expect(200);
+      .expect(400);
+    expect(res.body.error).toBe("Validation failed");
+
     const after = await prisma.user.findUniqueOrThrow({
       where: { email },
       select: { role: true, plusActive: true, name: true },
     });
-    expect(after.name).toBe("Attacker"); // the legitimate part applied
-    expect(after.role).toBe("user"); // the smuggled parts did not
+    expect(after.role).toBe("user");
     expect(after.plusActive).toBe(false);
+    // The legitimate half does not sneak through either: a request is accepted
+    // whole or not at all.
+    expect(after.name).not.toBe("Attacker");
+  });
+
+  it("still accepts the same update once the smuggled fields are gone", async () => {
+    const { agent, email } = await authedAgent();
+    await agent.patch("/api/users/me").send({ name: "Attacker" }).expect(200);
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { email },
+      select: { name: true },
+    });
+    expect(after.name).toBe("Attacker");
   });
 
   it("every endpoint on this surface requires a session", async () => {

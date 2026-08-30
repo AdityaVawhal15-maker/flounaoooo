@@ -54,7 +54,10 @@
      reasoning as the auth tokens — isolated here so the set can be pulled back
      onto the brand later without touching the screens. */
   --color-acct-ink: #111827; /* titles and values */
-  --color-acct-muted: #9ca3af; /* section labels, row subtitles */
+  /* Section labels and row subtitles. Was #9ca3af, which sat at 2.54:1 on a
+     white card — well under the 4.5:1 that normal text needs, and the single
+     biggest readability fault in the app. */
+  --color-acct-muted: #6b7280;
   --color-acct-bg: #f9fafb; /* page ground */
   --color-acct-accent: #b33b06; /* premium badge, row icons */
   --color-acct-tint: #fff6f1; /* icon badges, premium pill */
@@ -76,7 +79,9 @@
   --color-send: #b33b06; /* ask-bar send circle (Figma 2177:4763) — deeper than --color-accent */
 
   /* Refined neutrals for premium hierarchy (warm-tinted greys) */
-  --color-muted: #a08a78; /* tertiary text */
+  /* Tertiary text. Was #a08a78 at 3.15:1 on cream: legible indoors, not on a
+     phone in daylight, which is where this app is used. */
+  --color-muted: #7d6a5d;
   --color-surface: #fffdfb; /* slightly-raised surface */
   --color-hairline: #f2ebe4; /* even softer divider */
 
@@ -145,7 +150,7 @@
   --color-line: #2b2b2b;
   --color-beige: #262626;
   --color-cocoa: #b9a99c;
-  --color-muted: #8d8079;
+  --color-muted: #9c8d83;
   --color-surface: #191919;
   --color-hairline: #242424;
   /* Never had a dark value, so anything painted on it (active nav row, chip
@@ -172,14 +177,14 @@
 
   --color-acct-bg: #141414;
   --color-acct-ink: #f5f0ec;
-  --color-acct-muted: #8d8079;
+  --color-acct-muted: #9c8d83;
   --color-acct-tint: #2a1f19;
   /* Light enough to read as a track against #1c1c1c cards. */
   --color-switch-off: #55504c;
 
   --color-state-bg: #141414;
   --color-state-ink: #f5f0ec;
-  --color-state-muted: #8d8079;
+  --color-state-muted: #9c8d83;
 
   /* Chat-home brand accents — no dark frame exists for this screen yet, so
      these are derived rather than read: lightened enough to hold contrast on
