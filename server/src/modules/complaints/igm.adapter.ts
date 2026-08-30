@@ -78,7 +78,7 @@ class PendingSpecAdapter implements IgmAdapter {
 
   private async queue(complaintId: string, action: IgmAction) {
     const reason =
-      "ONDC IGM specification and credentials not configured — see IGM-2.0-implementation-spec.md";
+      "ONDC IGM specification and credentials not configured, see IGM-2.0-implementation-spec.md";
     await prisma.complaintMessage.create({
       data: {
         complaintId,

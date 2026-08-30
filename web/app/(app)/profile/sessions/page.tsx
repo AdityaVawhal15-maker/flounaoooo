@@ -53,7 +53,7 @@ function describe(ua: string | null, unknown: string) {
 }
 
 function when(iso: string | null, t: (k: TranslationKey) => string, locale: string) {
-  if (!iso) return "—";
+  if (!iso) return "Unknown";
   const d = new Date(iso);
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
   if (mins < 1) return t("pp.sess.justNow");

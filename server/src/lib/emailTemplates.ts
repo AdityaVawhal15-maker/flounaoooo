@@ -106,7 +106,7 @@ export function welcomeEmail(name: string) {
   const html = layout(
     `<h1 style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:19px;color:${COLORS.ink};">You're in, ${safeName} 🎉</h1>
 <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:${COLORS.cocoa};">
-  Flouna compares food and ride prices for you and always picks the best deal — you just order.
+  Flouna compares food and ride prices for you and always picks the best deal, you just order.
 </p>
 <p style="margin:0 0 24px;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:${COLORS.cocoa};">
   Try asking the assistant: <em>"order a biryani"</em> or <em>"get me a cab to the airport"</em>.
@@ -119,7 +119,7 @@ export function welcomeEmail(name: string) {
     "Your Flouna account is ready",
   );
   const text = `You're in, ${name || "there"}!\n\nFlouna compares food and ride prices and always picks the best deal.\n\nStart here: ${env.WEB_ORIGIN}/chat`;
-  return { subject: "Welcome to Flouna — your account is ready", html, text };
+  return { subject: "Welcome to Flouna, your account is ready", html, text };
 }
 
 export function receiptEmail(order: {
@@ -152,10 +152,10 @@ ${savedRow}
 </td></tr>
 </table>
 <p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:${COLORS.cocoa};">Receipt reference: ${escapeHtml(order.id)} · full invoice available in the app.</p>`,
-    `Payment received — ${order.title}`,
+    `Payment received, ${order.title}`,
   );
   const text = `Payment received ✓\n\n${kind}: ${order.title}\nTotal paid: ${rupees(order.amount)}${order.savedPaise > 0 ? `\nYou saved: ${rupees(order.savedPaise)}` : ""}\n\nTrack: ${env.WEB_ORIGIN}/orders/${order.id}`;
-  return { subject: `Payment received — ${order.title}`, html, text };
+  return { subject: `Payment received, ${order.title}`, html, text };
 }
 
 // Generic branded notification — the outbox worker renders every registry

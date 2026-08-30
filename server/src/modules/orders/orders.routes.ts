@@ -229,8 +229,8 @@ ordersRouter.post(
             fulfillment: "in_app",
             title:
               lines.length > 1
-                ? `${first.name} + ${lines.length - 1} more — ${first.restaurant}`
-                : `${first.name} — ${first.restaurant}`,
+                ? `${first.name} + ${lines.length - 1} more, ${first.restaurant}`
+                : `${first.name} at ${first.restaurant}`,
             details: JSON.stringify({
               items: lines.map((l) => ({
                 dishId: l.dishId,
@@ -334,7 +334,7 @@ ordersRouter.post(
             status: "pending_payment",
             provider: quote.platform,
             fulfillment: quote.fulfillment,
-            title: `${quote.name} — ${quote.restaurant}`,
+            title: `${quote.name} at ${quote.restaurant}`,
             details: JSON.stringify({
               ...quote,
               convenienceFeePaise,
@@ -420,7 +420,7 @@ ordersRouter.post(
             status: "pending_payment",
             provider: quote.platform,
             fulfillment: "in_app",
-            title: `${quote.name} — ${quote.brand}`,
+            title: `${quote.name} from ${quote.brand}`,
             details: JSON.stringify({
               ...quote,
               convenienceFeePaise,
@@ -679,7 +679,7 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
           driverLocation: null,
           pickupEtaMinutes: Math.ceil((bookedAt.getTime() - Date.now()) / 60_000),
           dropEtaMinutes: 0,
-          statusMessage: `Ride scheduled for ${when} — we'll find your captain then`,
+          statusMessage: `Ride scheduled for ${when}, we'll find your captain then`,
         },
       });
     }

@@ -37,7 +37,7 @@ const chatLimit = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   keyGenerator: (req) => req.userId ?? req.ip ?? "anon",
-  message: { error: "You're sending messages too fast — give me a few seconds." },
+  message: { error: "You're sending messages too fast, give me a few seconds." },
 });
 
 type AssistantPayload = {
@@ -56,7 +56,7 @@ function budgetNoteFor(
   if (budget.remainingPaise == null) return null;
   const afterPaise = budget.remainingPaise - pickPaise;
   if (afterPaise < 0) {
-    return `Heads up — this is ${rupees(-afterPaise)} over your weekly food budget.`;
+    return `Heads up, this is ${rupees(-afterPaise)} over your weekly food budget.`;
   }
   return `${rupees(afterPaise)} left in your weekly food budget after this.`;
 }
@@ -96,9 +96,9 @@ function personalizedNote(
 ): string | null {
   if (!personal) return null;
   if (personal.spendBand === "budget")
-    return "Tuned to your habits — you tend to keep it value-friendly, so I leaned cheaper.";
+    return "Tuned to your habits, you tend to keep it value-friendly, so I leaned cheaper.";
   if (personal.spendBand === "premium")
-    return "Tuned to your habits — you usually go for quality, so I leaned higher-rated.";
+    return "Tuned to your habits, you usually go for quality, so I leaned higher-rated.";
   if (personal.tasteBonus)
     return "Picked with your usual favourites in mind.";
   return null;
@@ -192,8 +192,8 @@ async function buildAssistantPayload(
           quotes: rideQuotes.slice(0, 3),
           scheduledAt: comboScheduledAt,
           why: comboScheduledAt
-            ? `Cheapest fare is ${rideQuotes[0]?.displayName} — scheduled for ${scheduleLabel(comboScheduledAt)}, open Rides to confirm.`
-            : `Cheapest fare is ${rideQuotes[0]?.displayName} — open Rides to set exact pickup.`,
+            ? `Cheapest fare is ${rideQuotes[0]?.displayName}, scheduled for ${scheduleLabel(comboScheduledAt)}, open Rides to confirm.`
+            : `Cheapest fare is ${rideQuotes[0]?.displayName}, open Rides to set exact pickup.`,
           advice: await adviseRide(rideQuotes[0]?.vehicle ?? null, ctx.now, ctx),
         },
       },
@@ -244,7 +244,7 @@ async function buildAssistantPayload(
       };
     }
     return {
-      reply: `I couldn't find "${intent.food.item}" near you right now — try biryani, pizza, dosa, or a thali?`,
+      reply: `I couldn't find "${intent.food.item}" near you right now, try biryani, pizza, dosa, or a thali?`,
       intent,
       served,
     };
@@ -282,11 +282,11 @@ async function buildAssistantPayload(
         quotes: sent,
         scheduledAt,
         why: scheduledAt
-          ? `Cheapest effective fare is ${quotes[0]?.displayName} after offers — scheduled for ${scheduleLabel(scheduledAt)}, open Rides to confirm.`
+          ? `Cheapest effective fare is ${quotes[0]?.displayName} after offers, scheduled for ${scheduleLabel(scheduledAt)}, open Rides to confirm.`
           : // Chat has no pickup coordinates, so these fares price a typical
             // 8 km city trip. Saying so keeps a short hop and an airport run
             // from both being quoted at the same number without explanation.
-            `Cheapest effective fare is ${quotes[0]?.displayName} after offers — indicative for a typical 8 km trip. Open Rides to set your exact pickup and drop.`,
+            `Cheapest effective fare is ${quotes[0]?.displayName} after offers, indicative for a typical 8 km trip. Open Rides to set your exact pickup and drop.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };
@@ -315,7 +315,7 @@ async function buildAssistantPayload(
       };
     }
     return {
-      reply: `I couldn't find "${intent.shop.item}" right now — try a laptop, earbuds, shoes, or a smartwatch?`,
+      reply: `I couldn't find "${intent.shop.item}" right now, try a laptop, earbuds, shoes, or a smartwatch?`,
       intent,
       served,
     };

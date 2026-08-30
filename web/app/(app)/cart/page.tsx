@@ -79,7 +79,7 @@ export default function CartPage() {
         },
       });
       setCoupon(d);
-      toast(`${d.code} applied — you save ${rupees(d.discountPaise)}`);
+      toast(`${d.code} applied, you save ${rupees(d.discountPaise)}`);
     } catch (e) {
       setCoupon(null);
       setCouponError(e instanceof Error ? e.message : "Could not apply that code");
@@ -293,7 +293,7 @@ export default function CartPage() {
                 <p className="text-[13px] text-cocoa">Loading address…</p>
               ) : address ? (
                 <p className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                  <span className="font-semibold">{address.label}</span> —{" "}
+                  <span className="font-semibold">{address.label}</span>,{" "}
                   {address.line1}, {address.city}
                 </p>
               ) : (

@@ -87,7 +87,7 @@ export async function systemAlerts(): Promise<{ alerts: SystemAlert[]; counts: {
     alerts.push({
       severity: "info",
       source: "ondc",
-      message: "Fulfilment is in simulation mode — ONDC registration pending.",
+      message: "Fulfilment is in simulation mode. ONDC registration pending.",
       at: new Date(),
     });
   }

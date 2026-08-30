@@ -116,7 +116,7 @@ export default function RewardsPage() {
           >
             <p className="text-[13px] font-medium text-white/80">{t("pp.rew.yourBalance")}</p>
             <p className="mt-1 text-[32px] font-extrabold leading-none">
-              {balancePaise === null ? "—" : rupees(balancePaise)}
+              {balancePaise === null ? "..." : rupees(balancePaise)}
             </p>
             <p className="mt-1.5 text-[12px] text-white/70">{t("pp.rew.walletBalance")}</p>
             <Gift

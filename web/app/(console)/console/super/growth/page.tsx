@@ -27,9 +27,9 @@ function shortDay(iso: string): string {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 }
 
-// WoW movement as a signed percentage label; "—" when there is no base week.
+// WoW movement as a signed percentage label; "No data" when there is no base week.
 function delta(now: number, prev: number): string {
-  if (prev === 0) return now > 0 ? "new" : "—";
+  if (prev === 0) return now > 0 ? "new" : "No data";
   const pct = Math.round(((now - prev) / prev) * 100);
   return `${pct >= 0 ? "+" : ""}${pct}% WoW`;
 }
@@ -66,7 +66,7 @@ export default function GrowthPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <PageTitle
           title="Growth"
-          subtitle={`Daily orders, GMV and signups — last ${g?.days ?? 30} days, from real data.`}
+          subtitle={`Daily orders, GMV and signups, last ${g?.days ?? 30} days, from real data.`}
         />
         <div className="flex shrink-0 gap-2 pt-1">
           <button
@@ -89,17 +89,17 @@ export default function GrowthPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Orders (30d)"
-          value={g?.totals.orders ?? "—"}
+          value={g?.totals.orders ?? "No data"}
           hint={g ? delta(g.weekOverWeek.ordersThisWeek, g.weekOverWeek.ordersLastWeek) : undefined}
         />
         <StatCard
           label="GMV (30d)"
-          value={g ? rupeesCompact(g.totals.gmvPaise) : "—"}
+          value={g ? rupeesCompact(g.totals.gmvPaise) : "No data"}
           tone="good"
           hint={g ? delta(g.weekOverWeek.gmvThisWeekPaise, g.weekOverWeek.gmvLastWeekPaise) : undefined}
         />
-        <StatCard label="New signups (30d)" value={g?.totals.signups ?? "—"} />
-        <StatCard label="Active buyers (7d)" value={g?.totals.activeBuyers7d ?? "—"} tone="warn" />
+        <StatCard label="New signups (30d)" value={g?.totals.signups ?? "No data"} />
+        <StatCard label="Active buyers (7d)" value={g?.totals.activeBuyers7d ?? "No data"} tone="warn" />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -108,7 +108,7 @@ export default function GrowthPage() {
             {anyVolume ? (
               <LineChartC data={gmvSeries} valueLabel={(v) => `₹${v.toLocaleString("en-IN")}`} />
             ) : (
-              <Empty>No volume yet — paid orders populate this.</Empty>
+              <Empty>No volume yet, paid orders populate this.</Empty>
             )}
           </div>
         </Card>

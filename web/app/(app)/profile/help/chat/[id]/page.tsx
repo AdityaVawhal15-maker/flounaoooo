@@ -283,7 +283,7 @@ export default function SupportChatPage() {
         ) : ended ? (
           <div className="rounded-[18px] bg-card p-5 text-center shadow-soft">
             <p className="text-[15px] font-bold text-acct-ink">
-              Thanks — you rated this {chat.ratingStars} out of 5
+              Thanks, you rated this {chat.ratingStars} out of 5
             </p>
             <Link
               href="/profile/help"

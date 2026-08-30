@@ -60,17 +60,17 @@ export default function SuperRevenuePage() {
       <PageTitle title="Revenue & commissions" subtitle="Gross volume, subscriptions and refunds." />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Gross (paid)" value={rev ? rupees(rev.grossPaise) : "—"} tone="good" />
-        <StatCard label="Gross (30d)" value={rev ? rupees(rev.gross30dPaise) : "—"} />
+        <StatCard label="Gross (paid)" value={rev ? rupees(rev.grossPaise) : "No data"} tone="good" />
+        <StatCard label="Gross (30d)" value={rev ? rupees(rev.gross30dPaise) : "No data"} />
         <StatCard
           label="Plus run-rate"
-          value={rev ? `${rupees(rev.subscriptions.monthlyRunRatePaise)}/mo` : "—"}
+          value={rev ? `${rupees(rev.subscriptions.monthlyRunRatePaise)}/mo` : "No data"}
           tone="good"
           hint={rev ? `${rev.subscriptions.activePlus} subscribers` : undefined}
         />
         <StatCard
           label="Refunds pending"
-          value={rev?.refunds.pending ?? "—"}
+          value={rev?.refunds.pending ?? "No data"}
           tone={rev && rev.refunds.pending > 0 ? "warn" : "good"}
         />
       </div>

@@ -60,7 +60,7 @@ export default function SettingsPage() {
         json: s,
       });
       setS(updated); // reflect any server-side clamping
-      setMsg("Saved. ONDC margins are clamped to DPIIT norms (3–6%).");
+      setMsg("Saved. ONDC margins are clamped to DPIIT norms (3 to 6%).");
     } catch (err) {
       setMsg(err instanceof ApiClientError ? err.message : "Save failed.");
     } finally {

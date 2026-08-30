@@ -114,7 +114,7 @@ export default function LoginPage() {
       // plainly and point at the path that does work, rather than failing mute.
       setError(
         err instanceof ApiClientError && err.status === 501
-          ? "Phone sign-in isn't available yet — continue with email or Google."
+          ? "Phone sign-in isn't available yet, continue with email or Google."
           : err instanceof Error
             ? err.message
             : "Could not send the code",

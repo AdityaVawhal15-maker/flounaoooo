@@ -606,7 +606,7 @@ groupsRouter.post(
       // H2: only members (host or someone who joined via code) may add items.
       const cart = await assertMember(req.params.id!, req.userId!);
       if (cart.domain === "ride") {
-        throw new ApiError(400, "This is a shared ride — there's nothing to add");
+        throw new ApiError(400, "This is a shared ride, there's nothing to add");
       }
       if (cart.status !== "open") throw new ApiError(409, "This group order is closed");
 
@@ -793,7 +793,7 @@ groupsRouter.post(
           if (m.userId === cart.hostId) continue;
           void sendPushToUser(m.userId, {
             title: "Your shared ride is booked 🚕",
-            body: `${quote.displayName} to ${ride.drop} — your share is ₹${(sharePaise / 100).toFixed(0)}.`,
+            body: `${quote.displayName} to ${ride.drop}, your share is ₹${(sharePaise / 100).toFixed(0)}.`,
             url: `/rides/group/${cart.id}`,
           });
         }

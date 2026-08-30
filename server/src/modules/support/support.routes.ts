@@ -15,7 +15,7 @@ export const supportRouter = Router();
 const chatLimiter = makeLimiter({
   windowMs: 60_000,
   limit: 40,
-  message: "You're sending messages very quickly — give it a moment.",
+  message: "You're sending messages very quickly, give it a moment.",
 });
 
 // Topics and articles are public knowledge: readable without a session so the

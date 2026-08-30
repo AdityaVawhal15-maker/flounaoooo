@@ -34,7 +34,7 @@ export default function VendorsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-(--c-ink)">Vendors / MSMEs</h1>
         <p className="mt-1 text-[13px] text-(--c-muted)">
-          Derived from real paid orders — vendors actually transacting through Flouna.
+          Derived from real paid orders, vendors actually transacting through Flouna.
         </p>
       </div>
 
@@ -46,7 +46,7 @@ export default function VendorsPage() {
 
       <Card title="Vendor performance">
         {vendors.length === 0 ? (
-          <Empty>No vendor activity yet — paid orders populate this.</Empty>
+          <Empty>No vendor activity yet, paid orders populate this.</Empty>
         ) : (
           <Table head={["Vendor", "Domain", "Source", "Orders", "GMV", "Commission to Flouna"]}>
             {vendors.map((v) => (

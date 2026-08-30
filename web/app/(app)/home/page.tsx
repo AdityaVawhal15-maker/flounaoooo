@@ -179,7 +179,7 @@ function ChatHome() {
           id: `e-${Date.now()}`,
           role: "assistant",
           content:
-            err instanceof Error ? err.message : "Something went wrong — try again.",
+            err instanceof Error ? err.message : "Something went wrong, try again.",
         },
       ]);
     } finally {
@@ -218,7 +218,7 @@ function ChatHome() {
           aria-pressed={temporary}
           title={
             temporary
-              ? "Temporary chat is on — this conversation isn't being saved"
+              ? "Temporary chat is on, this conversation isn't being saved"
               : "Start a temporary chat that isn't saved"
           }
           className={cn(

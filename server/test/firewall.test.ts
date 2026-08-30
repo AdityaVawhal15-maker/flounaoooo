@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { authedAgent } from "./helpers.js";
 
-const REFUSAL = "I can help you order food, book rides, or shop — what would you like?";
+const REFUSAL = "I can help you order food, book rides, or shop. What would you like?";
 
 describe("chat firewall", () => {
   it("refuses code-writing requests", async () => {

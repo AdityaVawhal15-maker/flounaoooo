@@ -205,7 +205,7 @@ export default function InvoicePage({
               {order.id}
             </p>
             <p className="text-cocoa">
-              {order.payment?.method ? order.payment.method.toUpperCase() : "—"}
+              {order.payment?.method ? order.payment.method.toUpperCase() : "Not recorded"}
             </p>
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function InvoicePage({
       {/* Marketing line — screen only, kept OUT of the printed receipt. */}
       {order.savedPaise > 0 && (
         <div className="mt-3 rounded-card bg-accent-soft/60 px-4 py-2.5 text-[12px] font-medium text-accent print:hidden">
-          You saved {rupees(order.savedPaise)} vs the next-best option — Flouna
+          You saved {rupees(order.savedPaise)} vs the next-best option. Flouna
           picked the smartest choice for you.
         </div>
       )}

@@ -69,7 +69,7 @@ function handler(action: IgmAction) {
         error: {
           code: "UNPARSEABLE",
           message:
-            "Callback could not be interpreted — the IGM specification is not wired up yet",
+            "Callback could not be interpreted, the IGM specification is not wired up yet",
         },
       });
       return;

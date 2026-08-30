@@ -24,7 +24,7 @@ export function WhyBest({
     const slower = alternatives.filter((a) => a.etaMinutes > best.etaMinutes).length;
     if (slower > 0) {
       reasons.push(
-        `Arrives in ${best.etaMinutes} min — sooner than ${slower} of the ${alternatives.length} alternatives`,
+        `Arrives in ${best.etaMinutes} min, sooner than ${slower} of the ${alternatives.length} alternatives`,
       );
     }
 
@@ -45,7 +45,7 @@ export function WhyBest({
   const discount = best.offers.reduce((s, o) => s + o.discountPaise, 0);
   if (discount > 0) {
     reasons.push(
-      `Better value after applying every offer available — ${rupees(discount)} off this order`,
+      `Better value after applying every offer available, ${rupees(discount)} off this order`,
     );
   }
 

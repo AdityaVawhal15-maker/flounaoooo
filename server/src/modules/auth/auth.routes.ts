@@ -388,7 +388,7 @@ authRouter.delete("/sessions/:id", sessionLimiter, requireAuth, async (req, res,
 
     const raw = req.cookies?.refresh_token as string | undefined;
     if (raw && hashToken(raw) === token.tokenHash) {
-      throw new ApiError(409, "That's this device — use log out instead");
+      throw new ApiError(409, "That's this device, use log out instead");
     }
 
     await prisma.refreshToken.update({

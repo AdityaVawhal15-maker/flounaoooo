@@ -72,7 +72,7 @@ export default function RewardHistoryPage() {
         <div className="rounded-[18px] bg-card px-4 py-3.5 shadow-soft">
           <p className="text-[12px] text-acct-muted">{t("pp.rew.currentBalance")}</p>
           <p className="mt-0.5 text-[22px] font-extrabold text-acct-ink">
-            {balancePaise === null ? "—" : rupees(balancePaise)}
+            {balancePaise === null ? "..." : rupees(balancePaise)}
           </p>
         </div>
 

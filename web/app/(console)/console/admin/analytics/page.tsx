@@ -36,10 +36,10 @@ export default function AnalyticsPage() {
       <PageTitle title="Analytics" subtitle="Revenue and growth across all domains." />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Orders (total)" value={a?.orders?.total ?? "—"} />
-        <StatCard label="Revenue (all-time)" value={a?.revenuePaise != null ? rupeesCompact(a.revenuePaise) : "—"} tone="good" />
-        <StatCard label="Revenue (7d)" value={a?.revenue7dPaise != null ? rupeesCompact(a.revenue7dPaise) : "—"} />
-        <StatCard label="Saved for users" value={a?.userSavedPaise != null ? rupeesCompact(a.userSavedPaise) : "—"} />
+        <StatCard label="Orders (total)" value={a?.orders?.total ?? "No data"} />
+        <StatCard label="Revenue (all-time)" value={a?.revenuePaise != null ? rupeesCompact(a.revenuePaise) : "No data"} tone="good" />
+        <StatCard label="Revenue (7d)" value={a?.revenue7dPaise != null ? rupeesCompact(a.revenue7dPaise) : "No data"} />
+        <StatCard label="Saved for users" value={a?.userSavedPaise != null ? rupeesCompact(a.userSavedPaise) : "No data"} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

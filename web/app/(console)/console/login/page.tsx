@@ -39,7 +39,7 @@ export default function ConsoleLoginPage() {
           ? "This account doesn't have console access."
           : err instanceof ApiClientError
             ? err.message
-            : "Sign in failed — try again.";
+            : "Sign in failed, try again.";
       setError(msg);
     } finally {
       setBusy(false);
@@ -60,7 +60,7 @@ export default function ConsoleLoginPage() {
       router.replace(homeFor(user.role));
     } catch (err) {
       setError(
-        err instanceof ApiClientError ? err.message : "Verification failed — try again.",
+        err instanceof ApiClientError ? err.message : "Verification failed, try again.",
       );
       setBusy(false);
     }

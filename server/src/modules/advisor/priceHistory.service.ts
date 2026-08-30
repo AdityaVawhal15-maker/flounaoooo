@@ -92,6 +92,6 @@ export async function predictFromHistory(
     source: "history",
     action: "order_now",
     message:
-      "Based on recent pricing, now is around the best time — waiting isn't likely to get you a better deal.",
+      "Based on recent pricing, now is around the best time, waiting isn't likely to get you a better deal.",
   };
 }

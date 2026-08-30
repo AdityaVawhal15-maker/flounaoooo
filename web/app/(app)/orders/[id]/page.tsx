@@ -98,7 +98,7 @@ export default function OrderDetailPage({
       <ErrorView
         notFound
         title={t("order.notFound")}
-        message="We couldn't find this order — it may have been removed."
+        message="We couldn't find this order, it may have been removed."
         backHref="/history"
         backLabel={t("order.backToHistory")}
       />
@@ -261,8 +261,8 @@ export default function OrderDetailPage({
             label={t("bill.payment")}
             value={
               order.payment
-                ? `${order.payment.method?.toUpperCase() ?? "—"} · ${order.payment.status}`
-                : "—"
+                ? `${order.payment.method?.toUpperCase() ?? " "} · ${order.payment.status}`
+                : "Not recorded"
             }
           />
           <Row label={t("bill.orderId")} value={order.id} mono />

@@ -169,7 +169,7 @@ export default function AddressesPage() {
                 </p>
                 <p className="text-[12px] text-cocoa">
                   {[a.line1, a.line2, a.landmark].filter(Boolean).join(", ")}, {a.city},{" "}
-                  {a.state} — {a.pincode}
+                  {a.state}, {a.pincode}
                 </p>
                 {(a.contactName || a.contactPhone) && (
                   <p className="mt-0.5 text-[11px] text-cocoa/80">
@@ -200,7 +200,7 @@ export default function AddressesPage() {
           <EmptyView
             icon={MapPinOff}
             title={t("pp.addr.empty")}
-            message="Add where you'd like food delivered — you'll need one to place an order."
+            message="Add where you'd like food delivered, you'll need one to place an order."
           />
         )}
       </div>
@@ -302,7 +302,7 @@ export default function AddressesPage() {
           />
           {located && (
             <p className="-mb-1 flex items-center gap-1.5 text-[11px] font-medium text-success">
-              <Check size={12} /> Filled in from the map — edit if anything looks off
+              <Check size={12} /> Filled in from the map, edit if anything looks off
             </p>
           )}
           <div className="grid grid-cols-2 gap-3">

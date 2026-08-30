@@ -435,7 +435,7 @@ export default function PayPage({
               </p>
               <p className="text-[15px] font-bold">
                 {isFood
-                  ? `${d.etaMinutes ?? 30}–${(d.etaMinutes ?? 30) + 15} minutes`
+                  ? `${d.etaMinutes ?? 30} to ${(d.etaMinutes ?? 30) + 15} minutes`
                   : `${d.etaMinutes ?? 6} min away`}
               </p>
             </div>
@@ -450,7 +450,7 @@ export default function PayPage({
               <div className="flex items-center gap-2.5">
                 <MapPin size={15} className="shrink-0 text-accent" />
                 <p className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                  <span className="font-semibold">{address.label}</span> — {address.line1},{" "}
+                  <span className="font-semibold">{address.label}</span>, {address.line1},{" "}
                   {address.city}
                 </p>
                 <Link

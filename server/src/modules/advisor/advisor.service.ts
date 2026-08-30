@@ -48,7 +48,7 @@ export function adviseFoodByRules(now: Date = new Date()): Advice {
   if (active) {
     return {
       action: "order_now",
-      message: `Good timing — the ${active.label} is live right now. Prices are at their best.`,
+      message: `Good timing, the ${active.label} is live right now. Prices are at their best.`,
     };
   }
 
@@ -72,7 +72,7 @@ export function adviseFoodByRules(now: Date = new Date()): Advice {
 
   return {
     action: "order_now",
-    message: "No better offer window coming up soon — now is a fine time to order.",
+    message: "No better offer window coming up soon, now is a fine time to order.",
   };
 }
 
@@ -92,7 +92,7 @@ export function adviseRideByRules(now: Date = new Date()): Advice {
       const rupees = Math.round(surge.dropPaise / 100);
       return {
         action: "wait",
-        message: `Peak-hour pricing is easing in about ${formatWait(minutesLeft)} — fares may drop around ₹${rupees}.`,
+        message: `Peak-hour pricing is easing in about ${formatWait(minutesLeft)}, fares may drop around ₹${rupees}.`,
         expectedSavingPaise: surge.dropPaise,
         waitMinutes: minutesLeft,
       };
@@ -100,13 +100,13 @@ export function adviseRideByRules(now: Date = new Date()): Advice {
     return {
       action: "order_now",
       message:
-        "It's peak commute time — fares are elevated everywhere, and waiting won't help for a while. Booking now is reasonable.",
+        "It's peak commute time, fares are elevated everywhere, and waiting won't help for a while. Booking now is reasonable.",
     };
   }
 
   return {
     action: "order_now",
-    message: "Off-peak right now — fares are at their lowest. Good time to book.",
+    message: "Off-peak right now, fares are at their lowest. Good time to book.",
   };
 }
 
@@ -123,9 +123,9 @@ function foodContextNote(ctx?: DecisionContext): string | undefined {
   if (!ctx) return undefined;
   const w = ctx.weather;
   if (w.condition === "heavy_rain")
-    return "It's pouring out — delivery may run a bit slow, but you stay dry by ordering in.";
+    return "It's pouring out, delivery may run a bit slow, but you stay dry by ordering in.";
   if (w.condition === "rain" || (w.rainChance ?? 0) >= 0.5)
-    return "Rain about — a good time to order in rather than head out.";
+    return "Rain about, a good time to order in rather than head out.";
   return undefined;
 }
 
@@ -134,9 +134,9 @@ function rideContextNote(ctx?: DecisionContext): string | undefined {
   if (!ctx) return undefined;
   const w = ctx.weather;
   if (w.condition === "heavy_rain")
-    return "Heavy rain — rides are in high demand and fares are surging. Book early if you must travel.";
+    return "Heavy rain, rides are in high demand and fares are surging. Book early if you must travel.";
   if (w.condition === "rain" || (w.rainChance ?? 0) >= 0.5)
-    return "Rain expected — fares tend to rise and cabs get scarce. Booking sooner is safer.";
+    return "Rain expected, fares tend to rise and cabs get scarce. Booking sooner is safer.";
   return undefined;
 }
 

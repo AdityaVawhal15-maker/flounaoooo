@@ -30,7 +30,7 @@ export type DecisionContext = {
   now: Date;
   hour: number;
   timeOfDay: TimeOfDay;
-  isPeakCommute: boolean; // 8–11 or 17–21
+  isPeakCommute: boolean; // 8 to 11 or 17 to 21
   isMealWindow: boolean; // typical lunch/dinner ordering windows
   weather: Weather;
   // True when conditions make a ride meaningfully more desirable / surge likely.

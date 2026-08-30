@@ -49,7 +49,7 @@ export default function SuperAuditPage() {
     <ConsoleShell operator={state.operator}>
       <PageTitle
         title="Audit trail"
-        subtitle={`${total} recorded actions — append-only.`}
+        subtitle={`${total} recorded actions, append-only.`}
       />
 
       <div className="overflow-hidden rounded-xl border border-(--c-border)">
@@ -78,7 +78,7 @@ export default function SuperAuditPage() {
                   <td className="px-4 py-2.5 font-mono text-(--c-ink)">{r.action}</td>
                   <td className="px-4 py-2.5 text-(--c-ink)">{r.summary}</td>
                   <td className="px-4 py-2.5 font-mono text-[12px] text-(--c-muted)">
-                    {r.ip ?? "—"}
+                    {r.ip ?? "No data"}
                   </td>
                 </tr>
               ))}

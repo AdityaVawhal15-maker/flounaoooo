@@ -58,7 +58,7 @@ export class FallbackProvider implements LlmProvider {
         const next = this.chain[i + 1];
         console.error(
           `[llm] ${provider.name} failed: ${err instanceof Error ? err.message : String(err)}` +
-            (next ? ` — falling back to ${next.name}` : " — no providers left"),
+            (next ? `, falling back to ${next.name}` : ", no providers left"),
         );
       }
     }

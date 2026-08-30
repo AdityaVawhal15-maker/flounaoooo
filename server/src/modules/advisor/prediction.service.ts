@@ -78,7 +78,7 @@ export function predictFor(
         title: "Rain around your usual ride",
         message:
           `Looks like rain near your ${hour12(routine.typicalHour)} ride to ${routine.drop}. ` +
-          `Cabs get scarce and fares surge in the wet — book about ${EARLY_LEAVE_MINUTES} min early to beat it.`,
+          `Cabs get scarce and fares surge in the wet, book about ${EARLY_LEAVE_MINUTES} min early to beat it.`,
         drop: routine.drop,
         typicalHour: routine.typicalHour,
         leadMinutes: EARLY_LEAVE_MINUTES,

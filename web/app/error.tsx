@@ -29,7 +29,7 @@ export default function Error({
           Something went wrong
         </h1>
         <p className="mt-2 text-[14px] leading-relaxed text-cocoa">
-          We hit a snag loading this screen. It&apos;s not you — try again, and
+          We hit a snag loading this screen. It&apos;s not you, try again, and
           you&apos;ll be back to deciding in a moment.
         </p>
 

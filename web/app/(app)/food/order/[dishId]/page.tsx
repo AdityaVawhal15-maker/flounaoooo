@@ -171,10 +171,10 @@ export default function FoodOrderPage({
                   {others
                     .map((q) => rupees(q.effectivePaise))
                     .join(" · ")}
-                  ) — <span className="font-semibold text-success">you save {rupees(saving)} here</span>.
+                  ), <span className="font-semibold text-success">you save {rupees(saving)} here</span>.
                 </>
               ) : (
-                <>Compared with {others.length} other app{others.length > 1 ? "s" : ""} — picked for the best overall value.</>
+                <>Compared with {others.length} other app{others.length > 1 ? "s" : ""}, picked for the best overall value.</>
               )}
             </p>
           );
@@ -188,7 +188,7 @@ export default function FoodOrderPage({
             <p className="text-[13px] text-cocoa">{t("foodOrder.loadingAddress")}</p>
           ) : address ? (
             <p className="min-w-0 flex-1 truncate text-[13px] text-ink">
-              <span className="font-semibold">{address.label}</span> —{" "}
+              <span className="font-semibold">{address.label}</span>,{" "}
               {address.line1}, {address.city}
             </p>
           ) : (
@@ -221,7 +221,7 @@ export default function FoodOrderPage({
         budget?.remainingPaise !== undefined &&
         selected.effectivePaise > budget.remainingPaise && (
           <p className="mt-4 rounded-card border border-danger/30 bg-danger/5 px-3.5 py-2.5 text-[12px] text-danger">
-            Heads up — this order takes you{" "}
+            Heads up, this order takes you{" "}
             {rupees(selected.effectivePaise - Math.max(0, budget.remainingPaise))}{" "}
             over your weekly food budget.
           </p>

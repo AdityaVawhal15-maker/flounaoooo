@@ -6,7 +6,7 @@ import { env } from "../../config/env.js";
 
 const OTP_TTL_MS = 10 * 60_000;
 const MAX_ATTEMPTS = 5;
-const MAX_ACTIVE_SENDS = 3; // unexpired codes per target — blocks OTP spam
+const MAX_ACTIVE_SENDS = 3; // unexpired codes per target, blocks OTP spam
 
 export async function createOtp(opts: {
   userId?: string;

@@ -75,7 +75,7 @@ function assertSimulationAllowed() {
   if (env.NODE_ENV === "production") {
     throw new ApiError(
       403,
-      "Seller simulation is disabled in production — connect a real Seller NP",
+      "Seller simulation is disabled in production, connect a real Seller NP",
     );
   }
 }

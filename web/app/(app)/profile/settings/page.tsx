@@ -164,7 +164,7 @@ export default function SettingsPage() {
           <Wallet size={15} className="text-accent" /> {t("settings.budgetTitle")}
         </p>
         <p className="mt-1 text-[12px] text-cocoa">
-          Flouna tracks your food spend Monday–Sunday and warns you before an
+          Flouna tracks your food spend Monday Sunday and warns you before an
           order takes you over.
         </p>
         <div className="mt-3 flex items-end gap-2">
@@ -202,7 +202,7 @@ export default function SettingsPage() {
           <div className="min-w-0 flex-1">
             <p className="text-[14px] font-medium text-ink">Dark mode</p>
             <p className="text-[12px] text-cocoa">
-              {theme === "dark" ? "On — easier on the eyes at night" : "Off"}
+              {theme === "dark" ? "On, easier on the eyes at night" : "Off"}
             </p>
           </div>
           <button
@@ -237,7 +237,7 @@ export default function SettingsPage() {
               {pushState === "unsupported"
                 ? "Not supported in this browser"
                 : pushState === "denied"
-                  ? "Blocked — enable in browser settings"
+                  ? "Blocked, enable in browser settings"
                   : "Order updates and live offers"}
             </p>
           </div>

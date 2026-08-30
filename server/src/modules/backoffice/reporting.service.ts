@@ -165,7 +165,7 @@ export async function vendorReport() {
     const name =
       (typeof d.restaurant === "string" && d.restaurant) ||
       (typeof d.productName === "string" && d.productName) ||
-      o.title.split("—")[1]?.trim() ||
+      o.title.split(" at ")[1]?.trim() ||
       "Unknown vendor";
     const source = o.fulfillment === "in_app" ? "ONDC" : "Partner";
     const bps = o.fulfillment === "in_app" ? cfg.ondcMinMarginBps : cfg.partnerAffiliateMinBps;

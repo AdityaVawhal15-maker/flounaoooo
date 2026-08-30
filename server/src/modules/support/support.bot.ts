@@ -75,7 +75,7 @@ function describeOrder(o: {
     day: "numeric",
     month: "short",
   });
-  return `${o.title} (${when}, ${rupeesFromPaise(o.amount)}) — ${ORDER_STATUS_TEXT[o.status] ?? o.status}`;
+  return `${o.title} (${when}, ${rupeesFromPaise(o.amount)}), ${ORDER_STATUS_TEXT[o.status] ?? o.status}`;
 }
 
 /**
@@ -209,8 +209,8 @@ export async function greet(userId: string, topicSlug?: string | null): Promise<
   );
 
   const body = live
-    ? `Hi — I can see a live order: ${describeOrder(live)}. What can I help with?`
-    : "Hi — I'm the Flouna Help Centre assistant. Tell me what's wrong, or pick one of these.";
+    ? `Hi. I can see a live order: ${describeOrder(live)}. What can I help with?`
+    : "Hi. I'm the Flouna Help Centre assistant. Tell me what's wrong, or pick one of these.";
 
   return { body, options };
 }
@@ -232,7 +232,7 @@ export async function respond(opts: {
 
   if (text === "__resolved") {
     return {
-      body: "Good to hear. I'll close this off — you'll get a quick rating prompt so we know how it went.",
+      body: "Good to hear. I'll close this off, you'll get a quick rating prompt so we know how it went.",
       options: [],
       resolved: true,
     };

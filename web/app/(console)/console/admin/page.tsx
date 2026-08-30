@@ -43,22 +43,22 @@ export default function AdminDashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatCard label="Total orders" value={d?.totalOrders ?? "—"} />
-        <StatCard label="GMV" value={d ? rupeesCompact(d.gmvPaise) : "—"} tone="good" />
+        <StatCard label="Total orders" value={d?.totalOrders ?? "No data"} />
+        <StatCard label="GMV" value={d ? rupeesCompact(d.gmvPaise) : "No data"} tone="good" />
         <StatCard
           label="ONDC orders"
-          value={d?.ondcOrders ?? "—"}
+          value={d?.ondcOrders ?? "No data"}
           hint={d ? `${d.ondcSharePct}% of paid` : undefined}
         />
-        <StatCard label="Active users" value={d?.activeUsers ?? "—"} hint={d ? `+${d.newUsers7d} new (7d)` : undefined} />
-        <StatCard label="Saved for users" value={d ? rupeesCompact(d.userSavedPaise) : "—"} tone="good" />
+        <StatCard label="Active users" value={d?.activeUsers ?? "No data"} hint={d ? `+${d.newUsers7d} new (7d)` : undefined} />
+        <StatCard label="Saved for users" value={d ? rupeesCompact(d.userSavedPaise) : "No data"} tone="good" />
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Revenue · total" value={d ? rupees(d.revenue.totalPaise) : "—"} tone="good" />
-        <StatCard label="· ONDC margin" value={d ? rupees(d.revenue.ondcPaise) : "—"} />
-        <StatCard label="· Partner" value={d ? rupees(d.revenue.partnerPaise) : "—"} />
-        <StatCard label="· Convenience" value={d ? rupees(d.revenue.conveniencePaise) : "—"} />
+        <StatCard label="Revenue · total" value={d ? rupees(d.revenue.totalPaise) : "No data"} tone="good" />
+        <StatCard label="· ONDC margin" value={d ? rupees(d.revenue.ondcPaise) : "No data"} />
+        <StatCard label="· Partner" value={d ? rupees(d.revenue.partnerPaise) : "No data"} />
+        <StatCard label="· Convenience" value={d ? rupees(d.revenue.conveniencePaise) : "No data"} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
             {domainData.length ? (
               <DonutChart data={domainData} />
             ) : (
-              <Empty>No paid orders yet — place a test order to populate this.</Empty>
+              <Empty>No paid orders yet, place a test order to populate this.</Empty>
             )}
           </div>
         </Card>

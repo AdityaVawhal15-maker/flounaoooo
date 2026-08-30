@@ -37,7 +37,7 @@ export const FIREWALL_REPLIES: Record<
   Exclude<FirewallVerdict, { ok: true }>["reason"],
   string
 > = {
-  empty: "Type what you'd like — food or a ride?",
-  too_long: "That's a bit long for me — try a short request like \"biryani under ₹300\".",
-  injection: "I can help you order food, book rides, or shop — what would you like?",
+  empty: "Type what you'd like, food or a ride?",
+  too_long: "That's a bit long for me, try a short request like \"biryani under ₹300\".",
+  injection: "I can help you order food, book rides, or shop. What would you like?",
 };

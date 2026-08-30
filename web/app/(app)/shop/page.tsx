@@ -95,7 +95,7 @@ export default function ShopLandingPage() {
           <Stagger className="mt-3 flex flex-col gap-2.5 lg:grid lg:grid-cols-2">
             {showSearch && results.length === 0 && (
               <p className="text-[13px] text-cocoa">
-                No matches — try “laptop”, “earbuds”, or “shoes”.
+                No matches, try “laptop”, “earbuds”, or “shoes”.
               </p>
             )}
             {(showSearch ? results : (feed?.picks ?? [])).map((q) => (

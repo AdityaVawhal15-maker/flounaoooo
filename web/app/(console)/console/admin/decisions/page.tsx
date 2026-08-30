@@ -31,13 +31,13 @@ export default function DecisionsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-(--c-ink)">Decision logs</h1>
         <p className="mt-1 text-[13px] text-(--c-muted)">
-          {total} real AI decisions — the user intent and the domain it resolved to.
+          {total} real AI decisions, the user intent and the domain it resolved to.
         </p>
       </div>
 
       <Card title="Recent decisions">
         {logs.length === 0 ? (
-          <Empty>No decisions logged yet — chat with the assistant to populate this.</Empty>
+          <Empty>No decisions logged yet, chat with the assistant to populate this.</Empty>
         ) : (
           <Table head={["Time", "User intent", "Domain"]}>
             {logs.map((l, i) => (

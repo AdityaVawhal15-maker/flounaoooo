@@ -361,7 +361,7 @@ export default function FoodLandingPage() {
                   iconClass="text-accent"
                   title="Fastest Delivery"
                   subtitle="Get your food in the least time possible"
-                  value={`From ${feed?.suggestions.fastestDeliveryMinutes ?? "–"} min`}
+                  value={`From ${feed?.suggestions.fastestDeliveryMinutes ?? " "} min`}
                   onPick={() => setQuery("momos")}
                 />
                 <SuggestionRow
@@ -370,7 +370,7 @@ export default function FoodLandingPage() {
                   iconClass="text-success"
                   title="Nearest to You"
                   subtitle="Top restaurants near your location"
-                  value={`Within ${feed?.suggestions.nearestKm ?? "–"} km`}
+                  value={`Within ${feed?.suggestions.nearestKm ?? " "} km`}
                   onPick={() => setQuery("thali")}
                 />
                 <SuggestionRow

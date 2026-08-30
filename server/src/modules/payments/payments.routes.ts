@@ -20,7 +20,7 @@ export const paymentsRouter = Router();
 
 // Seeded after successful payment so tracking has a live timeline.
 const FOOD_EVENTS = [
-  { status: "order_placed", message: "Order placed — restaurant notified" },
+  { status: "order_placed", message: "Order placed, restaurant notified" },
   { status: "preparing", message: "Restaurant is preparing your food" },
   { status: "out_for_delivery", message: "Delivery partner picked up your order" },
   { status: "arriving", message: "Your order is arriving soon" },
@@ -29,7 +29,7 @@ const FOOD_EVENTS = [
 const RIDE_EVENTS = [
   { status: "driver_assigned", message: "Driver assigned and on the way" },
   { status: "arriving", message: "Your driver is arriving at pickup" },
-  { status: "in_ride", message: "Ride started — enjoy the trip" },
+  { status: "in_ride", message: "Ride started, enjoy the trip" },
 ];
 
 async function markPaid(
@@ -147,7 +147,7 @@ async function markPaid(
     body:
       order.domain === "food"
         ? `${order.title} is being prepared.`
-        : `${order.title} — your driver is on the way.`,
+        : `${order.title}, your driver is on the way.`,
     url: `/orders/${order.id}`,
   });
 

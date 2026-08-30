@@ -35,12 +35,12 @@ function buildProvider(): LlmProvider {
   const usable = order.filter((n) => BUILDERS[n].hasKey());
 
   if (usable.length === 0) {
-    console.warn(`[llm] LLM_PROVIDER=${preferred} but no provider has a key — using demo mode`);
+    console.warn(`[llm] LLM_PROVIDER=${preferred} but no provider has a key, using demo mode`);
     return new DemoProvider();
   }
   if (!BUILDERS[preferred].hasKey()) {
     console.warn(
-      `[llm] LLM_PROVIDER=${preferred} has no key — leading with ${usable[0]} instead`,
+      `[llm] LLM_PROVIDER=${preferred} has no key, leading with ${usable[0]} instead`,
     );
   }
 

@@ -60,7 +60,7 @@ export const sessionLimiter = makeLimiter({ windowMs: 60_000, limit: 60 });
 export const joinLimiter = makeLimiter({
   windowMs: 60_000,
   limit: 15,
-  message: "Too many attempts — slow down a moment.",
+  message: "Too many attempts, slow down a moment.",
 });
 
 // Endpoints that take the account password or an emailed code from an
@@ -69,7 +69,7 @@ export const joinLimiter = makeLimiter({
 export const credentialLimiter = makeLimiter({
   windowMs: 60_000,
   limit: 10,
-  message: "Too many attempts — try again in a minute.",
+  message: "Too many attempts, try again in a minute.",
 });
 
 // Blocking takes an email address and answers differently for a registered one,
@@ -77,5 +77,5 @@ export const credentialLimiter = makeLimiter({
 export const lookupLimiter = makeLimiter({
   windowMs: 60_000,
   limit: 20,
-  message: "Too many attempts — try again in a minute.",
+  message: "Too many attempts, try again in a minute.",
 });

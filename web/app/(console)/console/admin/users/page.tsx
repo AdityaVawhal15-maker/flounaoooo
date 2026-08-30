@@ -156,7 +156,7 @@ export default function AdminUsersPage() {
                         )}
                       </button>
                     ) : (
-                      <span className="text-[12px] text-(--c-muted)">—</span>
+                      <span className="text-[12px] text-(--c-muted)">No data</span>
                     )}
                   </td>
                 </tr>

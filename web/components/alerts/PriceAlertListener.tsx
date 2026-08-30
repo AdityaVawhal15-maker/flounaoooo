@@ -40,7 +40,7 @@ export function PriceAlertListener() {
           <p className="text-[13px] font-bold text-ink">Price drop!</p>
           <p className="text-[12px] text-cocoa">
             {alert.itemName} is now{" "}
-            <span className="font-semibold text-accent">{rupees(alert.newPaise)}</span> —
+            <span className="font-semibold text-accent">{rupees(alert.newPaise)}</span>,
             at or below your target.
           </p>
           <Link

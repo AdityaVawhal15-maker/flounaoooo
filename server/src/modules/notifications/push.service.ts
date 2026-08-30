@@ -17,7 +17,7 @@ function initPush(): boolean {
     return true;
   } catch (err) {
     console.error(
-      "[push] VAPID keys are set but invalid — push notifications are disabled. " +
+      "[push] VAPID keys are set but invalid, push notifications are disabled. " +
         "Regenerate with `npx web-push generate-vapid-keys`. " +
         (err instanceof Error ? err.message : String(err)),
     );

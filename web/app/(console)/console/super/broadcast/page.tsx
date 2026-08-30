@@ -44,7 +44,7 @@ export default function BroadcastPage() {
     <ConsolePage accept={["super_admin"]}>
       <PageTitle
         title="Broadcast"
-        subtitle="Send a push notification to every subscribed device. Use sparingly — every send is audited."
+        subtitle="Send a push notification to every subscribed device. Use sparingly, every send is audited."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

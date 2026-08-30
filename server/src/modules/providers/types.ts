@@ -54,7 +54,7 @@ export type BookRideInput = {
   productName: string;
   pickup: LatLng & { label: string };
   drop: LatLng & { label: string };
-  routeGeometry: [number, number][]; // [lng,lat][] — drives the live marker
+  routeGeometry: [number, number][]; // [lng,lat][], drives the live marker
 };
 
 export interface RideProvider {

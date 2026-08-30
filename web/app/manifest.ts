@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Flouna — AI Decision Engine",
+    name: "Flouna. AI Decision Engine",
     short_name: "Flouna",
     description:
       "Stop searching, start deciding. The single best option across food and rides.",

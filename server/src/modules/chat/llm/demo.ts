@@ -11,7 +11,7 @@ const SHOP_WORDS =
 const GREETING_WORDS = /^(hi|hii+|hello|hey|good (morning|afternoon|evening)|thanks|thank you|namaste)\b/i;
 
 const OUT_OF_SCOPE_REPLY =
-  "I can help you order food, book rides, or shop — what would you like?";
+  "I can help you order food, book rides, or shop. What would you like?";
 
 function parseBudget(message: string): number | null {
   // Handles ₹300, Rs 1,29,900, under 70000, etc. (rupees → paise).
@@ -128,7 +128,7 @@ export class DemoProvider implements LlmProvider {
     if (RIDE_WORDS.test(message) && FOOD_WORDS.test(message)) {
       return {
         domain: "combo",
-        reply: "On it — sorting out both your food and your ride.",
+        reply: "On it, sorting out both your food and your ride.",
         food: extractFood(message),
         ride: extractRide(message),
       };
@@ -137,7 +137,7 @@ export class DemoProvider implements LlmProvider {
     if (RIDE_WORDS.test(message) && !FOOD_WORDS.test(message)) {
       return {
         domain: "ride",
-        reply: "On it — comparing ride options for you.",
+        reply: "On it, comparing ride options for you.",
         ride: extractRide(message),
       };
     }
@@ -145,7 +145,7 @@ export class DemoProvider implements LlmProvider {
     if (FOOD_WORDS.test(message)) {
       return {
         domain: "food",
-        reply: "Got it — finding the best deal for you.",
+        reply: "Got it, finding the best deal for you.",
         food: extractFood(message),
       };
     }
@@ -153,7 +153,7 @@ export class DemoProvider implements LlmProvider {
     if (SHOP_WORDS.test(message)) {
       return {
         domain: "shop",
-        reply: "On it — comparing prices across stores for you.",
+        reply: "On it, comparing prices across stores for you.",
         shop: extractShop(message),
       };
     }

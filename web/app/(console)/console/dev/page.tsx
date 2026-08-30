@@ -61,7 +61,7 @@ export default function DevHomePage() {
     <ConsoleShell operator={state.operator}>
       <PageTitle
         title="Diagnostics"
-        subtitle="System health, integrations and live runtime — read-only."
+        subtitle="System health, integrations and live runtime, read-only."
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -73,17 +73,17 @@ export default function DevHomePage() {
         />
         <StatCard
           label="Database"
-          value={health ? `${health.dbLatencyMs} ms` : "—"}
+          value={health ? `${health.dbLatencyMs} ms` : "No data"}
           tone={health?.db === "ok" ? "good" : "bad"}
           hint={health?.db === "ok" ? "reachable" : "unreachable"}
         />
         <StatCard
           label="Uptime"
-          value={health ? uptime(health.uptimeSeconds) : "—"}
+          value={health ? uptime(health.uptimeSeconds) : "No data"}
         />
         <StatCard
           label="Open errors"
-          value={openErrors ?? "—"}
+          value={openErrors ?? "No data"}
           tone={openErrors && openErrors > 0 ? "warn" : "good"}
           hint="unresolved fingerprints"
         />
@@ -102,7 +102,7 @@ export default function DevHomePage() {
           />
           <StatCard
             label="Fulfilment"
-            value={providers?.fulfilment.mode ?? "—"}
+            value={providers?.fulfilment.mode ?? "No data"}
             hint="simulation until ONDC live"
           />
         </div>
@@ -132,7 +132,7 @@ export default function DevHomePage() {
                   <span
                     className={on ? "text-[#1a7a4a]" : "text-(--c-muted)"}
                   >
-                    {on ? "configured" : "—"}
+                    {on ? "configured" : "No data"}
                   </span>
                 </li>
               ))}

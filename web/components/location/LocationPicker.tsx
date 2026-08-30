@@ -68,7 +68,7 @@ export function LocationPicker({
     } catch {
       // Keep the coordinates usable even if naming failed — the user can type
       // the address themselves rather than being blocked.
-      setLabel("Couldn't name this spot — you can type it below");
+      setLabel("Couldn't name this spot, you can type it below");
       onChangeRef.current({
         lat,
         lng,
@@ -125,7 +125,7 @@ export function LocationPicker({
       },
       () => {
         setLocating(false);
-        setError("Couldn't get your location — check browser permissions");
+        setError("Couldn't get your location, check browser permissions");
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
     );

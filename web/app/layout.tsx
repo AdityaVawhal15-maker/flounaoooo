@@ -13,11 +13,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Flouna — Stop Searching, Start Deciding",
+    default: "Flouna. Stop Searching, Start Deciding",
     template: "%s · Flouna",
   },
   description:
-    "Flouna is your AI decision engine that finds the single best option across food, rides and more — all in one place.",
+    "Flouna is your AI decision engine that finds the single best option across food, rides and more, all in one place.",
   appleWebApp: { capable: true, title: "Flouna", statusBarStyle: "default" },
 };
 

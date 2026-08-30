@@ -39,7 +39,7 @@ const SECURITY_FOOTNOTE =
 export const NOTIFICATION_TYPES = {
   // ONDC IGM: the complaint acknowledgement the Complaint Submitted screen
   // promises. Filed under security so it is never suppressed by the marketing
-  // preferences — a grievance receipt is not an update the customer opted into.
+  // preferences, a grievance receipt is not an update the customer opted into.
   "complaint.raised": {
     category: "security",
     build: (p) => ({
@@ -61,7 +61,7 @@ export const NOTIFICATION_TYPES = {
       heading: "Password changed",
       lines: [
         "The password for your Flouna account was just changed.",
-        "If you did this, you're all set — no action needed.",
+        "If you did this, you're all set, no action needed.",
       ],
       ctaLabel: "Review account",
       ctaPath: "/profile/settings",
@@ -89,7 +89,7 @@ export const NOTIFICATION_TYPES = {
       heading: "Sign-in after failed attempts",
       lines: [
         `Someone signed in to your account${p.attempts ? ` after ${p.attempts} failed password attempt${p.attempts === "1" ? "" : "s"}` : ""}.`,
-        "If that was you, no action is needed — you can ignore this email.",
+        "If that was you, no action is needed, you can ignore this email.",
       ],
       ctaLabel: "Secure my account",
       ctaPath: "/profile/settings",
@@ -108,17 +108,17 @@ export const NOTIFICATION_TYPES = {
       ctaLabel: "Keep my account",
       ctaPath: "/profile/settings",
       footnote:
-        "If you didn't request this, sign in immediately and change your password — someone may have access to your account.",
+        "If you didn't request this, sign in immediately and change your password, someone may have access to your account.",
     }),
   },
   "orders.refund_approved": {
     category: "orders",
     build: (p) => ({
-      subject: `Refund approved — ${p.title ?? "your order"}`,
+      subject: `Refund approved, ${p.title ?? "your order"}`,
       heading: "Your refund is on its way",
       lines: [
         `Your refund for ${p.title ?? "your order"}${p.amount ? ` (${p.amount})` : ""} has been approved.`,
-        "The money returns to your original payment method, usually within 5–7 business days.",
+        "The money returns to your original payment method, usually within 5 to 7 business days.",
       ],
       ctaLabel: "View order",
       ctaPath: p.orderId ? `/orders/${p.orderId}` : "/history",
@@ -127,7 +127,7 @@ export const NOTIFICATION_TYPES = {
   "orders.cancelled": {
     category: "orders",
     build: (p) => ({
-      subject: `Order cancelled — ${p.title ?? "your order"}`,
+      subject: `Order cancelled, ${p.title ?? "your order"}`,
       heading: "Your order was cancelled",
       lines: [
         `${p.title ?? "Your order"} has been cancelled${p.reason ? ` (${p.reason})` : ""}.`,
@@ -154,7 +154,7 @@ export const NOTIFICATION_TYPES = {
     category: "orders",
     build: (p) => ({
       subject: "Your Flouna Plus renews soon",
-      heading: "Heads up — Plus renews in 3 days",
+      heading: "Heads up. Plus renews in 3 days",
       lines: [
         `Your Flouna Plus membership renews${p.until ? ` on ${p.until}` : " soon"} for ${p.price ?? "₹50"}.`,
         "Nothing to do if you'd like to continue. If not, you can cancel any time before then.",
@@ -170,7 +170,7 @@ export const NOTIFICATION_TYPES = {
       heading: "Your Plus renewal didn't go through",
       lines: [
         "We tried to renew your Flouna Plus membership but the payment didn't succeed.",
-        "Update your payment method to keep your Plus perks — we'll retry automatically.",
+        "Update your payment method to keep your Plus perks, we'll retry automatically.",
       ],
       ctaLabel: "Fix payment",
       ctaPath: "/profile/plus",
@@ -182,7 +182,7 @@ export const NOTIFICATION_TYPES = {
       subject: "Your Flouna Plus has ended",
       heading: "Your Plus membership expired",
       lines: [
-        "Your Flouna Plus membership has ended. Core Flouna — best-pick AI, live tracking and OTP — stays free, always.",
+        "Your Flouna Plus membership has ended. Core Flouna, best-pick AI, live tracking and OTP, stays free, always.",
         "Renew any time to bring back deeper AI, price-drop alerts and the savings guarantee.",
       ],
       ctaLabel: "Renew Plus",
@@ -193,7 +193,7 @@ export const NOTIFICATION_TYPES = {
     category: "money",
     build: (p) => ({
       subject: `You've saved ${p.amount} with Flouna 🎉`,
-      heading: `${p.amount} saved — nice going!`,
+      heading: `${p.amount} saved, nice going!`,
       lines: [
         `Your lifetime savings on Flouna just crossed ${p.amount}.`,
         "Every order compares prices across platforms so you always pay the least.",
@@ -208,8 +208,8 @@ export const NOTIFICATION_TYPES = {
       subject: `Price drop: ${p.item ?? "an item you're watching"} is now ${p.price ?? "cheaper"}`,
       heading: "A price you're watching just dropped",
       lines: [
-        `${p.item ?? "An item on your watch-list"} has fallen to ${p.price ?? "your target"}${p.target ? ` — at or below your ${p.target} target` : ""}.`,
-        "Prices move fast — grab it while it lasts.",
+        `${p.item ?? "An item on your watch-list"} has fallen to ${p.price ?? "your target"}${p.target ? `, at or below your ${p.target} target` : ""}.`,
+        "Prices move fast, grab it while it lasts.",
       ],
       ctaLabel: "Order now",
       ctaPath: p.domain === "ride" ? "/rides" : "/food",
@@ -227,10 +227,10 @@ export const NOTIFICATION_TYPES = {
       lines: p.active
         ? [
             `This month your Flouna Plus saved you ${p.saved ?? "more than its cost"} in waived fees and better picks.`,
-            "That's the membership paying for itself — keep enjoying it.",
+            "That's the membership paying for itself, keep enjoying it.",
           ]
         : [
-            `Over the last month you'd have saved about ${p.wouldSave ?? "₹50+"} with Flouna Plus — waived convenience fees plus deeper price comparison.`,
+            `Over the last month you'd have saved about ${p.wouldSave ?? "₹50+"} with Flouna Plus, waived convenience fees plus deeper price comparison.`,
             "Plus is ₹50/month and comes with a saved-you-more-than-₹50 guarantee.",
           ],
       ctaLabel: p.active ? "View membership" : "Try Plus",
@@ -243,7 +243,7 @@ export const NOTIFICATION_TYPES = {
       subject: "Your first pick is waiting on Flouna",
       heading: "Let Flouna find your best deal",
       lines: [
-        "You signed up but haven't placed your first order yet. Flouna compares prices across platforms and books the cheapest — you just ask.",
+        "You signed up but haven't placed your first order yet. Flouna compares prices across platforms and books the cheapest, you just ask.",
         'Try: "order a biryani under ₹300" or "book a cab to the airport".',
       ],
       ctaLabel: "Make your first pick",
@@ -256,7 +256,7 @@ export const NOTIFICATION_TYPES = {
       subject: "We've missed you at Flouna",
       heading: "Come back to smarter ordering",
       lines: [
-        `It's been a while! Flouna is still comparing prices so you always pay the least.${p.usual ? ` Your usual — ${p.usual} — is one tap away.` : ""}`,
+        `It's been a while! Flouna is still comparing prices so you always pay the least.${p.usual ? ` Your usual, ${p.usual}, is one tap away.` : ""}`,
         "Pick up right where you left off.",
       ],
       ctaLabel: "Open Flouna",
@@ -275,7 +275,7 @@ export const NOTIFICATION_TYPES = {
   },
 } satisfies Record<string, RegistryEntry>;
 
-// Every registered notification type, derived from the registry itself — add an
+// Every registered notification type, derived from the registry itself, add an
 // entry above and it becomes callable; typo one at a call site and it fails to
 // compile rather than at runtime.
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
@@ -289,7 +289,7 @@ const DAILY_CAP = 8;
 const MAX_ATTEMPTS = 3;
 const BATCH = 25;
 
-// Test hook — what the worker "delivered", visible to assertions.
+// Test hook, what the worker "delivered", visible to assertions.
 export const outboxDelivered: Array<{ to: string; type: string; subject: string }> =
   [];
 
@@ -322,7 +322,7 @@ export async function enqueueNotification(
   opts: { dedupeKey?: string } = {},
 ) {
   if (!NOTIFICATION_TYPES[type]) {
-    // Unknown type is a programming error — fail loudly in dev/test, softly in prod.
+    // Unknown type is a programming error, fail loudly in dev/test, softly in prod.
     const msg = `[outbox] unknown notification type "${type}"`;
     if (env.NODE_ENV === "production") {
       console.error(msg);
@@ -351,7 +351,7 @@ export async function enqueueNotification(
 // database can't claim each other's rows.
 export async function drainOutbox(opts: { userId?: string } = {}) {
   // Claim rows before sending. Without this, a slow SMTP send keeps rows in
-  // `queued` past the next 30s tick — and an overlapping drain (or a second
+  // `queued` past the next 30s tick, and an overlapping drain (or a second
   // app instance) would pick the same row up and send the email twice. The
   // status-scoped updateMany is atomic, so exactly one worker wins each row.
   const candidates = await prisma.notification.findMany({
@@ -400,7 +400,7 @@ export async function drainOutbox(opts: { userId?: string } = {}) {
       continue;
     }
 
-    // Category gate — security always sends.
+    // Category gate, security always sends.
     const gates: Record<NotificationCategory, boolean> = {
       security: true,
       orders: n.user.emailUpdates,
@@ -457,7 +457,7 @@ function mark(id: string, status: string, error: string) {
   return prisma.notification.update({ where: { id }, data: { status, error } });
 }
 
-// Daily lifecycle sweep — enqueues engagement emails on time-based rules. All
+// Daily lifecycle sweep, enqueues engagement emails on time-based rules. All
 // idempotent via dedupeKey so repeated runs (or restarts) never double-send.
 //   • onboarding nudge: signed up ~3 days ago, never ordered
 //   • win-back: last order ~30 days ago
@@ -472,7 +472,7 @@ export async function runLifecycleSweep(now = new Date()): Promise<{
   let winBack = 0;
   let plusValue = 0;
 
-  // --- Onboarding: verified users who joined 3–4 days ago with zero orders.
+  // --- Onboarding: verified users who joined 34 days ago with zero orders.
   const joinedFrom = new Date(now.getTime() - 4 * day);
   const joinedTo = new Date(now.getTime() - 3 * day);
   const newbies = await prisma.user.findMany({
@@ -525,7 +525,7 @@ export async function runLifecycleSweep(now = new Date()): Promise<{
   // --- Plus value: a monthly ROI touch for active members, bucketed by
   // calendar month so it's sent at most once per user per month. (The
   // non-subscriber "you'd have saved ₹X" upsell branch of money.plus_value is
-  // intentionally NOT blasted here — it needs a real per-user counterfactual
+  // intentionally NOT blasted here, it needs a real per-user counterfactual
   // savings figure to be honest, and monthly mail to every free user would hurt
   // domain deliverability. It's triggered case-by-case instead.)
   const monthKey = `${now.getFullYear()}-${now.getMonth()}`;
@@ -547,7 +547,7 @@ export async function runLifecycleSweep(now = new Date()): Promise<{
   return { onboarding, winBack, plusValue };
 }
 
-// Rows claimed (`sending`) but never resolved — the process died mid-send, or
+// Rows claimed (`sending`) but never resolved, the process died mid-send, or
 // an SMTP call hung past its timeout. Return them to the queue so they retry
 // instead of being stranded. Older than 10 min is safely past any send.
 const STALE_CLAIM_MS = 10 * 60_000;

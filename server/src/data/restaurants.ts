@@ -283,7 +283,7 @@ export const dishes: Dish[] = [
     rating: 4.7,
     tag: "Top Rated",
     reviewSummary:
-      "Gooey centre every single time — the highest-rated dessert near you.",
+      "Gooey centre every single time, the highest-rated dessert near you.",
     listings: [
       {
         platform: "zomato",

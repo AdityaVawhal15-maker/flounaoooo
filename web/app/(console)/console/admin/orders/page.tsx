@@ -127,7 +127,7 @@ export default function AdminOrdersPage() {
                             : "text-(--c-muted)"
                       }
                     >
-                      {o.payment?.status ?? "—"}
+                      {o.payment?.status ?? "No data"}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
@@ -140,7 +140,7 @@ export default function AdminOrdersPage() {
                         <RefreshCcw size={12} /> Flag refund
                       </button>
                     ) : (
-                      <span className="text-[12px] text-(--c-muted)">—</span>
+                      <span className="text-[12px] text-(--c-muted)">No data</span>
                     )}
                   </td>
                 </tr>

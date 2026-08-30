@@ -57,7 +57,7 @@ export default function GroupRidePage({
 
   async function shareCode() {
     if (!cart?.ride) return;
-    const text = `Share my ${cart.ride.displayName} to ${cart.ride.drop} on Flouna! Join with code ${cart.code} — we split the fare.`;
+    const text = `Share my ${cart.ride.displayName} to ${cart.ride.drop} on Flouna! Join with code ${cart.code}, we split the fare.`;
     if (navigator.share) {
       try {
         await navigator.share({ text });
@@ -212,7 +212,7 @@ export default function GroupRidePage({
                   .map((s) => (
                     <div key={s.userId} className="flex items-center justify-between">
                       <p className="text-[13px] text-ink">
-                        {s.name} — {rupees(s.sharePaise)}
+                        {s.name}, {rupees(s.sharePaise)}
                       </p>
                       {s.upiLink && (
                         <a
@@ -228,7 +228,7 @@ export default function GroupRidePage({
             </>
           ) : (
             <p className="mt-1 text-[12px] text-cocoa">
-              Your share is {rupees(cart.equalSplitPaise)} — {t("grp.memberShareNote")}
+              Your share is {rupees(cart.equalSplitPaise)}, {t("grp.memberShareNote")}
             </p>
           )}
           {(orderId ?? cart.orderId) && cart.isHost && (
@@ -246,7 +246,7 @@ export default function GroupRidePage({
       {!booked && !shares && cart.isHost && (
         <div className="mt-5">
           <Input
-            label="Your UPI ID (to collect shares — optional)"
+            label="Your UPI ID (to collect shares, optional)"
             placeholder="name@bank"
             value={hostUpi}
             onChange={(e) => setHostUpi(e.target.value)}

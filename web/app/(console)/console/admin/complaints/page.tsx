@@ -143,7 +143,7 @@ export default function AdminComplaintsPage() {
       <h1 className="text-[24px] font-bold text-ink">ONDC IGM complaints</h1>
       <p className="mt-1 max-w-[70ch] text-[14px] text-cocoa">
         Every customer-facing event has a record here. The message log shows the
-        ONDC traffic verbatim — that pairing is what the live walkthrough asks
+        ONDC traffic verbatim, that pairing is what the live walkthrough asks
         to see.
       </p>
 
@@ -229,7 +229,7 @@ export default function AdminComplaintsPage() {
                 <p className="mt-3 text-[14px] text-ink">{detail.description}</p>
                 <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-[13px] sm:grid-cols-3">
                   <Pair k="Category" v={`${detail.category}${detail.subCategory ? ` / ${detail.subCategory}` : ""}`} />
-                  <Pair k="Order" v={detail.orderId ?? "—"} mono />
+                  <Pair k="Order" v={detail.orderId ?? "No data"} mono />
                   <Pair k="Customer" v={detail.user.email} />
                   <Pair k="Raised" v={new Date(detail.createdAt).toLocaleString()} />
                   <Pair k="Escalation" v={detail.escalationLevel === 0 ? "none" : `level ${detail.escalationLevel}`} />
@@ -244,7 +244,7 @@ export default function AdminComplaintsPage() {
               {/* Walkthrough rehearsal */}
               <section className="rounded-[14px] border border-amber-300 bg-amber-50 p-5">
                 <h3 className="text-[14px] font-bold text-amber-900">
-                  Seller simulation — rehearsal only
+                  Seller simulation, rehearsal only
                 </h3>
                 <p className="mt-1 text-[13px] text-amber-900/80">
                   Stands in for a Seller NP until the ONDC integration is live.
@@ -294,7 +294,7 @@ export default function AdminComplaintsPage() {
                           <td className="py-1.5 pr-3 text-cocoa">{a.description}</td>
                           <td className="py-1.5 pr-3 text-cocoa">{a.actionBy}</td>
                           <td className="py-1.5 pr-3 font-mono text-[11px] text-muted">{a.actionId}</td>
-                          <td className="py-1.5 pr-3 font-mono text-[11px] text-muted">{a.lastActionId ?? "—"}</td>
+                          <td className="py-1.5 pr-3 font-mono text-[11px] text-muted">{a.lastActionId ?? "No data"}</td>
                           <td className="py-1.5 whitespace-nowrap text-cocoa">
                             {new Date(a.createdAt).toLocaleTimeString()}
                           </td>

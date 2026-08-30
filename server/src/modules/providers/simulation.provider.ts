@@ -154,19 +154,19 @@ function compute(
     driverLocation = pickup;
     statusMessage = isFood
       ? `${driver.name} is picking up your order`
-      : `${driver.name} has arrived — share OTP ${otp}`;
+      : `${driver.name} has arrived, share OTP ${otp}`;
   } else if (elapsedS < tripEnd) {
     state = "in_progress";
     const p = (elapsedS - handoverEnd) / rideSeconds;
     driverLocation = pointAlong(geom, p);
     dropEtaMinutes = Math.max(1, Math.ceil((tripEnd - elapsedS) / 60));
     statusMessage = isFood
-      ? `Out for delivery — ${dropEtaMinutes} min to you`
-      : `On the way — ${dropEtaMinutes} min to your drop`;
+      ? `Out for delivery, ${dropEtaMinutes} min to you`
+      : `On the way, ${dropEtaMinutes} min to your drop`;
   } else {
     state = "completed";
     driverLocation = drop;
-    statusMessage = isFood ? "Delivered — enjoy your meal!" : "Trip completed";
+    statusMessage = isFood ? "Delivered, enjoy your meal!" : "Trip completed";
   }
 
   return {

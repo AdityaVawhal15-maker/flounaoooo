@@ -259,7 +259,7 @@ export default function ProfilePage() {
         <FadeIn delay={0.08}>
           <div className="mt-7 grid grid-cols-3 gap-2 rounded-[18px] bg-card px-3 py-4 text-center shadow-soft">
             {[
-              { icon: Mail, value: user?.email ?? "—", label: t("pp.profile.email") },
+              { icon: Mail, value: user?.email ?? "Not added", label: t("pp.profile.email") },
               {
                 icon: Phone,
                 value: user?.phone ?? t("pp.profile.addPhone"),

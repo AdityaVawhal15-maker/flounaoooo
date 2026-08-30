@@ -74,12 +74,12 @@ export default function RefundsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard
           label="Awaiting review"
-          value={loaded ? queue.length : "—"}
+          value={loaded ? queue.length : "No data"}
           tone={queue.length > 0 ? "warn" : "good"}
         />
         <StatCard
           label="Value in queue"
-          value={loaded ? rupees(queue.reduce((s, q) => s + q.amountPaise, 0)) : "—"}
+          value={loaded ? rupees(queue.reduce((s, q) => s + q.amountPaise, 0)) : "No data"}
         />
       </div>
 
@@ -113,7 +113,7 @@ export default function RefundsPage() {
                   {rupees(r.amountPaise)}
                 </td>
                 <td className="px-4 py-2.5">
-                  <Badge tone="slate">{r.method?.toUpperCase() ?? "—"}</Badge>
+                  <Badge tone="slate">{r.method?.toUpperCase() ?? "No data"}</Badge>
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5" style={{ color: "var(--c-muted)" }}>
                   {new Date(r.flaggedAt).toLocaleString("en-IN")}
@@ -173,7 +173,7 @@ export default function RefundsPage() {
 
       <p className="mt-3 text-[11px]" style={{ color: "var(--c-muted)" }}>
         Approving marks the payment refunded in our records. The gateway refund call is wired in
-        once Cashfree goes live — no real money moves in simulation.
+        once Cashfree goes live, no real money moves in simulation.
       </p>
     </ConsolePage>
   );

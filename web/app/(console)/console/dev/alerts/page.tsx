@@ -52,7 +52,7 @@ export default function AlertsPage() {
 
       <Card title="Alert feed">
         {alerts.length === 0 ? (
-          <Empty>All clear — no active alerts.</Empty>
+          <Empty>All clear, no active alerts.</Empty>
         ) : (
           <ul className="divide-y divide-(--c-line)">
             {alerts.map((a, i) => (

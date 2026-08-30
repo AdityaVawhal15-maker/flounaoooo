@@ -157,7 +157,7 @@ export function FoodRecommendation({
         <p className="flex items-start gap-2 rounded-2xl border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">
           <Info size={15} className="mt-0.5 shrink-0" />
           <span>
-            We don&apos;t have that on Flouna yet — here&apos;s the closest we
+            We don&apos;t have that on Flouna yet, here&apos;s the closest we
             can do right now.
           </span>
         </p>
@@ -464,7 +464,7 @@ export function ComboRecommendation({
   return (
     <div className="flex w-full flex-col gap-4">
       <p className="flex items-center gap-1.5 text-[13px] font-bold text-ink">
-        <Sparkles size={14} className="text-accent" /> Your evening, sorted —
+        <Sparkles size={14} className="text-accent" /> Your evening, sorted
         food + ride in one go
       </p>
       {rec.food && (

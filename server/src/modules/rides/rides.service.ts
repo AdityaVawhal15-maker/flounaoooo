@@ -114,7 +114,7 @@ export type VehicleType = "bike" | "auto" | "cab";
 export type RideQuote = {
   provider: "uber" | "ola" | "rapido" | "ondc";
   vehicle: VehicleType;
-  productName: string; // internal id — order matching keys on this
+  productName: string; // internal id, order matching keys on this
   displayName: string; // what users see: neutral tier, no network brand
   farePaise: number;
   offers: { label: string; discountPaise: number }[];

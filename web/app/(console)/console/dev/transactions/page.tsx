@@ -78,7 +78,7 @@ export default function TransactionsPage() {
 
       <Card title={`${meta.total} envelopes`}>
         {txns.length === 0 ? (
-          <Empty>No transactions yet — place + pay an order to generate the flow.</Empty>
+          <Empty>No transactions yet, place + pay an order to generate the flow.</Empty>
         ) : (
           <Table head={["Action", "Domain", "BPP", "Status", "Signed", "Latency", "When", ""]}>
             {txns.map((t) => (
@@ -87,14 +87,14 @@ export default function TransactionsPage() {
                   <Badge tone={actionTone(t.action)}>{t.action}</Badge>
                 </td>
                 <td className="px-4 py-2.5 font-mono text-(--c-muted)">{t.domain}</td>
-                <td className="px-4 py-2.5 font-mono text-[11px] text-(--c-muted)">{t.bppId ?? "—"}</td>
+                <td className="px-4 py-2.5 font-mono text-[11px] text-(--c-muted)">{t.bppId ?? "No data"}</td>
                 <td className="px-4 py-2.5">
                   <Badge tone={t.status === "ack" ? "green" : "red"}>{t.status}</Badge>
                 </td>
                 <td className="px-4 py-2.5">
-                  {t.signed ? <ShieldCheck size={14} className="text-[#1a7a4a]" /> : "—"}
+                  {t.signed ? <ShieldCheck size={14} className="text-[#1a7a4a]" /> : "No data"}
                 </td>
-                <td className="px-4 py-2.5 text-(--c-ink)">{t.latencyMs != null ? `${t.latencyMs} ms` : "—"}</td>
+                <td className="px-4 py-2.5 text-(--c-ink)">{t.latencyMs != null ? `${t.latencyMs} ms` : "No data"}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-(--c-muted)">
                   {new Date(t.createdAt).toLocaleTimeString("en-IN")}
                 </td>

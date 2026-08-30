@@ -105,9 +105,9 @@ export function PriceHistoryChart({ dishId }: { dishId: string }) {
 
       <p className="mt-1 text-[12px] text-cocoa">
         {trend < 0
-          ? `Down ${rupees(Math.abs(trend))} over the period — good time to order.`
+          ? `Down ${rupees(Math.abs(trend))} over the period, good time to order.`
           : trend > 0
-            ? `Up ${rupees(trend)} recently — you might wait for a dip.`
+            ? `Up ${rupees(trend)} recently, you might wait for a dip.`
             : "Holding steady."}
       </p>
     </Card>

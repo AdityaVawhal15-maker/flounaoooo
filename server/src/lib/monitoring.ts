@@ -9,7 +9,7 @@ export const monitoringEnabled = Boolean(env.SENTRY_DSN);
 
 export function initMonitoring(): void {
   if (!monitoringEnabled) {
-    if (isProd) console.warn("[monitoring] SENTRY_DSN unset — error monitoring is console-only");
+    if (isProd) console.warn("[monitoring] SENTRY_DSN unset, error monitoring is console-only");
     return;
   }
   // TODO(sentry): when @sentry/node is added:

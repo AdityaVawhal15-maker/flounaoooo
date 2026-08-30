@@ -105,7 +105,7 @@ export const isProd = env.NODE_ENV === "production";
 if (isProd) {
   const problems: string[] = [];
   if (env.DATABASE_URL.startsWith("file:")) {
-    problems.push("DATABASE_URL points at a local SQLite file — use PostgreSQL in production");
+    problems.push("DATABASE_URL points at a local SQLite file, use PostgreSQL in production");
   }
   if (env.JWT_ACCESS_SECRET.length < 48) {
     problems.push("JWT_ACCESS_SECRET is too short for production (use 48+ random chars)");
@@ -122,21 +122,21 @@ if (isProd) {
   // not exist. Nothing downstream can tell the difference, so the gate is here.
   if (env.PROVIDER_MODE === "simulation" && !env.ALLOW_SIMULATED_FULFILMENT) {
     problems.push(
-      "PROVIDER_MODE=simulation fabricates drivers, OTPs and live tracking — " +
+      "PROVIDER_MODE=simulation fabricates drivers, OTPs and live tracking " +
         "set PROVIDER_MODE=ondc with ONDC_* credentials before serving real riders. " +
-        "For a pilot on simulated fulfilment, set ALLOW_SIMULATED_FULFILMENT=true — " +
+        "For a pilot on simulated fulfilment, set ALLOW_SIMULATED_FULFILMENT=true " +
         "the app then tells users it is a demo.",
     );
   }
   if (env.PROVIDER_MODE === "ondc" && !env.ONDC_SUBSCRIBER_ID) {
-    problems.push("PROVIDER_MODE=ondc but ONDC_SUBSCRIBER_ID is unset — the adapter cannot sign requests");
+    problems.push("PROVIDER_MODE=ondc but ONDC_SUBSCRIBER_ID is unset, the adapter cannot sign requests");
   }
   // Simulated payments are refused in production (see payments routes), so
   // without gateway credentials checkout has nowhere to go: the user reaches
   // the payment step and cannot complete it. Fail at boot instead.
   if (!env.CASHFREE_APP_ID || !env.CASHFREE_SECRET_KEY) {
     problems.push(
-      "CASHFREE_APP_ID/CASHFREE_SECRET_KEY are unset — simulated payment is disabled " +
+      "CASHFREE_APP_ID/CASHFREE_SECRET_KEY are unset, simulated payment is disabled " +
         "in production, so checkout would dead-end with no way to pay",
     );
   }
@@ -151,18 +151,18 @@ if (isProd) {
   const warnings: string[] = [];
   if (env.ALLOW_SIMULATED_FULFILMENT) {
     warnings.push(
-      "ALLOW_SIMULATED_FULFILMENT=true — rides are SIMULATED. No real driver is " +
+      "ALLOW_SIMULATED_FULFILMENT=true, rides are SIMULATED. No real driver is " +
         "dispatched. The app shows a demo notice; do not remove it.",
     );
   }
   if (env.LLM_PROVIDER === "demo") {
-    warnings.push("LLM_PROVIDER=demo — chat runs on the rule-based engine, not a model");
+    warnings.push("LLM_PROVIDER=demo, chat runs on the rule-based engine, not a model");
   }
   if (env.CASHFREE_ENV === "sandbox") {
-    warnings.push("CASHFREE_ENV=sandbox — payments are not real money");
+    warnings.push("CASHFREE_ENV=sandbox, payments are not real money");
   }
   if (!env.VAPID_PUBLIC_KEY) {
-    warnings.push("VAPID_PUBLIC_KEY unset — web push notifications are disabled");
+    warnings.push("VAPID_PUBLIC_KEY unset, web push notifications are disabled");
   }
   if (warnings.length > 0) {
     console.warn("Starting with reduced functionality:");

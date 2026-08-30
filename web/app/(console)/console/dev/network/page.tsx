@@ -41,7 +41,7 @@ export default function NetworkPage() {
           <span className="rounded-lg border border-(--c-border) bg-white px-3 py-1.5 text-[13px]">
             <span className="text-(--c-muted)">Gateway ping</span>{" "}
             <span className="font-mono text-(--c-ink)">
-              {net.gatewayPingMs != null ? `${net.gatewayPingMs} ms` : "— (offline)"}
+              {net.gatewayPingMs != null ? `${net.gatewayPingMs} ms` : ", (offline)"}
             </span>
           </span>
         </div>

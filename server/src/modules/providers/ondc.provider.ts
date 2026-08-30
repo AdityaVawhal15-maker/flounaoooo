@@ -35,7 +35,7 @@ export class OndcProvider implements RideProvider {
     // TODO(ondc): POST /confirm to ONDC_BASE_URL signed with the subscriber
     // key, then map on_confirm → RideAssignment. Same shape as the simulation
     // adapter returns, so nothing upstream changes.
-    throw new Error("ONDC confirm not yet implemented — awaiting network onboarding.");
+    throw new Error("ONDC confirm not yet implemented, awaiting network onboarding.");
   }
 
   async track(_input: {
@@ -46,11 +46,11 @@ export class OndcProvider implements RideProvider {
     ensureConfigured();
     // TODO(ondc): POST /status and map the on_status fulfilment block
     // (agent + vehicle + live GPS + state) into RideAssignment.
-    throw new Error("ONDC status not yet implemented — awaiting network onboarding.");
+    throw new Error("ONDC status not yet implemented, awaiting network onboarding.");
   }
 
   async cancel(_input: { orderId: string; providerRef: string }): Promise<void> {
     ensureConfigured();
-    throw new Error("ONDC cancel not yet implemented — awaiting network onboarding.");
+    throw new Error("ONDC cancel not yet implemented, awaiting network onboarding.");
   }
 }

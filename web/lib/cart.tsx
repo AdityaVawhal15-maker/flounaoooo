@@ -53,7 +53,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [];
     } catch {
-      return []; // corrupted storage — start empty
+      return []; // corrupted storage, start empty
     }
   });
 

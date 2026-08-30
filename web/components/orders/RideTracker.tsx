@@ -271,7 +271,7 @@ export function RideTracker({
             <div className="min-w-0">
               <p className="text-[13px] font-bold text-success">Your ride is confirmed</p>
               <p className="text-[11.5px] text-cocoa">
-                Track it live here — we&apos;ll notify you at every step.
+                Track it live here, we&apos;ll notify you at every step.
               </p>
             </div>
           </div>

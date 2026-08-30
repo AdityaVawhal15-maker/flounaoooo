@@ -38,7 +38,7 @@ export async function checkPriceAlerts(): Promise<number> {
     const rupees = Math.round(best / 100);
     void sendPushToUser(alert.userId, {
       title: `Price drop: ${alert.itemName} 🔻`,
-      body: `Now ₹${rupees} — at or below your ₹${Math.round(alert.targetPaise / 100)} target.`,
+      body: `Now ₹${rupees}, at or below your ₹${Math.round(alert.targetPaise / 100)} target.`,
       url: alert.domain === "food" ? "/food" : "/rides",
     });
     // Email is the second channel (money-updates gated). Dedupe per alert so a
