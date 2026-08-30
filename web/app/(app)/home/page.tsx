@@ -216,27 +216,32 @@ function ChatHome() {
   return (
     <div
       className={cn(
-        // 4rem = the mobile app header; desktop has none.
-        "mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col px-4 lg:h-dvh lg:px-6",
+        // No width here: each branch sets its own, so the panel's inset is not
+        // fighting a w-full left behind in the shared classes.
+        "mx-auto flex max-w-2xl flex-col",
         empty ? "lg:max-w-3xl" : "lg:max-w-5xl",
-        // Incognito is a mode you can end up in without meaning to, so it has
-        // to be readable from the shape of the screen rather than from a line
-        // of text somebody has to notice. The conversation sits inside its own
-        // bordered panel, which is what a private window looks like elsewhere,
-        // and the border is the same accent as the switch that turned it on.
-        temporary &&
-          "my-2.5 h-[calc(100dvh-5.25rem)] rounded-[20px] border border-line bg-card px-3.5 shadow-soft lg:my-3 lg:h-[calc(100dvh-1.5rem)] lg:px-5",
+        // The two layouts are written as alternatives rather than one on top of
+        // the other. cn is a plain string join with no conflict resolution, so
+        // stacking a second height or width on the first leaves which one wins
+        // to the order Tailwind happens to emit them in — it worked, by luck.
+        temporary
+          ? // Incognito is a mode you can end up in without meaning to, so it
+            // has to be readable from the shape of the screen rather than from
+            // a line of text somebody has to notice. The conversation sits in
+            // its own panel, inset far enough on every side that the page shows
+            // around it: the gutter is what makes a frame read as a frame.
+            "my-3 h-[calc(100dvh-5.5rem)] w-[calc(100%-1.5rem)] rounded-[20px] border border-line bg-card px-3.5 shadow-card lg:my-4 lg:h-[calc(100dvh-2rem)] lg:px-5"
+          : // 4rem = the mobile app header; desktop has none.
+            "h-[calc(100dvh-4rem)] w-full px-4 lg:h-dvh lg:px-6",
       )}
     >
       {empty && temporary ? (
-        // Sized to its content and placed high, so the composer that follows
-        // sits directly beneath the heading as one group.
         // Incognito has its own empty screen rather than the ordinary one with
         // the personal parts removed. Everything the normal screen offers is
         // built from history: the reorder shortcut, the suggested prompts, the
         // proactive banner. Showing that under a notice saying history is not
         // used here would contradict the notice on the same screen.
-        <div className="flex shrink-0 flex-col items-center px-2 pt-[14vh] text-center lg:pt-[18vh]">
+        <div className="flex flex-1 flex-col items-center justify-center px-2 text-center">
           <FadeIn y={10} className="flex flex-col items-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-accent-soft">
               <Ghost size={26} className="text-accent" />
@@ -355,13 +360,7 @@ function ChatHome() {
           e.preventDefault();
           send(input);
         }}
-        className={cn(
-          "z-10",
-          // Anchored to the floor whenever there is a conversation above it to
-          // be anchored against. On the empty incognito screen there is not,
-          // so it stays with the heading instead.
-          empty && temporary ? "mt-5 shrink-0" : "sticky bottom-0 pb-4 pt-2",
-        )}
+        className="sticky bottom-0 z-10 pb-4 pt-2"
       >
         {/* Ask bar — the redesign lifts the send button out of the field into
             its own accent circle beside it (Figma 2177:4763). */}
@@ -400,9 +399,6 @@ function ChatHome() {
         </div>
       </form>
 
-      {/* The room a conversation would have occupied. Without it the panel
-          shrinks to fit the heading and the frame stops being a frame. */}
-      {empty && temporary && <div className="flex-1" />}
     </div>
   );
 }
