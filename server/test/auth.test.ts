@@ -10,7 +10,13 @@ describe("auth", () => {
 
     await agent
       .post("/api/auth/signup")
-      .send({ name: "Otp User", email, password: "password123" })
+      .send({
+        name: "Otp User",
+        email,
+        password: "password123",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201);
 
     await agent
@@ -81,7 +87,13 @@ describe("auth", () => {
     const { email } = await authedAgent();
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "Imposter", email, password: "password456" })
+      .send({
+        name: "Imposter",
+        email,
+        password: "password456",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(409);
   });
 
@@ -125,7 +137,13 @@ describe("auth", () => {
     const email = `flood-${Date.now()}@test.dev`;
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "Flood", email, password: "password123" })
+      .send({
+        name: "Flood",
+        email,
+        password: "password123",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201); // send 1
     await request(app).post("/api/auth/resend-otp").send({ email }).expect(200); // 2
     await request(app).post("/api/auth/resend-otp").send({ email }).expect(200); // 3
@@ -148,6 +166,7 @@ describe("sign-up keeps the optional details it asks for", () => {
         password: "password123",
         phone: `9${Math.floor(100000000 + Math.random() * 899999999)}`,
         dateOfBirth: "1998-04-21",
+        acceptTerms: true,
       })
       .expect(201);
 
@@ -156,15 +175,22 @@ describe("sign-up keeps the optional details it asks for", () => {
     expect(user.dateOfBirth).toBe("1998-04-21");
   });
 
-  it("still works when they're omitted, and rejects a bad phone", async () => {
+  it("works without a phone, and still rejects a bad one", async () => {
     const email = `noopt${Date.now()}@test.dev`;
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "No Optionals", email, password: "password123" })
+      .send({
+        name: "No Phone",
+        email,
+        password: "password123",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201);
     const user = await prisma.user.findUniqueOrThrow({ where: { email } });
     expect(user.phone).toBeNull();
-    expect(user.dateOfBirth).toBeNull();
+    // Date of birth is no longer optional, so it is always stored.
+    expect(user.dateOfBirth).toBe("1995-04-12");
 
     await request(app)
       .post("/api/auth/signup")
@@ -173,6 +199,8 @@ describe("sign-up keeps the optional details it asks for", () => {
         email: `badphone${Date.now()}@test.dev`,
         password: "password123",
         phone: "12345",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
       })
       .expect(400);
   });
@@ -182,13 +210,27 @@ describe("sign-up keeps the optional details it asks for", () => {
     const first = `dup1${Date.now()}@test.dev`;
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "First", email: first, password: "password123", phone })
+      .send({
+        name: "First",
+        email: first,
+        password: "password123",
+        phone,
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201);
 
     const second = `dup2${Date.now()}@test.dev`;
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "Second", email: second, password: "password123", phone })
+      .send({
+        name: "Second",
+        email: second,
+        password: "password123",
+        phone,
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201); // succeeds; the duplicate phone is just not attached
     const u = await prisma.user.findUniqueOrThrow({ where: { email: second } });
     expect(u.phone).toBeNull();
