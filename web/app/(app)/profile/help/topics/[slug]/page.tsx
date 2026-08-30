@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 // A Help Centre article.
 //
@@ -21,8 +23,10 @@ type Topic = {
 
 export default function HelpTopicPage() {
   const router = useRouter();
+  const goBack = useBackTo("/profile/help");
   const params = useParams<{ slug: string }>();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [topic, setTopic] = useState<Topic | null | "missing">(null);
   const [starting, setStarting] = useState(false);
 
@@ -49,7 +53,7 @@ export default function HelpTopicPage() {
       });
       router.push(`/profile/help/chat/${d.chat.id}`);
     } catch {
-      toast("Could not start a chat just now");
+      toast(t("pp.hc.chatFailed"));
       setStarting(false);
     }
   }
@@ -59,22 +63,24 @@ export default function HelpTopicPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
-            aria-label="Back"
+            onClick={goBack}
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-acct-ink">
-            Help Center
+            {t("pp.profile.helpCentre")}
           </h1>
         </div>
 
         {topic === null ? (
-          <p className="px-1 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+          <p className="px-1 py-8 text-center text-[13px] text-acct-muted">
+            {t("common.loading")}
+          </p>
         ) : topic === "missing" ? (
           <p className="px-1 py-8 text-center text-[13px] text-acct-muted">
-            That help topic no longer exists.
+            {t("pp.hc.topicGone")}
           </p>
         ) : (
           <>
@@ -92,10 +98,10 @@ export default function HelpTopicPage() {
 
             <div className="mt-5 rounded-[18px] bg-card p-5 text-center shadow-soft">
               <p className="text-[15px] font-bold text-acct-ink">
-                Did this answer it?
+                {t("pp.hc.didThisAnswer")}
               </p>
               <p className="mt-1 text-[13px] text-acct-muted">
-                If not, start a chat and we&apos;ll pick up from here.
+                {t("pp.hc.ifNotChat")}
               </p>
               <button
                 onClick={startChat}
@@ -103,7 +109,7 @@ export default function HelpTopicPage() {
                 className="mt-4 inline-flex h-[48px] items-center gap-2 rounded-pill bg-acct-accent px-6 text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
                 <MessageSquare size={16} />
-                {starting ? "Starting…" : "Chat about this"}
+                {starting ? t("pp.hc.starting") : t("pp.hc.chatAboutThis")}
               </button>
             </div>
           </>

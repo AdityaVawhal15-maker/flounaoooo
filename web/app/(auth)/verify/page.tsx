@@ -118,7 +118,7 @@ export default function VerifyEmailPage() {
   }
 
   if (settingUp) {
-    return <AccountSetup onDone={() => router.push("/home")} />;
+    return <AccountSetup onDone={() => router.replace("/home")} />;
   }
 
   return (

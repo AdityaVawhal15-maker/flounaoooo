@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   Plus,
@@ -17,7 +17,9 @@ import {
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 import { PaymentBrandMark } from "@/components/profile/PaymentBrandMark";
+import { Select } from "@/components/ui/Select";
 
 // Figma "Payment Methods": saved methods list, each row a brand mark, a
 // label/detail pair, and either a Default badge or a chevron; a trailing
@@ -51,8 +53,9 @@ const WALLETS = ["Paytm Wallet", "PhonePe Wallet", "Amazon Pay", "Mobikwik"] as 
 type AddType = "card" | "upi" | "wallet";
 
 export default function PaymentMethodsPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile");
   const { toast } = useToast();
+  const { t } = useI18n();
   const [methods, setMethods] = useState<Method[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [acting, setActing] = useState<Method | null>(null);
@@ -100,7 +103,7 @@ export default function PaymentMethodsPage() {
       setLast4("");
       setExpiry("");
       setVpa("");
-      toast("Payment method added");
+      toast(t("pp.pay.added"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add that method");
     } finally {
@@ -114,10 +117,10 @@ export default function PaymentMethodsPage() {
     setMethods((m) => m?.filter((x) => x.id !== id) ?? null);
     try {
       await api(`/api/users/payment-methods/${id}`, { method: "DELETE" });
-      toast("Payment method removed");
+      toast(t("pp.pay.removed"));
     } catch {
       setMethods(prev ?? null);
-      toast("Could not remove that method");
+      toast(t("pp.pay.removeFailed"));
     }
   }
 
@@ -127,19 +130,19 @@ export default function PaymentMethodsPage() {
     setMethods((m) => m?.map((x) => ({ ...x, isDefault: x.id === id })) ?? null);
     try {
       await api(`/api/users/payment-methods/${id}/default`, { method: "PATCH" });
-      toast("Default payment method updated");
+      toast(t("pp.pay.defaultUpdated"));
     } catch {
       setMethods(prev ?? null);
-      toast("Could not set that as default");
+      toast(t("pp.pay.defaultFailed"));
     }
   }
 
   /** Second line of a row, per method type. */
   function detail(m: Method) {
     if (m.type === "card") {
-      return `Expires ${String(m.expiryMonth).padStart(2, "0")}/${String(m.expiryYear).slice(-2)}`;
+      return `${t("pp.pay.expires")} ${String(m.expiryMonth).padStart(2, "0")}/${String(m.expiryYear).slice(-2)}`;
     }
-    return m.type === "upi" ? (m.vpa ?? "") : "Connected";
+    return m.type === "upi" ? (m.vpa ?? "") : t("pp.pay.connected");
   }
 
   function title(m: Method) {
@@ -151,21 +154,21 @@ export default function PaymentMethodsPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
-            aria-label="Back"
+            onClick={goBack}
+            aria-label={t("common.back")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 text-center text-[17px] font-extrabold text-acct-ink">
-            Payment Methods
+            {t("pp.profile.payments")}
           </h1>
           <button
             onClick={() => {
               setError("");
               setAdding(true);
             }}
-            aria-label="Add payment method"
+            aria-label={t("pp.pay.addMethod")}
             className="tap-target flex size-9 shrink-0 items-center justify-center rounded-full bg-acct-tint text-acct-accent transition-colors hover:bg-acct-accent/15"
           >
             <Plus size={20} />
@@ -173,17 +176,17 @@ export default function PaymentMethodsPage() {
         </div>
 
         <p className="mb-2 px-1 text-[13px] font-semibold text-acct-muted">
-          Saved Payment Methods
+          {t("pp.pay.saved")}
         </p>
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           {methods === null ? (
             <div className="px-4 py-6 text-center text-[13px] text-acct-muted">
-              Loading…
+              {t("common.loading")}
             </div>
           ) : methods.length === 0 ? (
             <div className="px-4 py-6 text-center text-[13px] text-acct-muted">
-              No payment methods saved yet
+              {t("pp.pay.none")}
             </div>
           ) : (
             methods.map((m, i) => (
@@ -214,7 +217,7 @@ export default function PaymentMethodsPage() {
                 </span>
                 {m.isDefault ? (
                   <span className="shrink-0 rounded-pill bg-success/10 px-2.5 py-1 text-[11px] font-bold text-success">
-                    Default
+                    {t("pp.pay.default")}
                   </span>
                 ) : (
                   <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -235,10 +238,10 @@ export default function PaymentMethodsPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-acct-accent">
-                Add Payment Method
+                {t("pp.pay.addMethod")}
               </span>
               <span className="block text-[12px] text-acct-muted">
-                Add new card, UPI or wallet
+                {t("pp.pay.addMethodSub")}
               </span>
             </span>
             <ChevronRight size={17} className="shrink-0 text-acct-muted" />
@@ -247,7 +250,7 @@ export default function PaymentMethodsPage() {
 
         <p className="mt-4 flex items-center justify-center gap-2 rounded-[16px] bg-card px-4 py-3.5 text-[12px] text-acct-muted shadow-soft">
           <ShieldCheck size={14} className="shrink-0 text-success" />
-          Your payment information is secure
+          {t("pp.pay.secure")}
         </p>
       </div>
 
@@ -275,7 +278,7 @@ export default function PaymentMethodsPage() {
               </span>
               <button
                 onClick={() => setActing(null)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
               >
                 <X size={18} />
@@ -290,7 +293,7 @@ export default function PaymentMethodsPage() {
                 >
                   <Star size={17} className="shrink-0 text-acct-accent" />
                   <span className="text-[15px] font-semibold text-acct-ink">
-                    Set as default
+                    {t("pp.pay.setDefault")}
                   </span>
                 </button>
               )}
@@ -299,7 +302,7 @@ export default function PaymentMethodsPage() {
                 className="flex items-center gap-3 rounded-[14px] border border-line px-4 py-3.5 text-left text-danger transition-colors hover:bg-danger-soft"
               >
                 <Trash2 size={17} className="shrink-0" />
-                <span className="text-[15px] font-semibold">Remove</span>
+                <span className="text-[15px] font-semibold">{t("pp.pay.remove")}</span>
               </button>
             </div>
           </div>
@@ -314,15 +317,15 @@ export default function PaymentMethodsPage() {
         >
           <div
             role="dialog"
-            aria-label="Add payment method"
+            aria-label={t("pp.pm.addMethod")}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-t-3xl bg-card p-5 lg:rounded-3xl"
           >
             <div className="flex items-center justify-between">
-              <p className="text-[16px] font-bold text-acct-ink">Add Payment Method</p>
+              <p className="text-[16px] font-bold text-acct-ink">{t("pp.pay.addMethod")}</p>
               <button
                 onClick={() => setAdding(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
               >
                 <X size={18} />
@@ -360,25 +363,18 @@ export default function PaymentMethodsPage() {
               {type === "card" && (
                 <>
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] text-acct-muted">Card brand</span>
-                    <select
+                    <span className="text-[12px] text-acct-muted">{t("pp.pay.cardBrand")}</span>
+                    <Select
                       value={brand}
-                      onChange={(e) =>
-                        setBrand(e.target.value as (typeof CARD_BRANDS)[number])
-                      }
-                      className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
-                    >
-                      {CARD_BRANDS.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
+                      label={t("pp.pay.cardBrand")}
+                      options={CARD_BRANDS.map((b) => ({ value: b, label: b }))}
+                      onChange={(v) => setBrand(v as (typeof CARD_BRANDS)[number])}
+                    />
                   </label>
                   {/* Last 4 digits only, never a full PAN — this list exists
                       to recognise a method, not to charge it. */}
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] text-acct-muted">Last 4 digits</span>
+                    <span className="text-[12px] text-acct-muted">{t("pp.pay.last4")}</span>
                     <input
                       inputMode="numeric"
                       maxLength={4}
@@ -392,7 +388,7 @@ export default function PaymentMethodsPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-[12px] text-acct-muted">Expiry (MM/YY)</span>
+                    <span className="text-[12px] text-acct-muted">{t("pp.pay.expiry")}</span>
                     <input
                       value={expiry}
                       onChange={(e) =>
@@ -408,7 +404,7 @@ export default function PaymentMethodsPage() {
 
               {type === "upi" && (
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-acct-muted">UPI ID</span>
+                  <span className="text-[12px] text-acct-muted">{t("pp.pay.upiId")}</span>
                   <input
                     value={vpa}
                     onChange={(e) => setVpa(e.target.value)}
@@ -421,22 +417,15 @@ export default function PaymentMethodsPage() {
 
               {type === "wallet" && (
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-acct-muted">Wallet</span>
-                  <select
+                  <span className="text-[12px] text-acct-muted">{t("pp.pay.wallet")}</span>
+                  <Select
                     value={wallet}
-                    onChange={(e) =>
-                      setWallet(e.target.value as (typeof WALLETS)[number])
-                    }
-                    className="h-12 rounded-[12px] border border-line bg-acct-bg px-3.5 text-[15px] text-acct-ink outline-none focus:border-acct-accent"
-                  >
-                    {WALLETS.map((w) => (
-                      <option key={w} value={w}>
-                        {w}
-                      </option>
-                    ))}
-                  </select>
+                    label={t("pp.pay.wallet")}
+                    options={WALLETS.map((w) => ({ value: w, label: w }))}
+                    onChange={(v) => setWallet(v as (typeof WALLETS)[number])}
+                  />
                   <span className="text-[12px] text-acct-muted">
-                    Linking the wallet for a real payment happens at checkout.
+                    {t("pp.pay.walletHint")}
                   </span>
                 </label>
               )}
@@ -452,7 +441,7 @@ export default function PaymentMethodsPage() {
                 disabled={busy}
                 className="mt-1 h-[52px] w-full rounded-pill bg-acct-accent text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
               >
-                {busy ? "Adding…" : "Add Payment Method"}
+                {busy ? t("pp.pay.adding") : t("pp.pay.addMethod")}
               </button>
             </form>
           </div>

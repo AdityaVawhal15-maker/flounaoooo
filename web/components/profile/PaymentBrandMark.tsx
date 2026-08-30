@@ -61,13 +61,27 @@ export function PaymentBrandMark({
   }
 
   if (type === "upi") {
+    // NPCI's mark: a heavy slanted grey wordmark with the arrowhead to its
+    // RIGHT, not a navy wordmark with a device on the left. The head is two
+    // overlapping right-pointing triangles, saffron behind green.
     return (
       <span className={frame} aria-hidden>
-        <span className="text-[11px] font-extrabold tracking-tight">
-          <span style={{ color: "#e8651a" }}>U</span>
-          <span style={{ color: "#0d7c3f" }}>P</span>
-          <span style={{ color: "#0d4a8f" }}>I</span>
-        </span>
+        <svg viewBox="0 0 62 22" className="h-4 w-10" role="img" aria-label="UPI">
+          <text
+            x="0"
+            y="17.5"
+            fontSize="19"
+            fontWeight="800"
+            fontFamily="Inter, Arial, system-ui, sans-serif"
+            fill="#6D6E71"
+            transform="skewX(-12)"
+            style={{ letterSpacing: "-0.5px" }}
+          >
+            UPI
+          </text>
+          <polygon points="38,2 49,11 38,20" fill="#F58220" />
+          <polygon points="44,2 55,11 44,20" fill="#0F9D58" />
+        </svg>
       </span>
     );
   }

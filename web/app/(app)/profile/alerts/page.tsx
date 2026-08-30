@@ -80,7 +80,7 @@ export default function AlertsPage() {
                   </div>
                   <button
                     onClick={() => remove(a.id)}
-                    aria-label="Remove alert"
+                    aria-label={t("pp.alerts.remove")}
                     className="rounded-full p-1.5 text-cocoa/60 hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash2 size={15} />
@@ -112,7 +112,7 @@ export default function AlertsPage() {
                   </div>
                   <button
                     onClick={() => remove(a.id)}
-                    aria-label="Remove alert"
+                    aria-label={t("pp.alerts.remove")}
                     className="rounded-full p-1.5 text-cocoa/60 hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash2 size={15} />

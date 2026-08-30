@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   LayoutGrid,
@@ -90,7 +90,7 @@ function compactRupees(paise: number) {
 }
 
 export default function HistoryPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/home");
   const { t, lang } = useI18n();
   const localeTag = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
   const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("");
@@ -119,8 +119,8 @@ export default function HistoryPage() {
       <FadeIn y={8}>
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
-            aria-label="Back"
+            onClick={goBack}
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
           >
             <ArrowLeft size={18} className="text-ink" />

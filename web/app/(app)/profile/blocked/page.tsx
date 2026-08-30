@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import { ArrowLeft, UserX, Plus, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 // Privacy & Security → Blocked Users.
 //
@@ -21,8 +22,9 @@ type Blocked = {
 };
 
 export default function BlockedUsersPage() {
-  const router = useRouter();
+  const goBack = useBackTo("/profile/privacy");
   const { toast } = useToast();
+  const { t } = useI18n();
   const [rows, setRows] = useState<Blocked[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState("");
@@ -48,9 +50,9 @@ export default function BlockedUsersPage() {
       setRows((r) => [d.blocked, ...(r ?? []).filter((x) => x.user.id !== d.blocked.user.id)]);
       setEmail("");
       setAdding(false);
-      toast("Blocked");
+      toast(t("pp.blk.blocked"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not block that account");
+      setError(err instanceof Error ? err.message : t("pp.blk.blockFailed"));
     } finally {
       setBusy(false);
     }
@@ -61,10 +63,10 @@ export default function BlockedUsersPage() {
     setRows((r) => r?.filter((x) => x.id !== row.id) ?? null);
     try {
       await api(`/api/users/blocked/${row.id}`, { method: "DELETE" });
-      toast(`Unblocked ${row.user.name}`);
+      toast(`${t("pp.blk.unblock")} ${row.user.name}`);
     } catch {
       setRows(previous ?? null);
-      toast("Could not unblock");
+      toast(t("pp.blk.unblockFailed"));
     }
   }
 
@@ -73,21 +75,21 @@ export default function BlockedUsersPage() {
       <div className="mx-auto w-full max-w-xl px-4 pb-10 lg:max-w-[780px] lg:px-6">
         <div className="flex items-center py-4">
           <button
-            onClick={() => router.back()}
-            aria-label="Back"
+            onClick={goBack}
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-acct-bg"
           >
             <ArrowLeft size={18} className="text-acct-ink" />
           </button>
           <h1 className="flex-1 text-center text-[17px] font-extrabold text-acct-ink">
-            Blocked Users
+            {t("pp.priv.blocked")}
           </h1>
           <button
             onClick={() => {
               setError("");
               setAdding(true);
             }}
-            aria-label="Block someone"
+            aria-label={t("pp.blk.blockSomeone")}
             className="tap-target flex size-9 items-center justify-center rounded-full text-acct-accent transition-colors hover:bg-acct-tint"
           >
             <Plus size={20} />
@@ -96,17 +98,19 @@ export default function BlockedUsersPage() {
 
         <div className="overflow-hidden rounded-[18px] bg-card shadow-soft">
           {rows === null ? (
-            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">Loading…</p>
+            <p className="px-4 py-8 text-center text-[13px] text-acct-muted">
+              {t("common.loading")}
+            </p>
           ) : rows.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-acct-tint">
                 <UserX size={22} className="text-acct-accent" />
               </span>
               <p className="mt-3 text-[15px] font-bold text-acct-ink">
-                You haven&apos;t blocked anyone
+                {t("pp.blk.empty")}
               </p>
               <p className="mt-1 text-[13px] text-acct-muted">
-                Blocked people can&apos;t join your group orders.
+                {t("pp.blk.emptySub")}
               </p>
             </div>
           ) : (
@@ -135,7 +139,7 @@ export default function BlockedUsersPage() {
                   onClick={() => unblock(row)}
                   className="tap-target shrink-0 rounded-pill border border-line px-3.5 py-1.5 text-[12px] font-semibold text-acct-ink transition-colors hover:bg-acct-bg"
                 >
-                  Unblock
+                  {t("pp.blk.unblock")}
                 </button>
               </div>
             ))
@@ -143,8 +147,7 @@ export default function BlockedUsersPage() {
         </div>
 
         <p className="mt-4 px-1 text-[12px] leading-relaxed text-acct-muted">
-          Blocking works both ways in group orders: someone you block can&apos;t
-          join an order you host, and you won&apos;t be able to join theirs.
+          {t("pp.blk.footer")}
         </p>
       </div>
 
@@ -155,24 +158,24 @@ export default function BlockedUsersPage() {
         >
           <form
             role="dialog"
-            aria-label="Block someone"
+            aria-label={t("pp.blk.blockSomeone")}
             onSubmit={block}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-t-3xl bg-card p-5 lg:rounded-3xl"
           >
             <div className="flex items-center justify-between">
-              <p className="text-[16px] font-bold text-acct-ink">Block someone</p>
+              <p className="text-[16px] font-bold text-acct-ink">{t("pp.blk.blockSomeone")}</p>
               <button
                 type="button"
                 onClick={() => setAdding(false)}
-                aria-label="Close"
+                aria-label={t("common.close")}
                 className="rounded-full p-1.5 text-acct-muted hover:bg-acct-bg"
               >
                 <X size={18} />
               </button>
             </div>
             <p className="mt-1 text-[13px] text-acct-muted">
-              Enter the email address of the account you want to block.
+              {t("pp.blk.emailHint")}
             </p>
             <input
               autoFocus
@@ -193,7 +196,7 @@ export default function BlockedUsersPage() {
               disabled={busy || !email.trim()}
               className="mt-4 h-[52px] w-full rounded-pill bg-acct-accent text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {busy ? "Blocking…" : "Block"}
+              {busy ? t("pp.blk.blocking") : t("pp.blk.block")}
             </button>
           </form>
         </div>

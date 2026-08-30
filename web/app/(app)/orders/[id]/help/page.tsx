@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useBackTo } from "@/lib/navHistory";
 import {
   ArrowLeft,
   Package,
@@ -19,7 +20,9 @@ import {
   MapPin,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { useI18n } from "@/components/i18n/I18nContext";
 
 // ONDC IGM 2.0 — raising a complaint, restyled to the Component-page Figma:
 // centred titles, warm outlined buttons, leading problem icons with the radio
@@ -30,21 +33,28 @@ import { cn } from "@/lib/cn";
 // spec, and inventing them would produce complaints the network rejects. The
 // adapter maps these to the real vocabulary once we have it.
 const PROBLEMS = [
-  { code: "ORDER_NOT_RECEIVED", label: "Order not received", icon: Package },
-  { code: "WRONG_ITEM_DELIVERED", label: "Wrong item delivered", icon: ArrowLeftRight },
-  { code: "ITEM_DAMAGED", label: "Item damaged", icon: PackageOpen },
-  { code: "REFUND_NOT_RECEIVED", label: "Refund not received", icon: RotateCcw },
-  { code: "PAYMENT_ISSUE", label: "Payment issue", icon: CreditCard },
-  { code: "OTHER", label: "Other", icon: Ellipsis },
-] as const;
+  { code: "ORDER_NOT_RECEIVED", labelKey: "cx.orderNotReceived", icon: Package },
+  { code: "WRONG_ITEM_DELIVERED", labelKey: "cx.wrongItem", icon: ArrowLeftRight },
+  { code: "ITEM_DAMAGED", labelKey: "cx.itemDamaged", icon: PackageOpen },
+  { code: "REFUND_NOT_RECEIVED", labelKey: "cx.refundNotReceived", icon: RotateCcw },
+  { code: "PAYMENT_ISSUE", labelKey: "cx.paymentIssue", icon: CreditCard },
+  { code: "OTHER", labelKey: "cx.other", icon: Ellipsis },
+] as const satisfies ReadonlyArray<{
+  code: string;
+  labelKey: TranslationKey;
+  icon: typeof Package;
+}>;
 
 type Step = "problem" | "details" | "submitted";
 type OrderCard = { title: string; itemCount: number | null; createdAt: string };
 
 export default function OrderHelpPage() {
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const orderId = params.id;
+  const { t } = useI18n();
+  // Same fault as the support chat: pushing the order screen as "back" grew
+  // the stack instead of unwinding it.
+  const leaveFlow = useBackTo(`/orders/${params.id}`);
 
   const [step, setStep] = useState<Step>("problem");
   const [order, setOrder] = useState<OrderCard | null>(null);
@@ -85,7 +95,7 @@ export default function OrderHelpPage() {
   function pickPhoto(file: File | undefined) {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setError("That file is larger than 5 MB");
+      setError(t("cx.fileTooBig"));
       return;
     }
     const reader = new FileReader();
@@ -128,15 +138,16 @@ export default function OrderHelpPage() {
       setComplaintId(d.complaint.id);
       setStep("submitted");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not raise the complaint");
+      setError(err instanceof Error ? err.message : t("cx.submitFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   function back() {
+    // Within the form, back walks the steps; at the first step it leaves.
     if (step === "details") setStep("problem");
-    else router.push(`/orders/${orderId}`);
+    else leaveFlow();
   }
 
   return (
@@ -145,13 +156,13 @@ export default function OrderHelpPage() {
         <div className="flex items-center py-4">
           <button
             onClick={back}
-            aria-label="Back"
+            aria-label={t("common.back")}
             className="tap-target flex size-9 items-center justify-center rounded-full bg-card shadow-soft transition-colors hover:bg-beige/60"
           >
             <ArrowLeft size={18} className="text-ink" />
           </button>
           <h1 className="flex-1 pr-9 text-center text-[17px] font-extrabold text-ink">
-            {step === "problem" ? "Need Help" : "Add Details"}
+            {step === "problem" ? t("cx.needHelp") : t("cx.addDetails")}
           </h1>
         </div>
 
@@ -184,12 +195,12 @@ export default function OrderHelpPage() {
             </div>
 
             <p className="mb-2 mt-6 px-1 text-[16px] font-extrabold text-ink">
-              What is the problem?
+              {t("cx.whatProblem")}
             </p>
             <div
               className="flex flex-col gap-2"
               role="radiogroup"
-              aria-label="What is the problem?"
+              aria-label={t("cx.whatProblem")}
             >
               {PROBLEMS.map((p) => {
                 const active = problem === p.code;
@@ -209,7 +220,7 @@ export default function OrderHelpPage() {
                   >
                     <Icon size={17} className="shrink-0 text-ink" />
                     <span className="flex-1 text-[14px] font-semibold text-ink">
-                      {p.label}
+                      {t(p.labelKey)}
                     </span>
                     <span
                       className={cn(
@@ -230,7 +241,7 @@ export default function OrderHelpPage() {
               onClick={() => setStep("details")}
               className="mt-7 h-[54px] w-full rounded-[14px] border-[1.5px] border-acct-accent bg-card text-[15px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-40"
             >
-              Continue
+              {t("cx.continue")}
             </button>
           </>
         )}
@@ -240,13 +251,13 @@ export default function OrderHelpPage() {
             <div className="inline-flex items-center gap-2 self-start rounded-pill border border-line bg-card px-3.5 py-2 shadow-soft">
               {chosen && <chosen.icon size={14} className="text-ink" />}
               <span className="text-[13px] font-semibold text-ink">
-                Issue: {chosen?.label}
+                {t("cx.issue")}: {chosen ? t(chosen.labelKey) : ""}
               </span>
             </div>
 
             <label className="mt-5 block">
               <span className="text-[14px] font-bold text-ink">
-                Describe what happened
+                {t("cx.describe")}
               </span>
               <span className="relative mt-2 block">
                 <textarea
@@ -254,7 +265,7 @@ export default function OrderHelpPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value.slice(0, 500))}
                   rows={6}
-                  placeholder="Tell us what happened..."
+                  placeholder={t("cx.describePh")}
                   className="w-full resize-none rounded-[14px] border border-line bg-card p-4 pb-7 text-[14px] text-ink shadow-soft outline-none placeholder:text-muted focus:border-accent"
                 />
                 <span className="absolute bottom-3 right-3.5 text-[11px] text-muted">
@@ -263,13 +274,13 @@ export default function OrderHelpPage() {
               </span>
             </label>
 
-            <p className="mt-4 text-[14px] font-bold text-ink">Add photo</p>
+            <p className="mt-4 text-[14px] font-bold text-ink">{t("cx.addPhoto")}</p>
             <label className="mt-2 flex cursor-pointer flex-col items-center gap-1.5 rounded-[14px] border border-line bg-card px-4 py-7 shadow-soft transition-colors hover:bg-beige/30">
               <ImageIcon size={22} className="text-ink" />
               <span className="text-[14px] font-bold text-ink">
-                {photoName || "+ Add Photo"}
+                {photoName || t("cx.addPhotoBtn")}
               </span>
-              <span className="text-[11px] text-muted">JPG, PNG up to 5MB</span>
+              <span className="text-[11px] text-muted">{t("cx.photoTypes")}</span>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -279,7 +290,7 @@ export default function OrderHelpPage() {
             </label>
             <p className="mt-3 flex items-center gap-2 rounded-[12px] border border-line bg-card px-3.5 py-2.5 text-[12px] font-medium text-cocoa">
               <Info size={13} className="shrink-0" />
-              Adding a photo helps us resolve your complaint faster.
+              {t("cx.photoHint")}
             </p>
 
             {error && (
@@ -295,7 +306,7 @@ export default function OrderHelpPage() {
               className="mt-6 flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-acct-accent bg-card text-[15px] font-bold text-ink transition-colors hover:bg-accent-soft/40 disabled:opacity-40"
             >
               <SendHorizonal size={16} />
-              {busy ? "Submitting..." : "Submit Complaint"}
+              {busy ? t("cx.submitting") : t("cx.submit")}
             </button>
           </>
         )}
@@ -304,18 +315,17 @@ export default function OrderHelpPage() {
           <div className="flex flex-1 flex-col">
             <div className="flex flex-1 flex-col justify-center text-center">
               <h2 className="text-[24px] font-extrabold text-ink">
-                Complaint Submitted
+                {t("cx.submitted")}
               </h2>
               <p className="mt-2 text-[14px] font-bold text-ink">
-                Complaint ID: {code}
+                {t("cx.complaintId")}: {code}
               </p>
               <p className="mt-1 text-[13px] text-muted">
-                We will update you within 24 hours.
+                {t("cx.updateIn24")}
               </p>
               {photoFailed && (
                 <p className="mx-auto mt-3 max-w-[320px] text-[13px] text-warning">
-                  Your photo did not upload, but the complaint was raised. You
-                  can attach it from the tracking screen.
+                  {t("cx.photoFailed")}
                 </p>
               )}
 
@@ -326,10 +336,10 @@ export default function OrderHelpPage() {
                   </span>
                   <span className="min-w-0">
                     <span className="block text-[14px] font-bold text-ink">
-                      Email Confirmation
+                      {t("cx.emailConfirm")}
                     </span>
                     <span className="block text-[12px] text-muted">
-                      Sent to your registered email
+                      {t("cx.sentToEmail")}
                     </span>
                   </span>
                 </div>
@@ -339,10 +349,10 @@ export default function OrderHelpPage() {
                   </span>
                   <span className="min-w-0">
                     <span className="block text-[14px] font-bold text-ink">
-                      Resolution Time
+                      {t("cx.resolutionTime")}
                     </span>
                     <span className="block text-[12px] text-muted">
-                      Expected within 24-48 hours
+                      {t("cx.within2448")}
                     </span>
                   </span>
                 </div>
@@ -354,13 +364,13 @@ export default function OrderHelpPage() {
               className="mt-7 flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-acct-accent bg-card text-[15px] font-bold text-ink transition-colors hover:bg-accent-soft/40"
             >
               <MapPin size={16} />
-              Track Complaint
+              {t("cx.trackComplaint")}
             </Link>
             <Link
               href="/history"
               className="mt-4 text-center text-[14px] font-bold text-ink hover:underline"
             >
-              Back to Orders
+              {t("cx.backToOrders")}
             </Link>
           </div>
         )}
