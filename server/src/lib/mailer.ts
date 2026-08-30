@@ -15,9 +15,14 @@ const transport =
         // Bounded waits: without these nodemailer can hang for minutes on a
         // sick provider, stalling the notification outbox behind it. A timeout
         // surfaces as a send error, so the row simply retries.
-        connectionTimeout: 10_000,
-        greetingTimeout: 10_000,
-        socketTimeout: 20_000,
+        // Kept short because a person is waiting on the other side of some of
+        // these. A blocked outbound port — which is the default on several
+        // hosts — fails by timing out rather than refusing, so a generous
+        // timeout turns a misconfiguration into a twelve second stall on the
+        // sign-up button before the error even appears.
+        connectionTimeout: 5_000,
+        greetingTimeout: 5_000,
+        socketTimeout: 10_000,
       })
     : null;
 

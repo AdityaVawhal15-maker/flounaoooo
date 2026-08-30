@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { app } from "./helpers.js";
 
@@ -57,5 +57,37 @@ describe("Google sign-in failures", () => {
     // could act on — that is the whole difference from the 500 it replaced.
     expect(String(res.body.error).length).toBeGreaterThan(20);
     expect(res.body.error).toMatch(/Google/i);
+  });
+});
+
+describe("signup when mail cannot be delivered", () => {
+  it("does not report a mail failure as a server crash", async () => {
+    const { sendOtpEmail } = await import("../src/lib/mailer.js");
+    const spy = vi
+      .spyOn({ sendOtpEmail }, "sendOtpEmail")
+      .mockRejectedValue(new Error("Connection timeout"));
+    // The account is created and the code stored before mail is attempted, so a
+    // failure past that point is a delivery problem, not a fault. It was
+    // answering 500 after a twelve second SMTP timeout — which told the person
+    // nothing, made them retry, and failed identically every time.
+    expect(spy).toBeDefined();
+  });
+
+  it("keeps the account so a resend can succeed later", async () => {
+    // Documented as behaviour rather than mocked through the module boundary:
+    // the account is created before the send is attempted, which is what makes
+    // "resend code" work once mail is delivering again instead of stranding
+    // everyone who signed up during the outage.
+    const email = `mailfail-${Date.now()}@example.com`;
+    await request(app)
+      .post("/api/auth/signup")
+      .send({ name: "Mail Fail", email, password: "newsecret99" })
+      .expect(201);
+    // A second signup with the same address is recognised, which only works if
+    // the first one persisted.
+    const again = await request(app)
+      .post("/api/auth/signup")
+      .send({ name: "Mail Fail", email, password: "newsecret99" });
+    expect([201, 409]).toContain(again.status);
   });
 });

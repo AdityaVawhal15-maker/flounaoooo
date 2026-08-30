@@ -158,7 +158,29 @@ authRouter.post(
         target: email,
         purpose: "signup",
       });
-      await sendOtpEmail(email, code);
+
+      // The account is already created and the code already stored. A mail
+      // failure past this point is not a server fault and must not be reported
+      // as one: it was returning 500 after a twelve second SMTP timeout, which
+      // told the person nothing, made them retry, and failed identically every
+      // time — while their account sat there, created and unverifiable.
+      //
+      // The account is deliberately kept. It is what makes "resend code" work
+      // the moment mail is delivering again, instead of stranding whoever
+      // signed up during the outage.
+      try {
+        await sendOtpEmail(email, code);
+      } catch (err) {
+        console.error(
+          "[auth] account created but the code could not be sent:",
+          err instanceof Error ? err.message : String(err),
+        );
+        throw new ApiError(
+          502,
+          "Your account was created, but we could not send the verification code just now. Try again in a few minutes.",
+          "otp_delivery_failed",
+        );
+      }
 
       res.status(201).json({ ok: true, next: "verify-email" });
     } catch (err) {
