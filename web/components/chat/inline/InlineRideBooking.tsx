@@ -8,6 +8,7 @@ import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import { VehicleArt } from "@/components/rides/VehicleArt";
 import { RideBestCard, RideOptionRow } from "@/components/rides/RideOptionCard";
+import { TripSummary } from "@/components/rides/TripSummary";
 import { useRideBooking, VEHICLES, type Vehicle } from "@/lib/rides/useRideBooking";
 
 // Booking a ride without leaving the conversation.
@@ -59,6 +60,10 @@ export function InlineRideBooking({
     initialScheduledAt: scheduledAt ?? null,
   });
   const [confirming, setConfirming] = useState(false);
+  // Choosing a fare and paying for it used to be the same tap. The summary is
+  // the step between: the distance, the time and the total in one place before
+  // any money moves.
+  const [reviewing, setReviewing] = useState(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<{ name: string; area: string; lat: number; lng: number }[]>([]);
   const [searching, setSearching] = useState(false);
@@ -173,6 +178,31 @@ export function InlineRideBooking({
       </button>
     );
   };
+
+  if (reviewing && b.selected && b.pickup && b.drop && b.route) {
+    return (
+      <div className="w-full rounded-card border border-line bg-card p-3.5 shadow-soft">
+        <TripSummary
+          quote={b.selected}
+          pickup={b.pickup.name}
+          drop={b.drop.name}
+          distanceKm={b.route.distanceKm}
+          rideMinutes={b.route.rideMinutes}
+          onEditPickup={() => {
+            setReviewing(false);
+            b.setPicking("pickup");
+          }}
+          onEditDrop={() => {
+            setReviewing(false);
+            b.setPicking("drop");
+          }}
+          onBack={() => setReviewing(false)}
+          onConfirm={confirm}
+          busy={confirming || b.busy}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-card border border-line bg-card p-3.5 shadow-soft">
@@ -301,7 +331,10 @@ export function InlineRideBooking({
               having compared them. */}
           <RideBestCard
             q={b.quotes[0]!}
-            onSelect={() => b.setSelected(b.quotes[0]!)}
+            onSelect={() => {
+              b.setSelected(b.quotes[0]!);
+              setReviewing(true);
+            }}
           />
 
           {b.quotes.length > 1 && (
@@ -313,7 +346,10 @@ export function InlineRideBooking({
                 <RideOptionRow
                   key={`${q.provider}-${q.productName}`}
                   q={q}
-                  onSelect={() => b.setSelected(q)}
+                  onSelect={() => {
+                    b.setSelected(q);
+                    setReviewing(true);
+                  }}
                 />
               ))}
             </>
@@ -329,14 +365,14 @@ export function InlineRideBooking({
 
       <button
         type="button"
-        onClick={confirm}
+        onClick={() => (b.selected ? setReviewing(true) : undefined)}
         disabled={!b.ready || confirming || b.busy}
         className="tap-target mt-3 w-full rounded-pill bg-accent px-4 py-3 text-[14px] font-bold text-white transition-opacity disabled:opacity-50"
       >
         {confirming
           ? "Booking…"
           : b.selected
-            ? `Book ${b.selected.displayName} · ${rupees(b.selected.effectivePaise)}`
+            ? `Review ${b.selected.displayName} · ${rupees(b.selected.effectivePaise)}`
             : b.pickup && b.drop
               ? "Getting prices…"
               : "Set pickup and destination"}

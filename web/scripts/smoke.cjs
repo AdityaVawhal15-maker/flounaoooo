@@ -169,13 +169,28 @@ let browser = null;
       await page.locator("li button").first().click();
       await page.waitForTimeout(6000);
     }
-    const book = page.locator('button:has-text("Book ")').first();
-    check("quotes are priced inline", (await book.count()) > 0);
-    if ((await book.count()) > 0 && !(await book.isDisabled())) {
-      await book.click();
-      await page.waitForTimeout(4500);
-      check("booking stays in the conversation", page.url().includes("/home"));
-      check("payment appears in the thread", (await page.locator('button:has-text("Pay ")').count()) > 0);
+    const review = page.locator('button:has-text("Review ")').first();
+    check("quotes are priced inline", (await review.count()) > 0);
+    if ((await review.count()) > 0 && !(await review.isDisabled())) {
+      // Choosing a fare opens the summary; confirming there is what books.
+      // The step exists so the distance, the time and the total are seen
+      // together before any money moves, so the walk through it is the test.
+      await review.click();
+      await page.waitForTimeout(1500);
+      const summary = await page.evaluate(() => document.body.innerText);
+      check(
+        "trip summary states distance, time and total",
+        /Distance/i.test(summary) && /Est\. time/i.test(summary) && /Est\. total fare/i.test(summary),
+      );
+
+      const confirm = page.locator('button:has-text("Confirm ride")').first();
+      check("summary offers confirmation", (await confirm.count()) > 0);
+      if ((await confirm.count()) > 0) {
+        await confirm.click();
+        await page.waitForTimeout(5000);
+        check("booking stays in the conversation", page.url().includes("/home"));
+        check("payment appears in the thread", (await page.locator('button:has-text("Pay ")').count()) > 0);
+      }
     }
   });
 
