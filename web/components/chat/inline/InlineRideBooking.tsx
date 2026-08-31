@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Crosshair, MapPin, Loader2, Search } from "lucide-react";
+import { Crosshair, MapPin, Loader2, Search, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
@@ -177,11 +177,16 @@ export function InlineRideBooking({
   return (
     <div className="w-full rounded-card border border-line bg-card p-3.5 shadow-soft">
       <div className="overflow-hidden rounded-2xl">
-        <div className="h-[190px]">
+        {/* Tall enough for a route and two named ends. At 190px the
+            destination label was pushed off the top edge. */}
+        <div className="h-[225px]">
           <RideMap
             pickup={b.mapPoints.pickup}
             drop={b.mapPoints.drop}
             routeGeometry={b.route?.geometry ?? null}
+            pickupLabel={b.pickup?.name ?? null}
+            dropLabel={b.drop?.name ?? null}
+            providers={b.quotes.map((q) => q.provider)}
             onPick={b.picking ? b.pickOnMap : null}
           />
         </div>
@@ -282,6 +287,14 @@ export function InlineRideBooking({
 
       {b.quotes.length > 0 && (
         <div className="mt-3 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[15px] font-bold text-ink">Available providers</p>
+            <span className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent">
+              <Sparkles size={11} />
+              {b.quotes.length} option{b.quotes.length === 1 ? "" : "s"} found
+            </span>
+          </div>
+
           {/* The engine's pick, stated as a pick. A list of near-identical
               prices makes the reader do the comparing again; naming the best
               one and showing what it is bought with is the whole point of
