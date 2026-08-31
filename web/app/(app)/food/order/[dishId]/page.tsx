@@ -115,7 +115,7 @@ export default function FoodOrderPage({
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6 lg:px-6">
       <div className="flex items-center gap-3.5">
-        <DishArt name={selected.name} size={64} />
+        <DishArt name={selected.name} image={selected.image} size={64} />
         <div className="min-w-0">
           <h1 className="text-[20px] font-bold text-ink">{selected.name}</h1>
           <p className="text-[13px] text-cocoa">{selected.restaurant}</p>
@@ -255,6 +255,7 @@ export default function FoodOrderPage({
             platform: selected.platform,
             name: selected.name,
             restaurant: selected.restaurant,
+            image: selected.image,
             pricePaise: selected.effectivePaise,
           });
           router.push("/cart");

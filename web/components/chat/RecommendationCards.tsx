@@ -284,6 +284,7 @@ function FoodAltRow({ q }: { q: FoodQuote }) {
                 platform: q.platform,
                 name: q.name,
                 restaurant: q.restaurant,
+                image: q.image,
                 pricePaise: q.effectivePaise,
               },
               1,
@@ -306,7 +307,7 @@ function FoodAltCard({ q }: { q: FoodQuote }) {
     <Link href={`/food/order/${q.dishId}?platform=${q.platform}`} className="block">
       <Card className="h-full py-3.5 transition-all hover:-translate-y-0.5 hover:shadow-card">
         <div className="flex items-center gap-3">
-          <DishArt name={q.name} size={44} />
+          <DishArt name={q.name} image={q.image} size={44} />
           <div className="min-w-0 flex-1">
             {/* Which platform this price is on.
                 Without it, two alternatives for the same dish from the same

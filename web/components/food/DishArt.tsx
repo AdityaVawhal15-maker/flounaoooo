@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 
-// Dish artwork tiles. The catalog has no photography yet, so every dish gets
-// a deterministic, tasteful stand-in: a soft two-tone gradient + a food glyph
-// picked from the dish name. Same dish always renders the same tile, and the
-// palette stays inside the brand's warm range. Swap for real photos by adding
-// an imageUrl to the catalog later — this component is the single place to
-// change.
+// Dish artwork.
+//
+// A real photograph when the catalogue has one, and a drawn stand-in when it
+// does not: a deterministic two-tone gradient with a glyph picked from the
+// dish name, so the same dish always renders the same tile and the palette
+// stays inside the brand's warm range.
+//
+// The fallback is not a placeholder to be removed later, it is the permanent
+// answer for a dish whose photo is missing, slow, or 404s. An ONDC catalogue
+// will not have a picture of everything, and a broken image icon in a list of
+// food is worse than a tile that was designed.
+//
+// To add real photography: drop the file in `public/dishes/` and set `image`
+// on the dish in the catalogue, e.g. "/dishes/dum-biryani.jpg". Nothing else
+// needs changing; every surface passes the image through to here.
 
 const VISUALS: { match: RegExp; emoji: string; from: string; to: string }[] = [
   { match: /biryani|pulao|rice/i, emoji: "🍛", from: "#ffe8cc", to: "#ffd8a8" },
