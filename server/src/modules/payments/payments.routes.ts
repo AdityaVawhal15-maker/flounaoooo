@@ -255,6 +255,14 @@ paymentsRouter.post(
         return res.json({ mode: "cash", amount: order.amount });
       }
 
+      // Demo mode wins over the gateway on purpose. A pitch cannot depend on
+      // a third-party checkout loading over the room's wifi, and the story is
+      // about the decision engine, not about Cashfree's page.
+      if (env.DEMO_PAYMENTS && !isProd) {
+        const paid = await markPaid(orderId, method ?? "upi");
+        return res.json({ mode: "demo", order: paid, amount: order.amount });
+      }
+
       if (cashfreeConfigured) {
         let cf;
         try {
@@ -300,7 +308,7 @@ paymentsRouter.post(
   validateBody(z.object({ orderId: z.string().cuid(), method: z.enum(["upi", "card"]) }).strict()),
   async (req, res, next) => {
     try {
-      if (cashfreeConfigured || isProd) {
+      if (isProd || (cashfreeConfigured && !env.DEMO_PAYMENTS)) {
         throw new ApiError(403, "Simulated payments are disabled");
       }
       const { orderId, method } = req.body as { orderId: string; method: string };

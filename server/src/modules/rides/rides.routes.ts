@@ -26,6 +26,25 @@ const DEMO_PLACES = [
 // Coordinates → a human place name. Used when the rider drops a pin on the map
 // and to label their live GPS position with something real instead of
 // "Current location". Falls back to the nearest demo place offline.
+/**
+ * Ask an upstream map service, and treat any failure as "no answer".
+ *
+ * These routes all keep a local fallback, because the product has to work
+ * without third-party keys. The fallback was only reached when the service
+ * replied badly, never when the call itself threw: a blocked network, a DNS
+ * failure or a throttled connection produced a 500 and took ride booking down
+ * with it. That is the exact shape of a venue wifi, so it is the shape that
+ * matters most.
+ */
+async function tryFetch(url: URL, ms = 5000): Promise<Response | null> {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(ms) });
+    return r.ok ? r : null;
+  } catch {
+    return null;
+  }
+}
+
 ridesRouter.get("/reverse", async (req, res, next) => {
   try {
     const lat = z.coerce.number().min(-90).max(90).parse(req.query.lat);
@@ -38,8 +57,8 @@ ridesRouter.get("/reverse", async (req, res, next) => {
       url.searchParams.set("limit", "1");
       url.searchParams.set("apiKey", env.GEOAPIFY_KEY);
       // Bounded wait — a hanging geocode must not freeze the address form.
-      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (r.ok) {
+      const r = await tryFetch(url);
+      if (r) {
         const data = (await r.json()) as {
           features?: Array<{
             properties: {
@@ -133,8 +152,8 @@ ridesRouter.get("/geocode", async (req, res, next) => {
         url.searchParams.set("bias", `proximity:${near.data.lng},${near.data.lat}`);
       }
       url.searchParams.set("apiKey", env.GEOAPIFY_KEY);
-      const r = await fetch(url);
-      if (r.ok) {
+      const r = await tryFetch(url);
+      if (r) {
         const data = (await r.json()) as {
           features?: Array<{
             properties: {

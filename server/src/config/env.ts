@@ -86,6 +86,19 @@ const envSchema = z.object({
   // Error monitoring (Sentry). Optional — when unset, monitoring is a no-op
   // and errors are logged to the console as today.
   SENTRY_DSN: z.string().optional(),
+
+  /**
+   * Complete payments inside the app instead of handing off to the gateway.
+   *
+   * For demos and pitches. A real checkout redirects to Cashfree, which means
+   * leaving the product on somebody else's page, over whatever network the
+   * room has, at the exact moment the story is about money. This keeps the
+   * whole flow in Flouna and offline.
+   *
+   * Refused outright in production below, whatever this says: it marks orders
+   * paid without taking any.
+   */
+  DEMO_PAYMENTS: z.coerce.boolean().default(false),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -103,6 +116,11 @@ export const isProd = env.NODE_ENV === "production";
 // Production safety gate: refuse to boot with a dev-grade configuration in
 // production, so we never accidentally ship with weak secrets or a dev database.
 if (isProd) {
+  if (env.DEMO_PAYMENTS) {
+    throw new Error(
+      "DEMO_PAYMENTS cannot be enabled in production: it marks orders paid without taking money.",
+    );
+  }
   const problems: string[] = [];
   if (env.DATABASE_URL.startsWith("file:")) {
     problems.push("DATABASE_URL points at a local SQLite file, use PostgreSQL in production");

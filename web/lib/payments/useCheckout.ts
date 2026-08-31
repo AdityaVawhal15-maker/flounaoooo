@@ -112,7 +112,7 @@ export function useCheckout(
     setStage("processing");
     try {
       const d = await api<{
-        mode: "cashfree" | "simulated" | "cash";
+        mode: "cashfree" | "simulated" | "cash" | "demo";
         paymentSessionId?: string;
         cfEnv?: string;
       }>("/api/payments/checkout", {
@@ -125,6 +125,13 @@ export function useCheckout(
       // existed and would otherwise still say "paid" by card.
       if (d.mode === "cash") {
         setPaidWithCash(true);
+        setStage("done");
+        return;
+      }
+
+      // Demo mode: the server settled it, so there is nothing to hand off to
+      // and nowhere to redirect. Shows the same success the real flow does.
+      if (d.mode === "demo") {
         setStage("done");
         return;
       }
