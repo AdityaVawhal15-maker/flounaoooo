@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import type { Request } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
@@ -116,13 +118,66 @@ const createShopOrder = z.object({
 
 // Prices are always recomputed server-side from the catalog/quote engine —
 // a tampered client cannot set its own amount.
+/**
+ * The client's key for one order attempt, if it sent one.
+ *
+ * A double-tap, a connection that retried, or a back-then-submit all send the
+ * same request again, and each one used to become its own order the customer
+ * could be charged for. Verified against the live app: three identical
+ * requests produced three orders.
+ *
+ * Deliberately only an explicit key, never a hash of the body. Those answer
+ * different questions: a key means "this is a retry of that attempt", while a
+ * matching body only means "you ordered the same thing", and ordering the same
+ * dish twice is something people genuinely do. Deduping on content silently
+ * refused the second one, which the test suite caught by buying a dish twice
+ * on purpose.
+ *
+ * A caller that sends no key gets no protection, which is the honest trade:
+ * the alternative was protecting it from a second order it actually wanted.
+ */
+function requestFingerprint(req: Request): string | null {
+  const supplied = req.get("idempotency-key")?.trim();
+  if (!supplied || supplied.length > 200) return null;
+  return supplied;
+}
+
+/**
+ * How long the same request keeps returning the same order.
+ *
+ * Long enough to cover a retry and a frustrated second tap, short enough that
+ * genuinely ordering the same thing again later still works. Somebody booking
+ * an identical trip twice within two minutes is rare; being charged twice for
+ * one tap is not something to risk against it.
+ */
+const IDEMPOTENCY_WINDOW_MS = 10 * 60_000;
+
 ordersRouter.post(
   "/",
   // Cart variant first: both food shapes share domain, so plain union with
   // the more specific (items[]) schema ahead.
   validateBody(z.union([createFoodCartOrder, createFoodOrder, createRideOrder, createShopOrder])),
   async (req, res, next) => {
+    // Outside the try so the conflict handler below can still see it.
+    const fingerprint = requestFingerprint(req);
     try {
+      // A retry of an attempt we already completed? Hand back the order it
+      // made rather than making a second one.
+      if (fingerprint) {
+        const recent = await prisma.order.findFirst({
+          where: {
+            userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
+            createdAt: { gte: new Date(Date.now() - IDEMPOTENCY_WINDOW_MS) },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (recent) {
+          res.status(200).json({ order: recent, deduplicated: true });
+          return;
+        }
+      }
+
       const body = req.body as
         | z.infer<typeof createFoodCartOrder>
         | z.infer<typeof createFoodOrder>
@@ -224,6 +279,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "food",
             status: "pending_payment",
             provider: first.platform,
@@ -331,6 +387,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "food",
             status: "pending_payment",
             provider: quote.platform,
@@ -417,6 +474,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "shop",
             status: "pending_payment",
             provider: quote.platform,
@@ -492,6 +550,7 @@ ordersRouter.post(
       const order = await prisma.order.create({
         data: {
           userId: req.userId!,
+          ...(fingerprint ? { requestKey: fingerprint } : {}),
           domain: "ride",
           status: "pending_payment",
           provider: quote.provider,
@@ -523,6 +582,22 @@ ordersRouter.post(
       void emitOrderDiscovery(order);
       res.status(201).json({ order });
     } catch (err) {
+      // Two identical requests in flight together both pass the check above
+      // and both try to insert. The unique index stops the second, which is
+      // the outcome that matters, but the loser was being handed a 500 for a
+      // request that had in fact succeeded once. Give it the order that won.
+      if (fingerprint && (err as { code?: string }).code === "P2002") {
+        const existing = await prisma.order
+          .findFirst({
+            where: { userId: req.userId!, requestKey: fingerprint },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => null);
+        if (existing) {
+          res.status(200).json({ order: existing, deduplicated: true });
+          return;
+        }
+      }
       next(err);
     }
   },

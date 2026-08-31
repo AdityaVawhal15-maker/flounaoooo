@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { RideQuote } from "@/components/chat/types";
 import type { Advice } from "@/components/ui/AdviceBanner";
@@ -34,6 +34,13 @@ export type Vehicle = (typeof VEHICLES)[number];
 
 export type RideBooking = ReturnType<typeof useRideBooking>;
 
+/** Random enough that two devices cannot collide on one. */
+function newAttemptKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `k-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function useRideBooking(opts: {
   /** Destination carried in from chat, geocoded on mount. */
   initialDrop?: string | null;
@@ -61,6 +68,15 @@ export function useRideBooking(opts: {
   const [picking, setPicking] = useState<"pickup" | "drop" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // One key per booking attempt.
+  //
+  // A double-tap, or a connection that retried the request, sends the same
+  // booking twice, and the server has no other way to tell that from somebody
+  // deliberately booking the same trip again. Held in a ref so both taps carry
+  // the same key, and replaced after a booking succeeds so the next trip is a
+  // new attempt rather than a repeat of the last one.
+  const attemptKey = useRef<string>(newAttemptKey());
 
   /** Turns a coordinate into a named place, falling back to the coordinate. */
   const nameFor = useCallback(
@@ -305,6 +321,7 @@ export function useRideBooking(opts: {
     try {
       const d = await api<{ order: { id: string } }>("/api/orders", {
         method: "POST",
+        headers: { "Idempotency-Key": attemptKey.current },
         json: {
           domain: "ride",
           provider: selected.provider,
@@ -318,6 +335,8 @@ export function useRideBooking(opts: {
           ...(scheduledAt ? { scheduledAt } : {}),
         },
       });
+      // Booked. The next one is a new decision, not a retry of this.
+      attemptKey.current = newAttemptKey();
       return d.order.id;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not book the ride");

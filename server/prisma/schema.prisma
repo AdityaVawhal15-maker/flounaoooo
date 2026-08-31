@@ -911,6 +911,14 @@ model ChatMessage {
 // Unified order for both domains; domain-specific details live in `details` JSON.
 model Order {
   id          String   @id @default(cuid())
+  // Fingerprint of the request that created this order.
+  //
+  // A double-tap, a flaky connection retrying, or a back-then-submit all send
+  // the same request twice, and without this each one became a separate order
+  // the customer could be charged for. Unique per user rather than globally:
+  // two people ordering the same dish from the same place in the same minute
+  // is ordinary, and must not collide.
+  requestKey  String?
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   domain      String // "food" | "ride"
@@ -930,6 +938,7 @@ model Order {
   trackingEvents TrackingEvent[]
   rating         OrderRating?
 
+  @@unique([userId, requestKey])
   @@index([userId, domain])
 }
 
