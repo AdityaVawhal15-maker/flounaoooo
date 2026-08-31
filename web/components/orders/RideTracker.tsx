@@ -410,15 +410,15 @@ export function RideTracker({
                   >
                     <Phone size={17} />
                   </a>
-                  <a
-                    href="sms:"
-                    onClick={(e) => e.preventDefault()}
-                    title={t.driver.phoneMasked}
-                    aria-label="Message"
+                  {/* Was an anchor to "sms:" with its default prevented: a
+                      button that looked live and did nothing. */}
+                  <Link
+                    href={`/orders/${orderId}/chat`}
+                    aria-label={`Message ${t.driver.name}`}
                     className="flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-card text-ink transition-transform hover:scale-105"
                   >
                     <MessageCircle size={17} />
-                  </a>
+                  </Link>
                 </div>
               )}
               {isFood && !done && (

@@ -12,6 +12,7 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { quotesForProduct } from "../shop/shop.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
+import { catchUpDriverMessages } from "../rides/rideChat.service.js";
 import { creditCashback } from "../users/wallet.service.js";
 import { getConfig } from "../backoffice/config.service.js";
 import {
@@ -688,6 +689,103 @@ ordersRouter.get("/:id", async (req, res, next) => {
 // Live fulfilment tracking for a ride — driver, OTP, vehicle and live GPS.
 // Backed by the active provider (simulation now, real ONDC once onboarded).
 // Works for every user; never gated behind subscription.
+/**
+ * The conversation with the driver of one ride.
+ *
+ * The rider's messages are real and kept. The driver's are produced from the
+ * states the ride has actually reached, by the same simulation that invents
+ * the driver's name and plate, and are flagged so the screen can keep saying
+ * so. A rider must never be unable to tell which of the two they are reading.
+ */
+ordersRouter.get("/:id/messages", async (req, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      include: { trackingEvents: { orderBy: { createdAt: "asc" }, take: 1 } },
+    });
+    if (!order) throw new ApiError(404, "Order not found");
+    if (order.domain !== "ride") throw new ApiError(400, "This order has no driver");
+    if (order.status === "pending_payment")
+      throw new ApiError(409, "Ride not confirmed yet");
+
+    // Bring the driver's side up to whatever the ride has reached, then read
+    // the whole thread back in one order.
+    if (order.status !== "cancelled") {
+      const d = JSON.parse(order.details) as {
+        pickupLat?: number; pickupLng?: number;
+        dropLat?: number; dropLng?: number;
+        vehicle?: "bike" | "auto" | "cab";
+        routeGeometry?: [number, number][];
+      };
+      if (d.pickupLat != null && d.pickupLng != null && d.dropLat != null && d.dropLng != null) {
+        const bookedAt = order.trackingEvents[0]?.createdAt ?? order.createdAt;
+        if (bookedAt.getTime() <= Date.now()) {
+          const assignment = await rideProvider.track({
+            orderId: order.id,
+            providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+            vehicle: d.vehicle ?? "cab",
+            pickup: { lat: d.pickupLat, lng: d.pickupLng },
+            drop: { lat: d.dropLat, lng: d.dropLng },
+            routeGeometry:
+              d.routeGeometry ?? ([[d.pickupLng, d.pickupLat], [d.dropLng, d.dropLat]] as [number, number][]),
+            bookedAt,
+            domain: "ride",
+          });
+          await catchUpDriverMessages({
+            orderId: order.id,
+            state: assignment.state,
+            etaMinutes: assignment.pickupEtaMinutes,
+            plate: assignment.driver?.vehicle.plate ?? null,
+          });
+        }
+      }
+    }
+
+    const messages = await prisma.rideMessage.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, sender: true, body: true, simulated: true, createdAt: true },
+    });
+    res.json({ messages, simulated: rideProvider.mode === "simulation" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+ordersRouter.post(
+  "/:id/messages",
+  validateBody(z.object({ body: z.string().trim().min(1).max(500) }).strict()),
+  async (req, res, next) => {
+    try {
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.id, userId: req.userId! },
+        select: { id: true, domain: true, status: true },
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+      if (order.domain !== "ride") throw new ApiError(400, "This order has no driver");
+      if (order.status === "pending_payment")
+        throw new ApiError(409, "Ride not confirmed yet");
+      // A finished or cancelled ride keeps its transcript readable but takes
+      // no new messages: there is nobody on the other end any more.
+      if (order.status === "completed" || order.status === "cancelled")
+        throw new ApiError(409, "This ride has ended");
+
+      const message = await prisma.rideMessage.create({
+        data: {
+          orderId: order.id,
+          sender: "rider",
+          body: (req.body as { body: string }).body,
+          simulated: false,
+        },
+        select: { id: true, sender: true, body: true, simulated: true, createdAt: true },
+      });
+      res.status(201).json({ message });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 ordersRouter.get("/:id/track", async (req, res, next) => {
   try {
     const order = await prisma.order.findFirst({

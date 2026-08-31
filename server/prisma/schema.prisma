@@ -910,7 +910,7 @@ model ChatMessage {
 
 // Unified order for both domains; domain-specific details live in `details` JSON.
 model Order {
-  id          String   @id @default(cuid())
+  id           String        @id @default(cuid())
   // Fingerprint of the request that created this order.
   //
   // A double-tap, a flaky connection retrying, or a back-then-submit all send
@@ -918,21 +918,22 @@ model Order {
   // the customer could be charged for. Unique per user rather than globally:
   // two people ordering the same dish from the same place in the same minute
   // is ordinary, and must not collide.
-  requestKey  String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  domain      String // "food" | "ride"
-  status      String // "created" | "pending_payment" | "confirmed" | "in_progress" | "completed" | "cancelled"
-  provider    String // "ondc" | "swiggy" | "zomato" | "uber" | "ola" | "rapido" (simulated for now)
-  fulfillment String // "in_app" (ONDC) | "redirect" (closed platform)
-  title       String // human-readable summary, e.g. "Dum Biryani — Hotel Paradise"
-  details     String // JSON: items / route / provider quote snapshot
-  amount      Int // paise — integer money, never floats
-  savedPaise  Int      @default(0) // vs next-best option at decision time
-  currency    String   @default("INR")
-  addressId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  requestKey   String?
+  rideMessages RideMessage[]
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain       String // "food" | "ride"
+  status       String // "created" | "pending_payment" | "confirmed" | "in_progress" | "completed" | "cancelled"
+  provider     String // "ondc" | "swiggy" | "zomato" | "uber" | "ola" | "rapido" (simulated for now)
+  fulfillment  String // "in_app" (ONDC) | "redirect" (closed platform)
+  title        String // human-readable summary, e.g. "Dum Biryani — Hotel Paradise"
+  details      String // JSON: items / route / provider quote snapshot
+  amount       Int // paise — integer money, never floats
+  savedPaise   Int           @default(0) // vs next-best option at decision time
+  currency     String        @default("INR")
+  addressId    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   payment        Payment?
   trackingEvents TrackingEvent[]
@@ -1333,4 +1334,33 @@ model BreachIncident {
   updatedAt DateTime  @updatedAt
 
   @@index([status, notifyDueBy])
+}
+
+/// A message between a rider and the driver of one ride.
+///
+/// The rider's own messages are real and kept here. The driver's side is
+/// produced by the simulation that already invents the driver's name, plate
+/// and OTP, and is marked as such rather than being passed off as a person
+/// typing: `simulated` is what the screen reads to keep saying so.
+model RideMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// "rider" or "driver". Not a userId: the driver is not an account here, and
+  /// will be a provider identity rather than one of ours once rides are real.
+  sender    String
+  body      String
+  /// Which line of the driver script this is, for the driver's side only.
+  ///
+  /// Deduping on the text itself looked equivalent and was not: the arrival
+  /// line carries a countdown, so "about 2 minutes" and "about 1 minute" are
+  /// different strings and the driver announced the ETA again every minute.
+  /// The key is what is actually unique, and the constraint enforces it.
+  scriptKey String?
+  /// True while no live driver network is connected, so the rider is told.
+  simulated Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, scriptKey])
+  @@index([orderId, createdAt])
 }
