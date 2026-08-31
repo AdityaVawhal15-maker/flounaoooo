@@ -14,7 +14,20 @@ import {
   simulateResolutionProposal,
   simulateRefundCompleted,
 } from "../complaints/complaints.admin.js";
+import {
+  assignOfficer,
+  concludeGrievance,
+  decideAppeal,
+  grievanceQueue,
+  openAppeal,
+  recordContact,
+} from "../complaints/grievance.ops.js";
+import {
+  answerAppeal,
+  listAppealsForOps,
+} from "../compliance/appeals.service.js";
 import { validateBody } from "../../middleware/validate.js";
+import { ApiError } from "../../middleware/error.js";
 import { auditFromReq } from "./audit.service.js";
 import {
   searchUsers,
@@ -264,6 +277,154 @@ adminRouter.patch(
 //
 // The live walkthrough asks us to show the backend record and the ONDC message
 // log beside the customer's screen, so the verifier can connect the two.
+
+// --- The grievance queue -------------------------------------------------
+//
+// The complaint routes above are about the ONDC protocol. These are about the
+// promises we published to the customer: assigned in 48 hours, contacted in 5
+// days, concluded in 30, an appeal decided in 15. Until now the console could
+// simulate a seller acknowledgement but could not do any of those four, so the
+// clocks ran with nobody able to stop them.
+
+adminRouter.get("/grievances", async (req, res, next) => {
+  try {
+    const includeSettled = req.query.all === "1";
+    res.json({ grievances: await grievanceQueue({ includeSettled }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post(
+  "/grievances/:id/assign",
+  validateBody(z.object({ officerId: z.string().trim().min(1).max(120) }).strict()),
+  async (req, res, next) => {
+    try {
+      const { officerId } = req.body as { officerId: string };
+      const grievance = await assignOfficer(req.params.id!, officerId);
+      await auditFromReq(req, {
+        action: "grievance.assign",
+        targetType: "complaint",
+        targetId: req.params.id!,
+        summary: `Assigned grievance officer ${officerId}`,
+      });
+      res.json({ grievance });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+adminRouter.post("/grievances/:id/contacted", async (req, res, next) => {
+  try {
+    const grievance = await recordContact(req.params.id!);
+    await auditFromReq(req, {
+      action: "grievance.contacted",
+      targetType: "complaint",
+      targetId: req.params.id!,
+      summary: "Recorded first contact with the customer",
+    });
+    res.json({ grievance });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post(
+  "/grievances/:id/conclude",
+  validateBody(z.object({ outcome: z.string().trim().min(5).max(4000) }).strict()),
+  async (req, res, next) => {
+    try {
+      const { outcome } = req.body as { outcome: string };
+      const grievance = await concludeGrievance(req.params.id!, outcome);
+      await auditFromReq(req, {
+        action: "grievance.conclude",
+        targetType: "complaint",
+        targetId: req.params.id!,
+        summary: "Concluded the grievance investigation",
+      });
+      res.json({ grievance });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+adminRouter.post("/grievances/:id/appeal", async (req, res, next) => {
+  try {
+    const grievance = await openAppeal(req.params.id!);
+    await auditFromReq(req, {
+      action: "grievance.appeal.open",
+      targetType: "complaint",
+      targetId: req.params.id!,
+      summary: "Opened the customer's internal appeal",
+    });
+    res.json({ grievance });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post(
+  "/grievances/:id/appeal/decide",
+  validateBody(z.object({ outcome: z.string().trim().min(5).max(4000) }).strict()),
+  async (req, res, next) => {
+    try {
+      const { outcome } = req.body as { outcome: string };
+      const grievance = await decideAppeal(req.params.id!, outcome);
+      await auditFromReq(req, {
+        action: "grievance.appeal.decide",
+        targetType: "complaint",
+        targetId: req.params.id!,
+        summary: "Decided the internal appeal",
+      });
+      res.json({ grievance });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// --- Challenges to a decision the engine made ----------------------------
+
+adminRouter.get("/appeals", async (req, res, next) => {
+  try {
+    res.json({ appeals: await listAppealsForOps({ openOnly: req.query.all !== "1" }) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.post(
+  "/appeals/:id/answer",
+  validateBody(z.object({ response: z.string().trim().min(5).max(4000) }).strict()),
+  async (req, res, next) => {
+    try {
+      const { response } = req.body as { response: string };
+      // The reviewer is whoever is signed in, taken from the session rather
+      // than from the request body. A person may require that a human looked
+      // at an automated decision, and a name the caller could type is not
+      // evidence that one did.
+      const result = await answerAppeal({
+        appealId: req.params.id!,
+        reviewerId: req.userId!,
+        response,
+      });
+      if (!result.ok) {
+        throw new ApiError(result.reason === "not_found" ? 404 : 400, "Could not answer that appeal");
+      }
+      await auditFromReq(req, {
+        action: "appeal.answer",
+        targetType: "decision_appeal",
+        targetId: req.params.id!,
+        summary: "Answered a challenge to a recommendation",
+      });
+      res.json(result.appeal);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 adminRouter.get("/complaints", async (req, res, next) => {
   try {

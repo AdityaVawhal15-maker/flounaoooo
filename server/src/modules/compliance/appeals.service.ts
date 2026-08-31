@@ -135,3 +135,44 @@ export async function overdueAppeals(now = new Date()) {
     },
   });
 }
+
+/**
+ * The operator's view of the appeal queue.
+ *
+ * Sorted by deadline rather than by arrival, and appeals where a human review
+ * was explicitly asked for come first among equals. That request is the one
+ * with legal weight behind it, so it should not sit behind a pile of ordinary
+ * feedback simply because it arrived later.
+ */
+export async function listAppealsForOps(opts: { openOnly?: boolean } = {}) {
+  const rows = await prisma.decisionAppeal.findMany({
+    where: opts.openOnly === false ? {} : { status: { in: ["open", "reviewing"] } },
+    orderBy: { dueBy: "asc" },
+    take: 200,
+    select: {
+      id: true,
+      reason: true,
+      wanted: true,
+      humanReviewRequested: true,
+      status: true,
+      dueBy: true,
+      orderId: true,
+      response: true,
+      respondedAt: true,
+      reviewerId: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  const now = Date.now();
+  return rows
+    .map((r) => ({ ...r, overdue: !r.respondedAt && r.dueBy.getTime() < now }))
+    .sort((a, b) => {
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+      if (a.humanReviewRequested !== b.humanReviewRequested) {
+        return a.humanReviewRequested ? -1 : 1;
+      }
+      return a.dueBy.getTime() - b.dueBy.getTime();
+    });
+}

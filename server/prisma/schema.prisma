@@ -339,6 +339,12 @@ model Complaint {
   investigateBy DateTime?
   assignedAt    DateTime?
   contactedAt   DateTime?
+  // Who is handling it. Free text rather than a relation to User: a grievance
+  // officer is a role a person holds, and the IT Rules ask us to publish who
+  // it is, not to guarantee they hold an account in this system.
+  officerId     String?
+  // The written conclusion given to the customer.
+  resolution    String?
 
   // One internal appeal, decided within 15 days (3.7 step 5).
   appealedAt    DateTime?
