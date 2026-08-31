@@ -286,7 +286,7 @@ async function buildAssistantPayload(
           : // Chat has no pickup coordinates, so these fares price a typical
             // 8 km city trip. Saying so keeps a short hop and an airport run
             // from both being quoted at the same number without explanation.
-            `Cheapest effective fare is ${quotes[0]?.displayName} after offers, indicative for a typical 8 km trip. Open Rides to set your exact pickup and drop.`,
+            `Cheapest effective fare is ${quotes[0]?.displayName} after offers, for a typical 8 km trip. Set your pickup and drop below to see the exact price.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };

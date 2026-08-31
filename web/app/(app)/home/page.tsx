@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { InlinePayment } from "@/components/chat/inline/InlinePayment";
 import { rupees } from "@/lib/money";
 import {
   ComboRecommendation,
@@ -97,6 +98,11 @@ function ChatHome() {
   // Temporary chat: nothing is persisted server-side and the thread lives only
   // in this component's state.
   const { temporary, resetToken } = useTemporaryChat();
+  // Orders placed from inside the conversation, keyed by the message whose
+  // card placed them. Keeping it per message rather than as one "current
+  // order" means a thread with two bookings in it still shows each payment
+  // under the thing it belongs to.
+  const [ordered, setOrdered] = useState<Record<string, string>>({});
   const [usual, setUsual] = useState<Usual | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -333,7 +339,21 @@ function ChatHome() {
                   )}
                   {m.recommendation?.type === "ride" && (
                     <div className="mt-3">
-                      <RideRecommendation rec={m.recommendation} />
+                      <RideRecommendation
+                        rec={m.recommendation}
+                        onBook={(orderId) =>
+                          setOrdered((o) => ({ ...o, [m.id]: orderId }))
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Payment, in the thread, under the card that booked it.
+                      The journey used to end at a link out to /pay, which is
+                      the point at which a conversation stops being one. */}
+                  {ordered[m.id] && (
+                    <div className="mt-3">
+                      <InlinePayment orderId={ordered[m.id]!} />
                     </div>
                   )}
                   {m.recommendation?.type === "shop" && (

@@ -25,6 +25,7 @@ import { DishArt } from "@/components/food/DishArt";
 import { useCart } from "@/lib/cart";
 import { FoodHeroCard } from "./FoodHeroCard";
 import { WhyBest } from "./WhyBest";
+import { InlineRideBooking } from "./inline/InlineRideBooking";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import type {
@@ -397,8 +398,18 @@ function RideQuoteRow({
 // change vehicle type, then the (cheapest-first) options for that type.
 export function RideRecommendation({
   rec,
+  onBook,
 }: {
   rec: Extract<Recommendation, { type: "ride" }>;
+  /**
+   * Given when the surrounding surface can finish a booking itself.
+   *
+   * The chat passes it and gets the map, both endpoints and confirm in the
+   * thread. Anywhere else, the quote rows keep linking to the rides screen,
+   * which is the only difference between the two and the reason this is one
+   * component rather than two.
+   */
+  onBook?: (orderId: string) => void;
 }) {
   // Vehicle types present, in a stable display order.
   const order = ["bike", "auto", "cab"];
@@ -438,7 +449,7 @@ export function RideRecommendation({
       <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-4">
         <div className="flex min-w-0 flex-col gap-2.5">
           {/* Vehicle switcher — Figma desktop shows Bike / Cab / Auto tabs */}
-          {vehicles.length > 1 && (
+          {!onBook && vehicles.length > 1 && (
             <div className="flex rounded-pill bg-accent-soft/40 p-1">
               {vehicles.map((v) => (
                 <button
@@ -455,14 +466,22 @@ export function RideRecommendation({
             </div>
           )}
 
-          {shown.map((q) => (
-            <RideQuoteRow
-              key={q.productName}
-              q={q}
+          {onBook ? (
+            <InlineRideBooking
               drop={rec.drop}
               scheduledAt={rec.scheduledAt}
+              onBooked={onBook}
             />
-          ))}
+          ) : (
+            shown.map((q) => (
+              <RideQuoteRow
+                key={q.productName}
+                q={q}
+                drop={rec.drop}
+                scheduledAt={rec.scheduledAt}
+              />
+            ))
+          )}
         </div>
 
         {/* Insights rail (desktop only) */}
