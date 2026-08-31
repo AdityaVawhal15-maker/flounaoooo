@@ -113,8 +113,10 @@ export default function GrievancesPage() {
             If something goes wrong with an order, open it and choose Need Help.
             Your complaint and its progress will appear here.
           </p>
+          {/* /history, not /orders: the orders list lives under Booking
+              History and /orders is not a route. This was a dead link. */}
           <Link
-            href="/orders"
+            href="/history"
             className="tap-target mt-5 rounded-pill bg-acct-accent px-5 py-3 text-[14px] font-bold text-white"
           >
             Go to my orders
