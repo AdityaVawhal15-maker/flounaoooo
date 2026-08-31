@@ -60,6 +60,12 @@ const ISSUE_COPY: Record<string, string> = {
   DELAYED_DELIVERY: "Delayed delivery",
   QUALITY_ISSUE: "Quality issue",
   ORDER_NOT_RECEIVED: "Order not received",
+  // Ride complaints, which read nothing like the delivery ones.
+  DRIVER_NOT_ARRIVED: "Driver never arrived",
+  RIDE_NOT_COMPLETED: "Ride ended early",
+  FARE_DISPUTE: "Charged more than quoted",
+  DRIVER_CONDUCT: "Driver behaviour or safety",
+  VEHICLE_ISSUE: "Vehicle not as described",
   FULFILLMENT: "Delivery issue",
   ITEM: "Item issue",
   PAYMENT: "Payment issue",

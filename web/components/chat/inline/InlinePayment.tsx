@@ -46,11 +46,19 @@ export function InlinePayment({
   );
 
   if (c.stage === "done") {
+    // A ride is not an order and a rider is not tracking a parcel. Using one
+    // word for both is how "item damaged" ends up offered to somebody whose
+    // complaint is about a driver.
+    const isRide = c.status.domain === "ride";
     return (
       <div className="w-full rounded-card border border-success/30 bg-success/5 p-4">
         <p className="flex items-center gap-2 text-[14px] font-bold text-success">
           <CheckCircle2 size={17} />
-          {c.paidWithCash ? "Order confirmed" : "Payment successful"}
+          {c.paidWithCash
+            ? isRide
+              ? "Ride confirmed"
+              : "Order confirmed"
+            : "Payment successful"}
         </p>
         <p className="mt-1 text-[13px] text-ink">
           {c.status.title} · {rupees(c.status.amount)}
@@ -62,7 +70,7 @@ export function InlinePayment({
             onClick={onPaid}
             className="tap-target rounded-pill bg-accent px-4 py-2.5 text-[13px] font-bold text-white"
           >
-            Track it
+            {isRide ? "Track ride" : "Track order"}
           </Link>
           <Link
             href={`/orders/${orderId}/invoice`}
