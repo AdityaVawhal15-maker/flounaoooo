@@ -105,6 +105,8 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** When it was sent, ISO. Absent on restored history that never stored one. */
+  at?: string;
   domain?: string;
   recommendation?: Recommendation | null;
 };

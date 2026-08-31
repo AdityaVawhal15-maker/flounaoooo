@@ -14,7 +14,6 @@ import {
   Tag,
   Utensils,
   Car,
-  CircleCheck,
   Info,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -26,6 +25,8 @@ import { useCart } from "@/lib/cart";
 import { FoodHeroCard } from "./FoodHeroCard";
 import { WhyBest } from "./WhyBest";
 import { InlineRideBooking } from "./inline/InlineRideBooking";
+import { SearchedPlatforms } from "./PlatformMark";
+import { FlounaInsights, cheaperVehicleHack } from "./FlounaInsights";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import type {
@@ -54,7 +55,10 @@ function PickBadge({ reason }: { reason?: PickReason }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+        // self-start, or the flex column it sits in stretches it into a
+        // full-width bar with the label marooned on the left. It reads as a
+        // broken component rather than a badge.
+        "inline-flex w-fit self-start items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
         b.className,
       )}
     >
@@ -166,6 +170,14 @@ export function FoodRecommendation({
 
       <WhyBest best={rec.best} alternatives={rec.alternatives} />
 
+      {/* The places we actually looked, as evidence for the claim above it.
+          "We compared these" is an assertion; the row of marks is the proof,
+          and it is worth more to somebody deciding whether to trust the answer
+          than another sentence saying the same thing. */}
+      <SearchedPlatforms
+        platforms={[rec.best.platform, ...rec.alternatives.map((a) => a.platform)]}
+      />
+
       {/* Figma: section header with the count of options the engine compared */}
       <div className="flex items-center justify-between gap-2">
         <p className="text-[15px] font-bold text-ink">Available Providers</p>
@@ -190,28 +202,10 @@ export function FoodRecommendation({
           <div className="hidden lg:block">
             <InsightCard text={rec.why} />
           </div>
-          {rec.best.reviewSummary && (
-            <div className="rounded-card border border-accent/30 bg-accent-soft/40 p-4">
-              <p className="text-[13px] italic leading-relaxed text-ink">
-                “{rec.best.reviewSummary}”
-              </p>
-            </div>
-          )}
-          {rec.best.offers.length > 0 && (
-            <div className="rounded-card border border-success/30 bg-success/5 p-4">
-              <p className="flex items-center gap-1.5 text-[12px] font-bold text-success">
-                <Tag size={13} /> Available offers and coupons
-              </p>
-              <div className="mt-1.5 flex flex-col gap-1">
-                {rec.best.offers.map((o) => (
-                  <p key={o.label} className="flex items-center gap-1.5 text-[12px] text-ink">
-                    <CircleCheck size={13} className="shrink-0 text-success" />
-                    {o.label}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
+          <FlounaInsights
+            quote={rec.best.reviewSummary}
+            offers={rec.best.offers}
+          />
         </div>
       </div>
 
@@ -228,6 +222,16 @@ export function FoodRecommendation({
               <FoodAltRow key={`${q.dishId}-${q.platform}`} q={q} />
             ))}
           </div>
+
+          {/* Ordering together, offered where the alternatives are: the moment
+              somebody is looking at four dishes is the moment splitting one
+              bill occurs to them. */}
+          <Link
+            href="/food/group"
+            className="tap-target mt-1 flex w-full items-center justify-center rounded-2xl border border-accent/50 bg-accent-soft/30 px-4 py-3 text-[14px] font-bold text-accent transition-colors hover:bg-accent-soft/60 lg:hidden"
+          >
+            Group ordering
+          </Link>
 
           {/* Desktop: "Options we think you'll like" card grid (Figma) */}
           <div className="hidden lg:block">
@@ -434,6 +438,8 @@ export function RideRecommendation({
 
       {rec.advice && <AdviceBanner advice={rec.advice} />}
 
+      <SearchedPlatforms platforms={rec.quotes.map((q) => q.provider)} />
+
       {rec.scheduledAt && (
         <p className="flex items-center gap-1.5 self-start rounded-pill bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent">
           <Clock size={12} /> Scheduled for{" "}
@@ -484,9 +490,25 @@ export function RideRecommendation({
           )}
         </div>
 
-        {/* Insights rail (desktop only) */}
-        <div className="hidden lg:block">
-          <InsightCard text={rec.why} />
+        <div className="flex flex-col gap-3">
+          {/* Card form on desktop only: mobile already has this same text as a
+              paragraph above, and printing it twice on the smaller screen is
+              the one place there is no room for it. */}
+          <div className="hidden lg:block">
+            <InsightCard text={rec.why} />
+          </div>
+          {/* Worked out from the quotes, never written in. If no alternative
+              is meaningfully cheaper, no tile appears rather than a made-up
+              saving. */}
+          <FlounaInsights
+            hacks={[
+              cheaperVehicleHack(
+                { vehicle: shown[0]?.vehicle ?? "", effectivePaise: shown[0]?.effectivePaise ?? 0 },
+                rec.quotes,
+              ),
+            ].filter((h): h is NonNullable<typeof h> => h !== null)}
+            offers={shown[0]?.offers ?? []}
+          />
         </div>
       </div>
     </FadeIn>

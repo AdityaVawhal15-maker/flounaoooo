@@ -414,6 +414,7 @@ chatRouter.post(
           id: assistantMessage.id,
           role: "assistant",
           content: payload.reply,
+          at: assistantMessage.createdAt.toISOString(),
           domain: payload.intent.domain,
           recommendation: payload.recommendation ?? null,
         },
@@ -455,6 +456,10 @@ chatRouter.get("/sessions/:id", async (req, res, next) => {
           id: m.id,
           role: m.role,
           content: m.content,
+          // When it was sent. Without this a restored conversation loses every
+          // timestamp, and so does the live one the moment the URL gains a
+          // ?chat= and the client swaps its local list for this response.
+          at: m.createdAt.toISOString(),
           ...(m.intent ? JSON.parse(m.intent) : {}),
         })),
       },

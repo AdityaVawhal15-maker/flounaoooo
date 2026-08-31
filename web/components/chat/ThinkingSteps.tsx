@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Sparkles } from "lucide-react";
 
 // ChatGPT/Claude-style "what the AI is doing" trace. Steps reveal one by one
 // and complete, so the user sees the work happening (builds trust). This is a
@@ -31,11 +31,15 @@ export function ThinkingSteps({ simple = false }: { simple?: boolean }) {
   }, [simple]);
 
   if (simple) {
+    // The pill from the design. Deliberately says "Searching" rather than
+    // "Thinking": what the engine is doing at this moment is looking across
+    // providers, and naming the actual work is more reassuring than naming the
+    // wait. The step-by-step trace still runs for real comparisons.
     return (
-      <div className="flex items-center gap-2 pl-1 text-[13px]">
-        <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
+      <div className="flex w-fit items-center gap-2 rounded-pill border border-line bg-card px-3.5 py-2 text-[13px] shadow-soft">
+        <Sparkles size={14} className="shrink-0 animate-pulse text-accent" />
         <span className="font-medium text-ink">
-          Thinking
+          Searching
           <ThinkingDots />
         </span>
       </div>

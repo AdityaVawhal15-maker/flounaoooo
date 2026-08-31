@@ -1,0 +1,111 @@
+import { Zap, Tag, CircleCheck } from "lucide-react";
+import { rupees } from "@/lib/money";
+
+// The insights panel from the design: the review, the cheaper route through the
+// same order, and the offers already applied.
+//
+// Every tile here is derived from the quotes we actually hold. The design also
+// shows a payment-cashback tile and a bundle tile, and neither has any data
+// behind it yet, so neither is invented here. A panel headed "insights" that
+// makes up a ₹40 cashback is worse than one tile shorter, because the whole
+// point of it is that the numbers can be trusted.
+//
+// Rendered at both sizes. It used to be desktop only, which dropped it on the
+// size most people use.
+
+export type Hack = { label: string; detail: string };
+
+export function FlounaInsights({
+  quote,
+  hacks = [],
+  offers = [],
+}: {
+  /** A real review of the winning option, when there is one. */
+  quote?: string | null;
+  /** Cheaper or faster ways through the same order, worked out from the quotes. */
+  hacks?: Hack[];
+  offers?: { label: string; discountPaise: number }[];
+}) {
+  if (!quote && hacks.length === 0 && offers.length === 0) return null;
+
+  return (
+    <div className="rounded-card border border-accent/30 bg-accent-soft/40 p-4">
+      <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-accent">
+        <Zap size={12} /> FLOUNA INSIGHTS
+      </p>
+
+      {quote && (
+        <p className="mt-2 text-[13px] italic leading-relaxed text-ink">
+          “{quote}”
+        </p>
+      )}
+
+      {hacks.length > 0 && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {hacks.map((h) => (
+            <div
+              key={h.label}
+              className="rounded-xl border border-line bg-card px-3 py-2.5"
+            >
+              <p className="text-[12px] font-bold text-ink">{h.label}</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-cocoa">
+                {h.detail}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {offers.length > 0 && (
+        <div className="mt-3">
+          <p className="flex items-center gap-1.5 text-[12px] font-bold text-success">
+            <Tag size={13} /> Available offers and coupons
+          </p>
+          <div className="mt-1.5 flex flex-col gap-1">
+            {offers.map((o) => (
+              <p
+                key={o.label}
+                className="flex items-center gap-1.5 text-[12px] text-ink"
+              >
+                <CircleCheck size={13} className="shrink-0 text-success" />
+                {o.label}
+                {o.discountPaise > 0 && (
+                  <span className="text-cocoa">
+                    · saves {rupees(o.discountPaise)}
+                  </span>
+                )}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Switch to a bike and save ₹10", worked out rather than written.
+ *
+ * Only offered when the cheaper option is a genuinely different vehicle and the
+ * saving is worth a sentence. Suggesting somebody downgrade to save one rupee
+ * wastes the one tile they will read.
+ */
+export function cheaperVehicleHack(
+  best: { vehicle: string; effectivePaise: number },
+  alternatives: { vehicle: string; effectivePaise: number; displayName: string }[],
+): Hack | null {
+  const MIN_WORTH_SAYING = 1000; // ₹10 in paise
+  let cheapest: (typeof alternatives)[number] | null = null;
+  for (const a of alternatives) {
+    if (a.vehicle === best.vehicle) continue;
+    if (a.effectivePaise >= best.effectivePaise) continue;
+    if (!cheapest || a.effectivePaise < cheapest.effectivePaise) cheapest = a;
+  }
+  if (!cheapest) return null;
+  const saving = best.effectivePaise - cheapest.effectivePaise;
+  if (saving < MIN_WORTH_SAYING) return null;
+  return {
+    label: "Ride hack",
+    detail: `Switch to ${cheapest.vehicle} and save ${rupees(saving)} on this trip.`,
+  };
+}

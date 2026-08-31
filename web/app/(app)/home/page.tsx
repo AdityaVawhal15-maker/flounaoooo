@@ -175,7 +175,15 @@ function ChatHome() {
     setInput("");
     setMessages((m) => [
       ...m,
-      { id: `u-${Date.now()}`, role: "user", content: message },
+      {
+        id: `u-${Date.now()}`,
+        role: "user",
+        content: message,
+        // Stamped here rather than read back from the server: the bubble is on
+        // screen before any reply exists, and a time that appears late reads
+        // as the message having been sent late.
+        at: new Date().toISOString(),
+      },
     ]);
     setLastAsk(message);
     setThinking(true);
@@ -326,11 +334,36 @@ function ChatHome() {
               className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}
             >
               {m.role === "user" ? (
-                <p className="max-w-[80%] rounded-2xl rounded-br-md bg-cocoa px-4 py-2.5 text-[14px] text-white">
-                  {m.content}
-                </p>
+                <div className="flex max-w-[80%] flex-col items-end">
+                  {/* Tinted rather than solid, as in the design: the question
+                      is the quieter half of the exchange and a heavy dark
+                      block pulls the eye away from the answer under it. */}
+                  <p className="rounded-2xl rounded-br-md border border-accent/25 bg-accent-soft px-4 py-2.5 text-[14px] text-ink">
+                    {m.content}
+                  </p>
+                  {m.at && (
+                    <span className="mt-1 pr-1 text-[11px] text-cocoa/70">
+                      {new Date(m.at).toLocaleTimeString("en-IN", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                </div>
               ) : (
-                <div className="w-full max-w-[95%]">
+                <div
+                  className={cn(
+                    "w-full max-w-[95%]",
+                    // An answer that carries a recommendation is a result, and
+                    // the design gives a result its own surface: the reasoning,
+                    // the evidence and the options read as one thing rather
+                    // than as loose text with cards drifting under it. A plain
+                    // reply stays plain, because a card around "sure, what
+                    // would you like?" is just furniture.
+                    m.recommendation &&
+                      "rounded-card border border-line bg-card p-3.5 shadow-soft",
+                  )}
+                >
                   <p className="text-[14px] leading-relaxed text-ink">{m.content}</p>
                   {m.recommendation?.type === "food" && (
                     <div className="mt-3">
