@@ -129,7 +129,6 @@ model User {
   deviceLocks          DeviceLock[]
   consents             ConsentRecord[]
   privacyRequests      PrivacyRequest[]
-  grievances           GrievanceCase[]
   decisionAppeals      DecisionAppeal[]
 }
 
@@ -331,6 +330,20 @@ model Complaint {
   updatedAt  DateTime  @updatedAt
   resolvedAt DateTime?
   closedAt   DateTime?
+
+  // The deadlines support policy 3.7 publishes, stamped when the case opens.
+  // Stored rather than recomputed, so amending the policy later cannot move a
+  // commitment already made to this person.
+  assignBy      DateTime?
+  contactBy     DateTime?
+  investigateBy DateTime?
+  assignedAt    DateTime?
+  contactedAt   DateTime?
+
+  // One internal appeal, decided within 15 days (3.7 step 5).
+  appealedAt    DateTime?
+  appealDueBy   DateTime?
+  appealOutcome String?
 
   actors      ComplaintActor[]
   actions     ComplaintAction[]
@@ -1242,45 +1255,6 @@ model PrivacyRequest {
 
   @@index([userId, kind])
   @@index([status, dueBy])
-}
-
-// A formal grievance (support policy 3.7, privacy policy 10.3). Kept separate
-// from a support ticket on purpose: a grievance has a named officer, an
-// independent review and four separate published deadlines. Folding it into
-// the ticket queue would lose all four.
-//
-// status: "filed" | "assigned" | "investigating" | "resolved" | "appealed" | "closed"
-model GrievanceCase {
-  id        String  @id @default(cuid())
-  reference String  @unique // human-quotable, e.g. GRV-8F3K2Q
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  String // "service" | "refund" | "privacy" | "conduct" | "other"
-  subject   String
-  body      String
-  orderId   String?
-  status    String  @default("filed")
-  officerId String?
-
-  // The published deadlines, all stamped when the case is filed.
-  assignBy      DateTime // 48 hours
-  contactBy     DateTime // 5 days
-  investigateBy DateTime // 30 days
-  assignedAt    DateTime?
-  contactedAt   DateTime?
-  resolvedAt    DateTime?
-  outcome       String?
-
-  // One appeal only, decided within 15 days (support policy 3.7 step 5).
-  appealedAt    DateTime?
-  appealDueBy   DateTime?
-  appealOutcome String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([status, investigateBy])
 }
 
 // A challenge to something the decision engine chose (AI policy 2.5 and 2.6).

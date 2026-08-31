@@ -14,8 +14,8 @@ export const LANGUAGES: { code: Lang; label: string; speechLang: string }[] = [
 
 export const dictionaries = {
   en: {
-    "pp.hc.grievance": "File a grievance",
-    "pp.hc.grievanceSub": "When support has not put it right",
+    "pp.profile.grievances": "Grievances",
+    "pp.profile.grievancesSub": "Complaints you have raised, and their progress",
     "pp.profile.data": "Your data",
     "pp.profile.dataSub": "Download, delete, cookies and consent",
     // Incognito chat
@@ -780,8 +780,8 @@ export const dictionaries = {
   },
 
   hi: {
-    "pp.hc.grievance": "शिकायत दर्ज करें",
-    "pp.hc.grievanceSub": "जब सहायता से समाधान न हुआ हो",
+    "pp.profile.grievances": "शिकायतें",
+    "pp.profile.grievancesSub": "आपकी दर्ज शिकायतें और उनकी प्रगति",
     "pp.profile.data": "आपका डेटा",
     "pp.profile.dataSub": "डाउनलोड करें, हटाएँ, कुकीज़ और सहमति",
     // Incognito chat
@@ -1539,8 +1539,8 @@ export const dictionaries = {
   },
 
   mr: {
-    "pp.hc.grievance": "तक्रार नोंदवा",
-    "pp.hc.grievanceSub": "जेव्हा मदतीने प्रश्न सुटला नाही",
+    "pp.profile.grievances": "तक्रारी",
+    "pp.profile.grievancesSub": "तुम्ही नोंदवलेल्या तक्रारी आणि त्यांची प्रगती",
     "pp.profile.data": "तुमचा डेटा",
     "pp.profile.dataSub": "डाउनलोड, हटवा, कुकीज आणि संमती",
     // Incognito chat
@@ -2298,8 +2298,8 @@ export const dictionaries = {
   },
 
   kn: {
-    "pp.hc.grievance": "ದೂರು ಸಲ್ಲಿಸಿ",
-    "pp.hc.grievanceSub": "ಬೆಂಬಲದಿಂದ ಪರಿಹಾರ ಸಿಗದಿದ್ದಾಗ",
+    "pp.profile.grievances": "ದೂರುಗಳು",
+    "pp.profile.grievancesSub": "ನೀವು ಸಲ್ಲಿಸಿದ ದೂರುಗಳು ಮತ್ತು ಅವುಗಳ ಪ್ರಗತಿ",
     "pp.profile.data": "ನಿಮ್ಮ ಡೇಟಾ",
     "pp.profile.dataSub": "ಡೌನ್‌ಲೋಡ್, ಅಳಿಸಿ, ಕುಕೀಗಳು ಮತ್ತು ಸಮ್ಮತಿ",
     // Incognito chat
@@ -3057,8 +3057,8 @@ export const dictionaries = {
   },
 
   ta: {
-    "pp.hc.grievance": "முறையீடு பதிவு செய்யுங்கள்",
-    "pp.hc.grievanceSub": "ஆதரவு சரிசெய்யாதபோது",
+    "pp.profile.grievances": "முறையீடுகள்",
+    "pp.profile.grievancesSub": "நீங்கள் பதிவு செய்த முறையீடுகளும் அவற்றின் நிலையும்",
     "pp.profile.data": "உங்கள் தரவு",
     "pp.profile.dataSub": "பதிவிறக்கம், நீக்கம், குக்கீகள் மற்றும் ஒப்புதல்",
     // Incognito chat
@@ -3816,8 +3816,8 @@ export const dictionaries = {
   },
 
   te: {
-    "pp.hc.grievance": "ఫిర్యాదు నమోదు చేయండి",
-    "pp.hc.grievanceSub": "సపోర్ట్ పరిష్కరించనప్పుడు",
+    "pp.profile.grievances": "ఫిర్యాదులు",
+    "pp.profile.grievancesSub": "మీరు నమోదు చేసిన ఫిర్యాదులు, వాటి పురోగతి",
     "pp.profile.data": "మీ డేటా",
     "pp.profile.dataSub": "డౌన్‌లోడ్, తొలగింపు, కుకీలు మరియు సమ్మతి",
     // Incognito chat

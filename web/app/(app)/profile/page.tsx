@@ -25,6 +25,7 @@ import {
   Sun,
   type LucideIcon,
   DatabaseZap,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useI18n } from "@/components/i18n/I18nContext";
@@ -68,6 +69,14 @@ const ACCOUNT: Row[] = [
     icon: DatabaseZap,
     titleKey: "pp.profile.data",
     subtitleKey: "pp.profile.dataSub",
+  },
+  {
+    // The cases themselves are the existing complaint screens. This is only a
+    // way in that does not require remembering which order it was about.
+    href: "/profile/grievances",
+    icon: ShieldAlert,
+    titleKey: "pp.profile.grievances",
+    subtitleKey: "pp.profile.grievancesSub",
   },
   {
     href: "/profile/alerts",

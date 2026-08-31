@@ -76,7 +76,6 @@ export async function buildExport(userId: string) {
     walletEntries,
     consents,
     privacyRequests,
-    grievances,
     appeals,
     paymentMethods,
     priceAlerts,
@@ -108,7 +107,6 @@ export async function buildExport(userId: string) {
     prisma.walletEntry.findMany({ where: { userId } }),
     prisma.consentRecord.findMany({ where: { userId } }),
     prisma.privacyRequest.findMany({ where: { userId } }),
-    prisma.grievanceCase.findMany({ where: { userId } }),
     prisma.decisionAppeal.findMany({ where: { userId } }),
     prisma.paymentMethod.findMany({
       where: { userId },
@@ -139,7 +137,6 @@ export async function buildExport(userId: string) {
     rewards: walletEntries,
     consentHistory: consents,
     privacyRequests,
-    grievances,
     decisionAppeals: appeals,
     savedPaymentMethods: paymentMethods,
     priceAlerts,

@@ -21,13 +21,6 @@ import {
   type CookieChoice,
 } from "./consent.service.js";
 import {
-  appealGrievance,
-  fileGrievance,
-  GRIEVANCE_CATEGORIES,
-  grievanceBreaches,
-  listGrievances,
-} from "./grievance.service.js";
-import {
   APPEAL_WANTED,
   fileAppeal,
   listAppeals,
@@ -297,75 +290,6 @@ complianceRouter.get("/consents", async (req, res, next) => {
       },
     });
     res.json({ consents });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// --- Formal grievances (support policy 3.7, privacy policy 10.3) ---
-
-complianceRouter.get("/grievances", async (req, res, next) => {
-  try {
-    const grievances = await listGrievances(req.userId!);
-    res.json({
-      grievances: grievances.map((g) => ({ ...g, breaches: grievanceBreaches(g) })),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-complianceRouter.post(
-  "/grievances",
-  validateBody(
-    z.object({
-      category: z.enum(GRIEVANCE_CATEGORIES),
-      subject: z.string().trim().min(3).max(140),
-      body: z.string().trim().min(10).max(4000),
-      orderId: z.string().cuid().optional(),
-    }).strict(),
-  ),
-  async (req, res, next) => {
-    try {
-      const result = await fileGrievance({
-        userId: req.userId!,
-        ...(req.body as {
-          category: (typeof GRIEVANCE_CATEGORIES)[number];
-          subject: string;
-          body: string;
-          orderId?: string;
-        }),
-      });
-      if (!result.ok) {
-        throw new ApiError(
-          result.reason === "order_not_found" ? 404 : 503,
-          result.reason === "order_not_found"
-            ? "Order not found"
-            : "Could not file your grievance. Please try again.",
-        );
-      }
-      res.status(201).json(result.grievance);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-complianceRouter.post("/grievances/:id/appeal", async (req, res, next) => {
-  try {
-    const result = await appealGrievance(req.userId!, req.params.id);
-    if (!result.ok) {
-      const status =
-        result.reason === "not_found" ? 404 : result.reason === "already_appealed" ? 409 : 400;
-      const message =
-        result.reason === "not_found"
-          ? "Grievance not found"
-          : result.reason === "already_appealed"
-            ? "This grievance has already been appealed once, and our policy allows one internal appeal."
-            : "You can appeal once the grievance has been resolved.";
-      throw new ApiError(status, message);
-    }
-    res.json(result.grievance);
   } catch (err) {
     next(err);
   }
