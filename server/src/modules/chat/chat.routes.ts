@@ -266,10 +266,12 @@ async function buildAssistantPayload(
     }
     // Send the full spread so the chat's Bike/Cab/Auto switcher always has
     // every available vehicle type (we only cap when a specific type was asked).
+    // Resolved, not raw: the model regularly omits a vehicle the rider named,
+    // and vehicleFrom is what catches "book a bike ride". Reading the raw field
+    // here let the cap disagree with the filter the quotes were built under.
+    const askedVehicle = vehicleFrom(message, intent.ride.vehicle);
     const sent =
-      intent.ride.vehicle && intent.ride.vehicle !== "any"
-        ? quotes.slice(0, 5)
-        : quotes;
+      askedVehicle && askedVehicle !== "any" ? quotes.slice(0, 5) : quotes;
     const scheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
     return {
       reply: intent.reply,
@@ -279,6 +281,10 @@ async function buildAssistantPayload(
         type: "ride",
         drop: intent.ride.drop,
         pickup: intent.ride.pickup,
+        // What the rider actually asked for. Without this the booking card in
+        // the chat opens on "any" and re-prices every vehicle type, so asking
+        // for a bike returns cab fares alongside it.
+        vehicle: askedVehicle ?? "any",
         quotes: sent,
         scheduledAt,
         why: scheduledAt

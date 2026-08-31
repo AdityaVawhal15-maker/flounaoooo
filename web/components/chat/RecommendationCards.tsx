@@ -476,6 +476,10 @@ export function RideRecommendation({
           {onBook ? (
             <InlineRideBooking
               drop={rec.drop}
+              // Asking for a bike and being shown cab fares is the engine
+              // ignoring the one thing that was specified. Unstated stays
+              // "any", which prices every type as before.
+              vehicle={rec.vehicle}
               scheduledAt={rec.scheduledAt}
               onBooked={onBook}
             />
