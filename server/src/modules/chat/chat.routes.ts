@@ -23,6 +23,7 @@ import {
 } from "../advisor/decisionProfile.service.js";
 import type { Priority } from "../advisor/scoring.js";
 import { buildContext } from "../advisor/context.service.js";
+import { istStartOfDay } from "../../lib/istTime.js";
 
 // Paise → "₹123" for chat copy.
 const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
@@ -133,14 +134,18 @@ async function buildAssistantPayload(
   // once and layered onto food/ride advice. Never blocks — degrades offline.
   const ctx = await buildContext();
 
-  // "at 10pm" → the next occurrence of that local time (today, else tomorrow),
-  // as an ISO timestamp the rides screen books with.
+  // "at 10pm" → the next time it is ten at night in India (today, else
+  // tomorrow), as an ISO timestamp the rides screen books with. Somebody
+  // typing a time means their own; on a UTC host this booked the cab for
+  // half past three in the morning.
   const resolveScheduleAt = (hhmm: string | null | undefined): string | null => {
     if (!hhmm) return null;
     const [h, m] = hhmm.split(":").map(Number);
-    const t = new Date(ctx.now);
-    t.setHours(h!, m!, 0, 0);
-    if (t.getTime() <= ctx.now.getTime()) t.setDate(t.getDate() + 1);
+    let t = new Date(
+      istStartOfDay(ctx.now).getTime() + h! * 3_600_000 + m! * 60_000,
+    );
+    if (t.getTime() <= ctx.now.getTime())
+      t = new Date(t.getTime() + 24 * 3_600_000);
     return t.toISOString();
   };
   const scheduleLabel = (iso: string) =>

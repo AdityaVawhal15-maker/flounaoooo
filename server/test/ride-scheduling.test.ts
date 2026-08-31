@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { authedAgent } from "./helpers.js";
 import { prisma } from "../src/lib/prisma.js";
+import { istHour } from "../src/lib/istTime.js";
 
 // Ride scheduling: "book a cab at 10pm" carries a schedule through chat, the
 // order stores it, and the tracking timeline anchors at the scheduled time.
@@ -37,7 +38,7 @@ describe("ride scheduling", () => {
     expect(rec.scheduledAt).toBeTruthy();
     const when = new Date(rec.scheduledAt);
     expect(when.getTime()).toBeGreaterThan(Date.now());
-    expect(when.getHours()).toBe(22);
+    expect(istHour(when)).toBe(22); // ten at night in India, wherever the host is
     // The time phrase must not leak into the destination.
     expect(rec.drop.toLowerCase()).not.toContain("10pm");
     expect(res.body.message.recommendation.why).toContain("scheduled");
@@ -54,7 +55,7 @@ describe("ride scheduling", () => {
     expect(rec.ride.scheduledAt).toBeTruthy();
     const when = new Date(rec.ride.scheduledAt);
     expect(when.getTime()).toBeGreaterThan(Date.now());
-    expect(when.getHours()).toBe(22);
+    expect(istHour(when)).toBe(22); // ten at night in India, wherever the host is
     expect(rec.ride.why).toContain("scheduled");
   });
 

@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { istHour, istWeekday } from "../../lib/istTime.js";
 
 // Records the cheapest price seen for a dish/vehicle at this moment. Called
 // (fire-and-forget) whenever quotes are generated, so the dataset grows with use.
@@ -14,8 +15,8 @@ export function recordObservation(
         domain,
         key,
         bestPaise,
-        hour: now.getHours(),
-        weekday: (now.getDay() + 6) % 7,
+        hour: istHour(now),
+        weekday: (istWeekday(now) + 6) % 7,
       },
     })
     .catch(() => {
@@ -57,7 +58,7 @@ export async function predictFromHistory(
     byHour.set(r.hour, cur);
   }
 
-  const currentHour = now.getHours();
+  const currentHour = istHour(now);
   const currentStats = byHour.get(currentHour);
   if (!currentStats || currentStats.n < MIN_SAMPLES_PER_HOUR) return null;
   const currentAvg = currentStats.sum / currentStats.n;

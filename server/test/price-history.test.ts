@@ -24,10 +24,13 @@ async function seed(
   });
 }
 
+// Times here are o'clock in India, built as real instants rather than through
+// the host's clock. Written the local way they silently meant something else on
+// a UTC machine, which is the ambiguity the code under test no longer has.
+const IST_OFFSET_MS = (5 * 60 + 30) * 60_000;
+
 function at(hour: number): Date {
-  const d = new Date("2026-06-15T00:00:00");
-  d.setHours(hour, 0, 0, 0);
-  return d;
+  return new Date(Date.UTC(2026, 5, 15, hour, 0, 0, 0) - IST_OFFSET_MS);
 }
 
 describe("price-history advisor", () => {

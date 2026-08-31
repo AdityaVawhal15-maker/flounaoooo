@@ -1,3 +1,4 @@
+import { istWeekday } from "./istTime.js";
 // The published policies, expressed as code.
 //
 // Every number in this file is a promise Algorithec makes in writing, in the
@@ -162,7 +163,8 @@ export function addBusinessDays(from: Date, days: number): Date {
   let left = days;
   while (left > 0) {
     d.setDate(d.getDate() + 1);
-    const day = d.getDay();
+    // Weekends are the rider's weekends, not the host's.
+    const day = istWeekday(d);
     if (day !== 0 && day !== 6) left -= 1;
   }
   return d;

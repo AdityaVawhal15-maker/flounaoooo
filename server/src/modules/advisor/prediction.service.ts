@@ -14,6 +14,7 @@ import type { DecisionProfile } from "./decisionProfile.service.js";
 import { buildDecisionProfile } from "./decisionProfile.service.js";
 import type { DecisionContext } from "./context.service.js";
 import { buildContext } from "./context.service.js";
+import { istStartOfDay } from "../../lib/istTime.js";
 
 export type Prediction = {
   kind: "ride_routine_weather" | "ride_routine_surge";
@@ -36,10 +37,11 @@ const MIN_TRIPS = 3;
 // Suggested head-start when surge/rain is likely around the routine.
 const EARLY_LEAVE_MINUTES = 15;
 
+// The next time it is `hour` o'clock in India, the clock the rider's habits
+// were recorded on.
 function minutesUntilHour(now: Date, hour: number): number {
-  const target = new Date(now);
-  target.setHours(hour, 0, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
+  let target = new Date(istStartOfDay(now).getTime() + hour * 3_600_000);
+  if (target <= now) target = new Date(target.getTime() + 24 * 3_600_000);
   return Math.round((target.getTime() - now.getTime()) / 60_000);
 }
 
