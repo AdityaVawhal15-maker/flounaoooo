@@ -177,9 +177,18 @@ export function FoodRecommendation({
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-4">
         <FoodHeroCard q={rec.best} />
 
-        {/* Right rail — insights + offers (desktop only) */}
-        <div className="hidden lg:flex lg:flex-col lg:gap-3">
-          <InsightCard text={rec.why} />
+        {/* Beside the card on desktop, under it on a phone.
+            This was desktop only, which quietly dropped the review summary and
+            the whole offers list on the size most people actually use. The
+            review is the trust signal and the offers are the explanation for
+            the price, so a phone was being shown the number with neither the
+            reason for it nor the reassurance. */}
+        <div className="mt-3 flex flex-col gap-3 lg:mt-0">
+          {/* The insight text is already rendered above as a plain paragraph
+              on mobile, so only the desktop needs it in card form. */}
+          <div className="hidden lg:block">
+            <InsightCard text={rec.why} />
+          </div>
           {rec.best.reviewSummary && (
             <div className="rounded-card border border-accent/30 bg-accent-soft/40 p-4">
               <p className="text-[13px] italic leading-relaxed text-ink">
@@ -294,7 +303,16 @@ function FoodAltCard({ q }: { q: FoodQuote }) {
         <div className="flex items-center gap-3">
           <DishArt name={q.name} size={44} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-bold text-ink">{q.name}</p>
+            {/* Which platform this price is on.
+                Without it, two alternatives for the same dish from the same
+                restaurant render as identical rows at different prices, and
+                the reason for the difference is the one thing the comparison
+                exists to show. The mobile row has always carried it; the
+                desktop card was dropping it. */}
+            <span className="inline-block rounded-full bg-beige px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cocoa">
+              {q.platform}
+            </span>
+            <p className="mt-1 truncate text-[13px] font-bold text-ink">{q.name}</p>
             <p className="truncate text-[11px] text-cocoa">{q.restaurant}</p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-cocoa">
               <span className="flex items-center gap-0.5">
