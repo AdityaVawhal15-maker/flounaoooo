@@ -60,6 +60,13 @@ async function ask(page, text, settleMs = 9000) {
   await page.waitForTimeout(settleMs);
 }
 
+// Held out here so the browser is closed on every path, including a failing
+// run. Closed only at the end of the happy path, a crashed or failing run left
+// a whole Chrome behind: fifteen stray processes and 1.4GB of a 16GB machine
+// after an afternoon of them, which is enough to push the editor into an
+// out-of-memory kill.
+let browser = null;
+
 (async () => {
   // --- API is up and talking to its database ---
   group("service");
@@ -69,7 +76,7 @@ async function ask(page, text, settleMs = 9000) {
     check("api health", res.ok && body.ok === true, `db=${body.db}`);
   });
 
-  const browser = await chromium.launch({ channel: "chrome" });
+  browser = await chromium.launch({ channel: "chrome" });
   const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
   const page = await context.newPage();
 
@@ -234,8 +241,6 @@ async function ask(page, text, settleMs = 9000) {
   group("stability");
   check("no crashes or 5xx anywhere", faults.length === 0, faults.slice(0, 3).join(" | "));
 
-  await browser.close();
-
   // --- Report ---
   let lastGroup = "";
   for (const r of results) {
@@ -250,9 +255,16 @@ async function ask(page, text, settleMs = 9000) {
   if (failed.length) {
     console.log(`\n${failed.length} failing:`);
     for (const f of failed) console.log(`  ${f.group} / ${f.name}`);
-    process.exit(1);
+    // Not process.exit: that would end the run before the browser is closed,
+    // which is the leak this file is being careful about. The exit code is
+    // still non-zero, so CI fails exactly as before.
+    process.exitCode = 1;
   }
-})().catch((e) => {
-  console.error("smoke run failed:", e.message);
-  process.exit(1);
-});
+})()
+  .catch((e) => {
+    console.error("smoke run failed:", e.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (browser) await browser.close().catch(() => {});
+  });
