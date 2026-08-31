@@ -21,3 +21,4 @@ export function rupees(paise: number): string {
 export function rupeesApprox(paise: number): string {
   return `₹${formatter.format(Math.round(paise / 100))}`;
 }
+

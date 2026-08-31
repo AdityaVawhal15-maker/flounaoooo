@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Crosshair, MapPin, Loader2, Check, Search } from "lucide-react";
+import { Crosshair, MapPin, Loader2, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { rupees } from "@/lib/money";
 import { cn } from "@/lib/cn";
-import { AdviceBanner } from "@/components/ui/AdviceBanner";
+import { VehicleArt } from "@/components/rides/VehicleArt";
+import { RideBestCard, RideOptionRow } from "@/components/rides/RideOptionCard";
 import { useRideBooking, VEHICLES, type Vehicle } from "@/lib/rides/useRideBooking";
 
 // Booking a ride without leaving the conversation.
@@ -264,7 +265,10 @@ export function InlineRideBooking({
                 : "border-line text-cocoa hover:bg-beige/50",
             )}
           >
-            {VEHICLE_LABEL[v]}
+            <span className="flex items-center justify-center gap-1.5">
+              {v !== "any" && <VehicleArt vehicle={v} className="h-4 w-6 shrink-0" />}
+              {VEHICLE_LABEL[v]}
+            </span>
           </button>
         ))}
       </div>
@@ -275,48 +279,32 @@ export function InlineRideBooking({
         </p>
       )}
 
-      {b.advice && (
-        <div className="mt-2.5">
-          <AdviceBanner advice={b.advice} />
-        </div>
-      )}
 
       {b.quotes.length > 0 && (
-        <div className="mt-2.5 flex flex-col gap-1.5">
-          {b.quotes.map((q) => {
-            const on = b.selected?.productName === q.productName;
-            return (
-              <button
-                key={`${q.provider}-${q.productName}`}
-                type="button"
-                onClick={() => b.setSelected(q)}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                  on ? "border-accent bg-accent-soft/30" : "border-line hover:bg-beige/40",
-                )}
-              >
-                <span
-                  className={cn(
-                    "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                    on ? "border-accent bg-accent" : "border-line",
-                  )}
-                >
-                  {on && <Check size={11} className="text-white" />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-ink">
-                    {q.displayName}
-                  </span>
-                  <span className="block text-[11px] text-cocoa">
-                    {q.pickupEtaMinutes} min away
-                  </span>
-                </span>
-                <span className="shrink-0 text-[14px] font-bold text-ink">
-                  {rupees(q.effectivePaise)}
-                </span>
-              </button>
-            );
-          })}
+        <div className="mt-3 flex flex-col gap-2.5">
+          {/* The engine's pick, stated as a pick. A list of near-identical
+              prices makes the reader do the comparing again; naming the best
+              one and showing what it is bought with is the whole point of
+              having compared them. */}
+          <RideBestCard
+            q={b.quotes[0]!}
+            onSelect={() => b.setSelected(b.quotes[0]!)}
+          />
+
+          {b.quotes.length > 1 && (
+            <>
+              <p className="mt-0.5 text-[14px] font-bold text-ink">
+                Options we think you&apos;ll like
+              </p>
+              {b.quotes.slice(1).map((q) => (
+                <RideOptionRow
+                  key={`${q.provider}-${q.productName}`}
+                  q={q}
+                  onSelect={() => b.setSelected(q)}
+                />
+              ))}
+            </>
+          )}
         </div>
       )}
 
