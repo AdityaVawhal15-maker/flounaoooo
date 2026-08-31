@@ -150,31 +150,6 @@ export function InlineRideBooking({
             tap the map
           </span>
         )}
-        {which === "pickup" && !active && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label="Use my current location"
-            onClick={(e) => {
-              e.stopPropagation();
-              b.detectPickup();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                b.detectPickup();
-              }
-            }}
-            className="shrink-0 rounded-full p-1.5 text-cocoa hover:bg-beige"
-          >
-            {b.locating ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Crosshair size={15} />
-            )}
-          </span>
-        )}
       </button>
     );
   };
@@ -206,7 +181,7 @@ export function InlineRideBooking({
 
   return (
     <div className="w-full rounded-card border border-line bg-card p-3.5 shadow-soft">
-      <div className="overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-2xl">
         {/* Tall enough for a route and two named ends. At 190px the
             destination label was pushed off the top edge. */}
         <div className="h-[225px]">
@@ -220,6 +195,24 @@ export function InlineRideBooking({
             onPick={b.picking ? b.pickOnMap : null}
           />
         </div>
+
+        {/* Use my location, on the map where a rider looks for it.
+            It was a 15px crosshair inside the pickup row, small enough that a
+            script driving this app could not reliably hit it, which is a fair
+            warning about a thumb. */}
+        <button
+          type="button"
+          onClick={() => b.detectPickup()}
+          disabled={b.locating}
+          aria-label="Use my current location"
+          className="tap-target absolute bottom-2.5 right-2.5 z-10 flex size-10 items-center justify-center rounded-full bg-card text-ink shadow-md transition-transform hover:scale-105 disabled:opacity-60"
+        >
+          {b.locating ? (
+            <Loader2 size={17} className="animate-spin" />
+          ) : (
+            <Crosshair size={17} />
+          )}
+        </button>
       </div>
 
       <div className="mt-3 flex flex-col gap-2">

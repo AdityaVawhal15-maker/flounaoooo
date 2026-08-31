@@ -95,7 +95,11 @@ export function useRideBooking(opts: {
 
   /** Reads the device position on demand. */
   const detectPickup = useCallback(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setError("This browser cannot share your location. Type your pickup below.");
+      return;
+    }
+    setError("");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -110,7 +114,18 @@ export function useRideBooking(opts: {
         );
         setLocating(false);
       },
-      () => setLocating(false),
+      (err) => {
+        setLocating(false);
+        // Silently doing nothing is the worst answer here: the rider taps a
+        // control, the map does not move, and there is no way to tell a
+        // refused permission from a slow fix or a broken button. Say which,
+        // and say what they can do instead.
+        setError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked for this site. Allow it, or type your pickup below."
+            : "Could not get your location just now. Type your pickup below.",
+        );
+      },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
     );
   }, [nameFor]);
