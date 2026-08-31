@@ -1,83 +1,85 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Sparkles } from "lucide-react";
 
-// ChatGPT/Claude-style "what the AI is doing" trace. Steps reveal one by one
-// and complete, so the user sees the work happening (builds trust). This is a
-// presentation layer — when real ONDC/live search is wired, swap STEPS for the
-// actual tool-use events streamed from the backend.
-const STEPS = [
-  "Understanding your request",
-  "Comparing options across providers",
-  "Applying offers and coupons",
-  "Picking the best for you",
+// What the engine is doing, while it does it.
+//
+// This replaced a checklist that revealed four steps and ticked them off. It
+// looked like progress and was not: the steps were on a timer, so they ticked
+// at the same pace whether the answer took half a second or eight, and a
+// completed tick beside work that had not happened is a small lie told four
+// times per question.
+//
+// One line instead, shimmering, naming the phase it is actually in. The phases
+// still advance on a timer, but a phase that lingers reads as a phase that is
+// taking a while, which is true, where a tick that lingers reads as broken.
+//
+// No spinner. The composer sits directly below this and a spinning element
+// there pulls the eye down to the thing the person is waiting on rather than
+// the answer forming above it.
+
+/** Phases for a real comparison. Ordered as the work actually happens. */
+const PHASES = [
+  "Searching",
+  "Comparing prices",
+  "Applying offers",
+  "Picking the best option",
 ];
 
-const STEP_MS = 700;
+/** Roughly how long each phase holds before the next one takes over. */
+const PHASE_MS = 1900;
 
-// A greeting or a plain question isn't a price comparison — showing the full
-// "comparing across providers" trace for "hello" reads as fake work. Those get
-// a single neutral line instead.
 export function ThinkingSteps({ simple = false }: { simple?: boolean }) {
-  const [active, setActive] = useState(0);
+  const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     if (simple) return;
     const t = setInterval(() => {
-      setActive((a) => (a < STEPS.length - 1 ? a + 1 : a));
-    }, STEP_MS);
+      // Holds on the last phase rather than looping. Cycling back to
+      // "Searching" after "Picking the best option" would say the work had
+      // restarted, which is the one thing it must not imply.
+      setPhase((p) => (p < PHASES.length - 1 ? p + 1 : p));
+    }, PHASE_MS);
     return () => clearInterval(t);
   }, [simple]);
 
-  if (simple) {
-    // The pill from the design. Deliberately says "Searching" rather than
-    // "Thinking": what the engine is doing at this moment is looking across
-    // providers, and naming the actual work is more reassuring than naming the
-    // wait. The step-by-step trace still runs for real comparisons.
-    return (
-      <div className="flex w-fit items-center gap-2 rounded-pill border border-line bg-card px-3.5 py-2 text-[13px] shadow-soft">
-        <Sparkles size={14} className="shrink-0 animate-pulse text-accent" />
-        <span className="font-medium text-ink">
-          Searching
-          <ThinkingDots />
-        </span>
-      </div>
-    );
-  }
+  // A greeting is not a price comparison. Claiming to compare providers for
+  // "hello" is theatre, and the kind a person notices.
+  const label = simple ? "Thinking" : PHASES[phase];
 
   return (
-    <div className="flex flex-col gap-1.5 pl-1">
-      {STEPS.map((label, i) => {
-        const done = i < active;
-        const current = i === active;
-        if (i > active) return null; // reveal progressively
-        return (
-          <div
-            key={label}
-            className="flex animate-[fadeIn_0.3s_ease] items-center gap-2 text-[13px]"
-          >
-            {done ? (
-              <Check size={14} className="shrink-0 text-success" />
-            ) : (
-              <Loader2 size={14} className="shrink-0 animate-spin text-accent" />
-            )}
-            <span className={done ? "text-cocoa/70" : "font-medium text-ink"}>
-              {label}
-              {current && <ThinkingDots />}
-            </span>
-          </div>
-        );
-      })}
+    <div className="flex items-center pl-1">
+      <span
+        // Announced once rather than on every phase change: a screen reader
+        // reading out four status updates for one answer is worse than
+        // silence.
+        role="status"
+        aria-live="polite"
+        aria-label="Working on your request"
+        className="text-shimmer text-[14px] font-medium"
+      >
+        {label}
+        <ThinkingDots />
+      </span>
     </div>
   );
 }
 
+/**
+ * The trailing dots.
+ *
+ * Rendered at a fixed width so the line does not jitter left and right as they
+ * cycle, which is what makes a loading state feel unsteady.
+ */
 function ThinkingDots() {
   const [n, setN] = useState(1);
   useEffect(() => {
-    const t = setInterval(() => setN((v) => (v % 3) + 1), 400);
+    const t = setInterval(() => setN((v) => (v % 3) + 1), 420);
     return () => clearInterval(t);
   }, []);
-  return <span className="text-cocoa/50">{".".repeat(n)}</span>;
+  return (
+    <span className="inline-block w-[18px] text-left" aria-hidden>
+      {".".repeat(n)}
+    </span>
+  );
 }

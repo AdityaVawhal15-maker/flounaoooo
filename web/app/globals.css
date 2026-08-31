@@ -223,6 +223,42 @@ body {
   display: none;
 }
 
+/* The sweep that runs across "Searching" while the engine works.
+   A band of the ink colour travels through muted text, clipped to the glyphs,
+   which reads as activity without a spinner competing with the composer for
+   attention. Paused for anyone who has asked for less motion: this is
+   decoration, and it repeats forever. */
+@keyframes text-shimmer {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 35%,
+    var(--color-ink) 50%,
+    var(--color-muted) 65%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-shimmer 2.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-shimmer {
+    animation: none;
+    background: none;
+    color: var(--color-cocoa);
+  }
+}
+
 /* Fade-in for progressively revealed thinking steps */
 @keyframes fadeIn {
   from {
