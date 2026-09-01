@@ -10,6 +10,7 @@ import {
   Wallet,
   ChevronRight,
   ChevronDown,
+  Gift,
   Clock,
   MapPin,
   X,
@@ -27,7 +28,14 @@ import { useI18n } from "@/components/i18n/I18nContext";
 
 type Status = {
   orderStatus: string;
+  /** The gross bill. The wallet is an instrument against it, not a discount. */
   amount: number;
+  /** Reward credit already committed to this order. */
+  walletAppliedPaise?: number;
+  /** What the gateway still has to collect: amount − walletApplied. */
+  payablePaise?: number;
+  /** Spendable balance, only sent while the order can still take it. */
+  walletBalancePaise?: number;
   title: string;
   domain: "food" | "ride";
   provider?: string;
@@ -78,6 +86,9 @@ export default function PayPage({
   const [failed, setFailed] = useState<FailedAttempt | null>(null);
   const [paidWithCash, setPaidWithCash] = useState(false);
   const [address, setAddress] = useState<AddressSummary | null>(null);
+  // Off by default: reward credit is the buyer's to keep or spend, and quietly
+  // draining it on an order they never asked to spend it on is not a saving.
+  const [useWallet, setUseWallet] = useState(false);
 
   // Delivery address for the confirmation card (food orders).
   useEffect(() => {
@@ -110,13 +121,22 @@ export default function PayPage({
     setStage("processing");
     try {
       const d = await api<{
-        mode: "cashfree" | "simulated" | "cash";
+        mode: "cashfree" | "simulated" | "cash" | "wallet";
         paymentSessionId?: string;
         cfEnv?: string;
       }>("/api/payments/checkout", {
         method: "POST",
-        json: { orderId, method },
+        json: { orderId, method, useWallet },
       });
+
+      // Covered entirely by reward credit — no gateway was involved, so the
+      // order is already confirmed and there is nothing to wait for.
+      if (d.mode === "wallet") {
+        const s = await api<Status>(`/api/payments/status/${orderId}`).catch(() => null);
+        if (s) setStatus(s);
+        setStage("done");
+        return;
+      }
 
       // Cash on delivery — confirmed straight away, money collected in person.
       if (d.mode === "cash") {
@@ -182,6 +202,18 @@ export default function PayPage({
 
   const d = status.details ?? {};
   const discount = d.offers?.reduce((s, o) => s + o.discountPaise, 0) ?? 0;
+  // Once credit is committed to an order it stays there until the order is
+  // cancelled — the ledger allows one spend per order, so a toggle that
+  // promised to undo it would be lying.
+  const walletCommitted = status.walletAppliedPaise ?? 0;
+  const walletBalance = status.walletBalancePaise ?? 0;
+  const walletUse = walletCommitted > 0
+    ? walletCommitted
+    : useWallet
+      ? Math.min(walletBalance, status.amount)
+      : 0;
+  const payable = Math.max(0, status.amount - walletUse);
+  const canOfferWallet = walletCommitted > 0 || walletBalance > 0;
   const isFood = status.domain === "food";
   const fareLabel = isFood ? t("bill.totalAmount") : t("bill.totalFare");
   // True whether the order was just paid by cash or is being revisited later.
@@ -240,6 +272,16 @@ export default function PayPage({
               )}
               <div className="my-1 h-px bg-line" />
               <Row label={fareLabel} value={rupees(status.amount)} bold />
+              {walletUse > 0 && (
+                <>
+                  <Row
+                    label={t("pay.rewardsApplied")}
+                    value={`− ${rupees(walletUse)}`}
+                    accent
+                  />
+                  <Row label={t("pay.toPay")} value={rupees(payable)} bold />
+                </>
+              )}
             </div>
           </Card>
         )}
@@ -255,6 +297,55 @@ export default function PayPage({
             {isFood ? t("pay.pendingFoodSub") : t("pay.pendingRideSub")}
           </p>
 
+          {/* Rewards wallet. Sits above the method picker because it changes
+              what the methods below are being asked for. */}
+          {canOfferWallet && (
+            <Card className="mt-5 py-3">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                  <Gift size={17} className="text-accent" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-bold text-ink">
+                    {t("pay.useRewards")}
+                  </span>
+                  <span className="block text-[12px] text-cocoa">
+                    {walletCommitted > 0
+                      ? t("pay.rewardsLocked")
+                      : t("pay.rewardsAvailable").replace("{amount}", rupees(walletBalance))}
+                  </span>
+                </span>
+                <button
+                  role="switch"
+                  aria-checked={walletUse > 0}
+                  aria-label={t("pay.useRewards")}
+                  disabled={walletCommitted > 0}
+                  onClick={() => setUseWallet((v) => !v)}
+                  className={cn(
+                    "tap-target relative h-[26px] w-[46px] shrink-0 rounded-full transition-colors",
+                    walletUse > 0 ? "bg-accent" : "bg-switch-off",
+                    walletCommitted > 0 && "opacity-60",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-[3px] size-5 rounded-full bg-white shadow transition-all",
+                      walletUse > 0 ? "left-[23px]" : "left-[3px]",
+                    )}
+                  />
+                </button>
+              </div>
+            </Card>
+          )}
+
+          {/* Fully covered by rewards: there is no gateway step left, so
+              offering a payment method would be a choice with no meaning. */}
+          {payable === 0 ? (
+            <p className="mt-5 rounded-card bg-success/10 px-4 py-3 text-[13px] text-success">
+              {t("pay.rewardsCoverAll")}
+            </p>
+          ) : (
+          <>
           {/* Choose payment method — squared tiles tinted per method (Figma),
               not the generic circular badge every other icon row uses. */}
           <h2 className="mt-6 text-[14px] font-bold text-ink">{t("pay.chooseMethod")}</h2>
@@ -284,10 +375,14 @@ export default function PayPage({
               subtitle={t("pay.cardSub")}
             />
           </div>
+          </>
+          )}
 
           {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
           <Button onClick={pay} className="mt-6 w-full">
-            {t("pay.pay")} {rupees(status.amount)}
+            {payable === 0
+              ? t("pay.payWithRewards")
+              : `${t("pay.pay")} ${rupees(payable)}`}
           </Button>
         </>
       )}
@@ -415,7 +510,7 @@ export default function PayPage({
           </p>
           <p className="mt-1 text-center text-[13px] text-cocoa">
             {isCash
-              ? t("pay.payOnDelivery").replace("{amount}", rupees(status.amount))
+              ? t("pay.payOnDelivery").replace("{amount}", rupees(payable))
               : isFood
                 ? t("pay.successFood")
                 : t("pay.successRide")}
@@ -497,6 +592,18 @@ export default function PayPage({
                 <span>{t("bill.totalPaid")}</span>
                 <span>{rupees(status.amount)}</span>
               </div>
+              {walletCommitted > 0 && (
+                <>
+                  <div className="flex justify-between text-success">
+                    <span>{t("pay.paidWithRewards")}</span>
+                    <span>− {rupees(walletCommitted)}</span>
+                  </div>
+                  <div className="flex justify-between text-cocoa">
+                    <span>{t("pay.charged")}</span>
+                    <span>{rupees(payable)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 

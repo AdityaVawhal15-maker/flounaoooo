@@ -15,8 +15,33 @@ import { sendPushToUser } from "../notifications/push.service.js";
 import { checkSavingsMilestone } from "../notifications/outbox.service.js";
 import { sendReceiptEmail } from "../../lib/mailer.js";
 import { emitOrderConfirmation } from "../backoffice/ondc.service.js";
+import { spendFromWallet, walletBalance } from "../users/wallet.service.js";
 
 export const paymentsRouter = Router();
+
+// The rewards wallet is a payment instrument, not a discount: `order.amount`
+// stays the full bill and the wallet covers part of it, exactly as a gift card
+// would. Keeping the bill gross is what lets the receipt, the ONDC payload and
+// the savings ledger all keep reading `amount` and stay right — only the money
+// the gateway has to collect changes.
+type OrderLike = { amount: number; details: string };
+
+/** Wallet credit already committed to this order, in paise. */
+function walletAppliedOn(order: OrderLike): number {
+  try {
+    const d = JSON.parse(order.details) as { walletAppliedPaise?: number };
+    return typeof d.walletAppliedPaise === "number" && d.walletAppliedPaise > 0
+      ? d.walletAppliedPaise
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** What still has to be collected from the buyer after the wallet. */
+function payableOn(order: OrderLike): number {
+  return Math.max(0, order.amount - walletAppliedOn(order));
+}
 
 // Seeded after successful payment so tracking has a live timeline.
 const FOOD_EVENTS = [
@@ -47,14 +72,18 @@ async function markPaid(
   if (!order || order.status !== "pending_payment") return order;
 
   // Amount integrity: never confirm an order for less than it costs. The
-  // gateway is the source of truth for what was actually charged.
-  if (opts.paidPaise !== undefined && opts.paidPaise < order.amount) {
+  // gateway is the source of truth for what was actually charged — but it was
+  // only ever asked for the part the wallet did not cover, so that is what it
+  // has to match. Comparing against the gross bill here would fail every order
+  // that spent reward credit.
+  const owed = payableOn(order);
+  if (opts.paidPaise !== undefined && opts.paidPaise < owed) {
     await prisma.payment.updateMany({
       where: { orderId },
       data: { status: "failed", gatewayResponse: opts.gatewayResponse },
     });
     console.error(
-      `[payments] amount mismatch on ${orderId}: paid ${opts.paidPaise} < owed ${order.amount}`,
+      `[payments] amount mismatch on ${orderId}: paid ${opts.paidPaise} < owed ${owed}`,
     );
     return order;
   }
@@ -92,7 +121,7 @@ async function markPaid(
       create: {
         orderId,
         userId: order.userId,
-        amount: order.amount,
+        amount: owed,
         currency: "INR",
         status: paymentStatus,
         method,
@@ -221,13 +250,18 @@ paymentsRouter.post(
       // online gateway. Anything else goes through Cashfree (or the simulated
       // path when no keys are configured).
       method: z.enum(["upi", "card", "cash"]).optional(),
+      // Spend the rewards balance on this order. Stacks with a promo code: the
+      // code already came off the bill when the order was created, so the
+      // wallet only ever covers what is left after it.
+      useWallet: z.boolean().optional(),
     }).strict(),
   ),
   async (req, res, next) => {
     try {
-      const { orderId, method } = req.body as {
+      const { orderId, method, useWallet } = req.body as {
         orderId: string;
         method?: "upi" | "card" | "cash";
+        useWallet?: boolean;
       };
       const order = await prisma.order.findFirst({
         where: { id: orderId, userId: req.userId! },
@@ -238,21 +272,58 @@ paymentsRouter.post(
         throw new ApiError(409, "This order is not awaiting payment");
       }
 
+      // ---- rewards wallet ----
+      //
+      // Committed here, before the gateway is asked for anything, because the
+      // gateway has to be asked for the reduced amount. The ledger's unique
+      // (userId, orderId, reason) index means a retried checkout cannot spend
+      // twice, and the applied amount is read back from the order rather than
+      // re-derived, so a second attempt reuses the first attempt's debit
+      // instead of adding to it. Cancelling the order returns it.
+      let walletApplied = walletAppliedOn(order);
+      if (useWallet && walletApplied === 0) {
+        const took = await spendFromWallet({
+          userId: req.userId!,
+          orderId,
+          maxPaise: order.amount,
+          description: `Applied to ${order.title}`,
+        });
+        if (took > 0) {
+          const details = JSON.parse(order.details) as Record<string, unknown>;
+          details.walletAppliedPaise = took;
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { details: JSON.stringify(details) },
+          });
+          order.details = JSON.stringify(details);
+          walletApplied = took;
+        }
+      }
+      const payable = Math.max(0, order.amount - walletApplied);
+
       await prisma.payment.upsert({
         where: { orderId },
         create: {
           orderId,
           userId: req.userId!,
-          amount: order.amount,
+          amount: payable,
           status: "created",
         },
-        update: { status: "created" },
+        update: { status: "created", amount: payable },
       });
+
+      // ---- fully covered by rewards: there is nothing to collect ----
+      // Sending a zero-rupee order to a gateway is rejected by every one of
+      // them, so the order is confirmed straight from here.
+      if (payable === 0) {
+        await markPaid(orderId, "wallet");
+        return res.json({ mode: "wallet", amount: 0, walletAppliedPaise: walletApplied });
+      }
 
       // ---- cash on delivery: confirm the order, collect the money later ----
       if (method === "cash") {
         await markPaid(orderId, "cash", { collectOnDelivery: true });
-        return res.json({ mode: "cash", amount: order.amount });
+        return res.json({ mode: "cash", amount: payable, walletAppliedPaise: walletApplied });
       }
 
       if (cashfreeConfigured) {
@@ -260,7 +331,7 @@ paymentsRouter.post(
         try {
           cf = await createCashfreeOrder({
             orderId,
-            amountPaise: order.amount,
+            amountPaise: payable,
             customerId: order.userId,
             customerEmail: order.user.email,
             customerPhone: order.user.phone ?? "",
@@ -283,11 +354,12 @@ paymentsRouter.post(
           mode: "cashfree",
           paymentSessionId: cf.payment_session_id,
           cfEnv: env.CASHFREE_ENV,
-          amount: order.amount,
+          amount: payable,
+          walletAppliedPaise: walletApplied,
         });
       }
 
-      res.json({ mode: "simulated", amount: order.amount });
+      res.json({ mode: "simulated", amount: payable, walletAppliedPaise: walletApplied });
     } catch (err) {
       next(err);
     }
@@ -373,10 +445,18 @@ paymentsRouter.get("/status/:orderId", async (req, res, next) => {
       include: { payment: { select: { status: true, method: true } } },
     });
     if (!order) throw new ApiError(404, "Order not found");
+    // Only offered while the order can still take it — a confirmed order's
+    // balance is nobody's business on this screen.
+    const balancePaise =
+      order.status === "pending_payment" ? await walletBalance(req.userId!) : 0;
     res.json({
       orderStatus: order.status,
       payment: order.payment,
       amount: order.amount,
+      // Gross bill vs. what the buyer still has to pay after reward credit.
+      walletAppliedPaise: walletAppliedOn(order),
+      payablePaise: payableOn(order),
+      walletBalancePaise: balancePaise,
       title: order.title,
       domain: order.domain,
       provider: order.provider,

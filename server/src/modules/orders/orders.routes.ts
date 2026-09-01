@@ -9,7 +9,7 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { quotesForProduct } from "../shop/shop.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
-import { creditCashback } from "../users/wallet.service.js";
+import { creditCashback, refundToWallet } from "../users/wallet.service.js";
 import { getConfig } from "../backoffice/config.service.js";
 import {
   isPlusActive,
@@ -769,6 +769,21 @@ ordersRouter.post(
         where: { id: order.id },
         data: { status: "cancelled", details: JSON.stringify(details) },
       });
+
+      // Reward credit spent on this order goes straight back — it never left
+      // Flouna, so there is nothing to wait on a gateway for. Best-effort: the
+      // ledger's unique index rejects a second refund for the same order, and
+      // a cancellation must not fail because the credit was already returned.
+      const walletApplied =
+        typeof details.walletAppliedPaise === "number" ? details.walletAppliedPaise : 0;
+      if (walletApplied > 0) {
+        await refundToWallet({
+          userId: order.userId,
+          orderId: order.id,
+          amountPaise: walletApplied,
+          description: `Returned from ${order.title}`,
+        }).catch(() => {});
+      }
 
       // Money already taken? Cancelling has to start the refund, not just mark
       // the order dead — the tracker promises "refund will be processed", and
