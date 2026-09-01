@@ -645,7 +645,23 @@ authRouter.post(
           target: email,
           purpose: "reset",
         });
-        await sendOtpEmail(email, code, "reset");
+        // A mail outage is not a server fault and must not be reported as one.
+        // This was answering a blocked SMTP port with "Internal server error",
+        // which reads as "the site is broken" to the one person who most needs
+        // to be told to try again shortly — and it is the very screen someone
+        // locked out of their account lands on. The code is already stored, so
+        // a retry once mail is delivering again works without re-issuing it.
+        await sendOtpEmail(email, code, "reset").catch((err: unknown) => {
+          console.error(
+            "[auth] reset code could not be sent:",
+            err instanceof Error ? err.message : String(err),
+          );
+          throw new ApiError(
+            502,
+            "We could not send the code just now. Try again in a few minutes.",
+            "otp_delivery_failed",
+          );
+        });
       }
       res.json({ ok: true });
     } catch (err) {

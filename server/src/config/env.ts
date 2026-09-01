@@ -31,6 +31,14 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("Flouna <no-reply@flouna.app>"),
+  // Brevo over HTTPS, preferred over SMTP wherever it is set.
+  //
+  // Railway — like most managed hosts — blocks outbound SMTP on every port as
+  // an anti-abuse measure, so nodemailer could only ever time out there: every
+  // verification code, reset code and receipt failed, and the reset screen
+  // answered "Internal server error" to the people least able to act on it.
+  // This is the same provider reached over 443, which nothing blocks.
+  BREVO_API_KEY: z.string().optional(),
 
   // LLM providers — hybrid setup (Claude / Gemini / DeepSeek). Chat falls back
   // to a scripted demo mode if the selected provider's key is unset.

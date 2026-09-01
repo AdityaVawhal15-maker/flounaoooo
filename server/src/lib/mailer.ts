@@ -26,6 +26,72 @@ const transport =
       })
     : null;
 
+// Brevo's transactional endpoint. Plain HTTPS, so it survives the outbound
+// SMTP block that every managed host applies by default.
+const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
+const BREVO_TIMEOUT_MS = 10_000;
+
+/**
+ * Splits "Name <address@host>" into the shape Brevo's API wants. A bare
+ * address is equally valid and carries no name.
+ */
+function parseSender(from: string): { email: string; name?: string } {
+  const match = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(from);
+  const email = match?.[2];
+  if (!email) return { email: from.trim() };
+  const name = match?.[1];
+  return name ? { email, name } : { email };
+}
+
+/** True when mail should go over HTTPS rather than SMTP. */
+function useHttpApi(): boolean {
+  return Boolean(env.BREVO_API_KEY);
+}
+
+async function sendViaBrevo(
+  to: string,
+  mail: { subject: string; html: string; text: string },
+): Promise<void> {
+  // An unbounded fetch would hold the sign-up request open indefinitely if the
+  // provider stalls, which is the failure SMTP already taught us to bound.
+  const res = await fetch(BREVO_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "api-key": env.BREVO_API_KEY as string,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: parseSender(env.MAIL_FROM),
+      to: [{ email: to }],
+      subject: mail.subject,
+      htmlContent: mail.html,
+      textContent: mail.text,
+    }),
+    signal: AbortSignal.timeout(BREVO_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    // Brevo reports the reason in the body, and it is usually actionable — an
+    // unverified sender, a spent quota. Carrying it into the thrown error is
+    // what makes the difference between a fixable log line and "send failed".
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Brevo rejected the message (${res.status})${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+    );
+  }
+}
+
+/** One way out for every message, whichever transport is configured. */
+async function deliver(
+  to: string,
+  mail: { subject: string; html: string; text: string },
+): Promise<void> {
+  if (useHttpApi()) return sendViaBrevo(to, mail);
+  if (!transport) throw new Error("No mail transport is configured");
+  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+}
+
 // Test hook: under NODE_ENV=test, codes are captured here instead of sent.
 export const otpOutbox: Array<{ to: string; code: string }> = [];
 
@@ -38,23 +104,21 @@ export async function sendOtpEmail(
     otpOutbox.push({ to, code });
     return;
   }
-  if (!transport) {
-    // Dev mode: no SMTP configured — surface the code in the server console.
+  if (!transport && !useHttpApi()) {
+    // Dev mode: no mail configured — surface the code in the server console.
     console.log(`[mailer] OTP for ${to}: ${code}`);
     return;
   }
-  const mail = otpEmail(code, purpose);
-  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+  await deliver(to, otpEmail(code, purpose));
 }
 
 // Non-OTP mail is best-effort: auth and payment flows must never fail because
 // an email couldn't be sent, so callers fire-and-forget and errors only log.
 
 export async function sendWelcomeEmail(to: string, name: string) {
-  if (env.NODE_ENV === "test" || !transport) return;
+  if (env.NODE_ENV === "test" || (!transport && !useHttpApi())) return;
   try {
-    const mail = welcomeEmail(name);
-    await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+    await deliver(to, welcomeEmail(name));
   } catch (err) {
     console.error(`[mailer] welcome email to ${to} failed:`, err);
   }
@@ -68,21 +132,20 @@ export async function sendPrebuiltEmail(
   mail: { subject: string; html: string; text: string },
 ) {
   if (env.NODE_ENV === "test") return;
-  if (!transport) {
-    console.log(`[mailer] (no SMTP) would send "${mail.subject}" to ${to}`);
+  if (!transport && !useHttpApi()) {
+    console.log(`[mailer] (no mail transport) would send "${mail.subject}" to ${to}`);
     return;
   }
-  await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+  await deliver(to, mail);
 }
 
 export async function sendReceiptEmail(
   to: string,
   order: { id: string; title: string; domain: string; amount: number; savedPaise: number },
 ) {
-  if (env.NODE_ENV === "test" || !transport) return;
+  if (env.NODE_ENV === "test" || (!transport && !useHttpApi())) return;
   try {
-    const mail = receiptEmail(order);
-    await transport.sendMail({ from: env.MAIL_FROM, to, ...mail });
+    await deliver(to, receiptEmail(order));
   } catch (err) {
     console.error(`[mailer] receipt email to ${to} failed:`, err);
   }
