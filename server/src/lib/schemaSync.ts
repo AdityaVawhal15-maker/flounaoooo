@@ -24,9 +24,14 @@ const run = promisify(execFile);
 // Postgres, so it cannot be replayed there. Push diffs the live database
 // against schema.prisma and applies the difference.
 //
-// Deliberately WITHOUT --accept-data-loss. Anything destructive fails, loudly,
-// and the process exits rather than starting up having quietly dropped a column
-// of real customer data.
+// Deliberately WITHOUT --accept-data-loss by default. Anything destructive
+// fails, loudly, and the process exits rather than starting up having quietly
+// dropped a column of real customer data.
+//
+// ACCEPT_SCHEMA_DATA_LOSS=1 is the escape hatch for a deploy that has already
+// been reviewed and is known to be additive-only despite Prisma's classifier
+// flagging it (e.g. a new unique index on a column with no rows yet). It is a
+// one-deploy decision, not a standing setting — unset it again once applied.
 
 const TIMEOUT_MS = 120_000;
 
@@ -46,18 +51,21 @@ export async function syncSchema(): Promise<void> {
   const started = Date.now();
   console.log("[schema] applying schema to the database...");
   try {
-    const { stdout, stderr } = await run(
-      process.execPath,
-      [
-        "node_modules/prisma/build/index.js",
-        "db",
-        "push",
-        "--skip-generate",
-        "--schema",
-        "prisma/schema.prisma",
-      ],
-      { timeout: TIMEOUT_MS, env: process.env },
-    );
+    const args = [
+      "node_modules/prisma/build/index.js",
+      "db",
+      "push",
+      "--skip-generate",
+      "--schema",
+      "prisma/schema.prisma",
+    ];
+    if (process.env.ACCEPT_SCHEMA_DATA_LOSS === "1") {
+      args.push("--accept-data-loss");
+    }
+    const { stdout, stderr } = await run(process.execPath, args, {
+      timeout: TIMEOUT_MS,
+      env: process.env,
+    });
     const out = `${stdout}${stderr}`.trim();
     // Push is quiet when there is nothing to do, which is the common case and
     // worth saying out loud so a deploy log shows it ran at all.
