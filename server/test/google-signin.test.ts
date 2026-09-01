@@ -81,13 +81,25 @@ describe("signup when mail cannot be delivered", () => {
     const email = `mailfail-${Date.now()}@example.com`;
     await request(app)
       .post("/api/auth/signup")
-      .send({ name: "Mail Fail", email, password: "newsecret99" })
+      .send({
+        name: "Mail Fail",
+        email,
+        password: "newsecret99",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      })
       .expect(201);
     // A second signup with the same address is recognised, which only works if
     // the first one persisted.
     const again = await request(app)
       .post("/api/auth/signup")
-      .send({ name: "Mail Fail", email, password: "newsecret99" });
+      .send({
+        name: "Mail Fail",
+        email,
+        password: "newsecret99",
+        dateOfBirth: "1995-04-12",
+        acceptTerms: true,
+      });
     expect([201, 409]).toContain(again.status);
   });
 });

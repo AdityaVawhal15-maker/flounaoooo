@@ -10,3 +10,15 @@ const formatter = new Intl.NumberFormat("en-IN", {
 export function rupees(paise: number): string {
   return `₹${formatter.format(paise / 100)}`;
 }
+
+/**
+ * An estimate, to the nearest rupee.
+ *
+ * A predicted saving is not a price: it comes from a forecast, and "save
+ * ₹276.36" claims a precision the forecast does not have. Exact amounts, an
+ * invoice line or a fare, keep their paise through `rupees`.
+ */
+export function rupeesApprox(paise: number): string {
+  return `₹${formatter.format(Math.round(paise / 100))}`;
+}
+

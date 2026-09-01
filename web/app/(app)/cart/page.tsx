@@ -152,7 +152,7 @@ export default function CartPage() {
             {lines.map((l) => (
               <Card key={`${l.dishId}-${l.platform}`}>
                 <div className="flex items-center gap-3">
-                  <DishArt name={l.name} size={48} />
+                  <DishArt name={l.name} image={l.image} size={48} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-bold text-ink">{l.name}</p>
                     <p className="truncate text-[12px] text-cocoa">{l.restaurant}</p>

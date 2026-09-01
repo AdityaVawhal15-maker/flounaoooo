@@ -3,6 +3,8 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "../../lib/prisma.js";
+import { meetsMinimumAge, MINIMUM_AGE_YEARS, POLICY_VERSION } from "../../lib/policy.js";
+import { recordConsent } from "../compliance/consent.service.js";
 import { sendOtpEmail, sendWelcomeEmail } from "../../lib/mailer.js";
 import { enqueueNotification } from "../notifications/outbox.service.js";
 import {
@@ -112,11 +114,17 @@ authRouter.post(
         .trim()
         .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number")
         .optional(),
+      // No longer optional. Terms 3.1 and Privacy 8.1 both set a floor of
+      // 18, and an optional birth date is not an age check: it is a field
+      // anyone under 18 can leave blank to get in.
       dateOfBirth: z
         .string()
         .trim()
-        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
-        .optional(),
+        .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+      // Consent has to be an act, so this must be sent and must be true. A
+      // default of true would record an agreement the person never made,
+      // which is worse than not recording one at all.
+      acceptTerms: z.literal(true),
     }).strict(),
   ),
   async (req, res, next) => {
@@ -126,8 +134,18 @@ authRouter.post(
         email: string;
         password: string;
         phone?: string;
-        dateOfBirth?: string;
+        dateOfBirth: string;
       };
+
+      // Checked on the server, not only in the form. The client control is a
+      // courtesy; this is the one that counts, because a hand-written request
+      // never sees the form at all.
+      if (!meetsMinimumAge(dateOfBirth)) {
+        throw new ApiError(
+          403,
+          `You must be at least ${MINIMUM_AGE_YEARS} to use Flouna`,
+        );
+      }
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing?.emailVerified) {
@@ -141,16 +159,30 @@ authRouter.post(
         phone && !(await prisma.user.findFirst({ where: { phone, NOT: { email } } }));
       const optional = {
         ...(phoneFree ? { phone } : {}),
-        ...(dateOfBirth ? { dateOfBirth } : {}),
+      };
+      // Written with the account rather than after it. An account that exists
+      // without a recorded lawful basis is data we are holding and cannot
+      // account for, which is the thing DPDP s.6 is about.
+      const consent = {
+        termsAcceptedAt: new Date(),
+        termsVersion: POLICY_VERSION,
       };
       const user = existing
         ? await prisma.user.update({
             where: { id: existing.id },
-            data: { name, passwordHash, ...optional },
+            data: { name, passwordHash, dateOfBirth, ...consent, ...optional },
           })
         : await prisma.user.create({
-            data: { name, email, passwordHash, ...optional },
+            data: { name, email, passwordHash, dateOfBirth, ...consent, ...optional },
           });
+
+      // The account row carries the current state; the log carries the
+      // history, including this being the second time if they signed up,
+      // lapsed, and came back to a newer version of the terms.
+      await recordConsent(user.id, "terms", true, {
+        version: POLICY_VERSION,
+        ctx: { ip: req.ip, userAgent: req.get("user-agent") },
+      });
 
       const code = await createOtp({
         userId: user.id,

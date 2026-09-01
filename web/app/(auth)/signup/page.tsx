@@ -22,6 +22,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [dob, setDob] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -31,11 +33,35 @@ export default function SignupPage() {
   // only in the summary line at the foot of the form.
   const mismatch = confirm.length > 0 && password !== confirm;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  // Flouna is 18+ (Terms 3.1). Checked here so the person is told before they
+  // finish the form, and checked again on the server, which is the one that
+  // decides — this control never sees a request sent by hand.
+  const adult = (() => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return false;
+    const [y, m, d] = dob.split("-").map(Number);
+    const born = new Date(Date.UTC(y, m - 1, d));
+    if (born.getUTCFullYear() !== y || born.getUTCMonth() !== m - 1 || born.getUTCDate() !== d) {
+      return false;
+    }
+    const now = new Date();
+    let age = now.getUTCFullYear() - y;
+    if (now.getUTCMonth() < m - 1 || (now.getUTCMonth() === m - 1 && now.getUTCDate() < d)) {
+      age -= 1;
+    }
+    return age >= 18;
+  })();
+  // Only complain once they have typed a whole date, so the message does not
+  // appear while they are still on the first digit of the year.
+  const tooYoung = dob.length === 10 && !adult;
+
   const ready =
     name.trim().length >= 2 &&
     emailValid &&
     password.length >= 8 &&
-    password === confirm;
+    password === confirm &&
+    adult &&
+    accepted;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +74,13 @@ export default function SignupPage() {
     try {
       await api("/api/auth/signup", {
         method: "POST",
-        json: { name: name.trim(), email: email.trim(), password },
+        json: {
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          dateOfBirth: dob,
+          acceptTerms: true,
+        },
       });
       sessionStorage.setItem("pendingEmail", email.trim());
       // The account exists now; back into the signup form would only fail.
@@ -136,6 +168,44 @@ export default function SignupPage() {
             minLength={8}
             required
           />
+
+          <AuthField
+            label="Date of birth"
+            type="date"
+            autoComplete="bday"
+            error={tooYoung ? "You must be 18 or over to use Flouna" : undefined}
+            value={dob}
+            onChange={(e) => setDob(e.target.value)}
+            required
+          />
+
+          {/* Unticked by default and not submittable until ticked. A box that
+              starts ticked records an agreement nobody actually made, which is
+              the thing a consent record is supposed to be able to prove. */}
+          <label className="flex cursor-pointer items-start gap-3 text-[14px] leading-[1.45] text-auth-muted">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-0.5 size-[18px] shrink-0 accent-accent"
+              required
+            />
+            <span>
+              I am 18 or over and I agree to the{" "}
+              <Link href="/legal/terms" className="font-medium text-auth-ink underline">
+                Terms of Service
+              </Link>
+              ,{" "}
+              <Link href="/legal/privacy" className="font-medium text-auth-ink underline">
+                Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link href="/legal/acceptable-use" className="font-medium text-auth-ink underline">
+                Acceptable Use Policy
+              </Link>
+              .
+            </span>
+          </label>
 
           {error && (
             <p role="alert" className="text-[14px] text-danger">

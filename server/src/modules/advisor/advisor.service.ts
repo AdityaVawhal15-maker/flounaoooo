@@ -4,6 +4,7 @@
 
 import { predictFromHistory } from "./priceHistory.service.js";
 import type { DecisionContext } from "./context.service.js";
+import { istHour, istStartOfDay } from "../../lib/istTime.js";
 
 export type Advice = {
   action: "order_now" | "wait";
@@ -34,15 +35,21 @@ const FOOD_WINDOWS: FoodWindow[] = [
 
 const MAX_WORTH_WAITING_MINUTES = 120;
 
+// The next time it is `hour` o'clock in India.
+//
+// The hour above is read on the rider's clock, so the target has to be built
+// on the same one. Left as setHours it used the host's, and on a UTC machine
+// the two disagreed by five and a half hours: the code knew it was seven in
+// the evening and still worked out the wait to eight as if it were half past
+// one in the afternoon.
 function minutesUntilHour(now: Date, hour: number): number {
-  const target = new Date(now);
-  target.setHours(hour, 0, 0, 0);
-  if (target <= now) target.setDate(target.getDate() + 1);
+  let target = new Date(istStartOfDay(now).getTime() + hour * 3_600_000);
+  if (target <= now) target = new Date(target.getTime() + 24 * 3_600_000);
   return Math.round((target.getTime() - now.getTime()) / 60_000);
 }
 
 export function adviseFoodByRules(now: Date = new Date()): Advice {
-  const hour = now.getHours();
+  const hour = istHour(now);
 
   const active = FOOD_WINDOWS.find((w) => hour >= w.startHour && hour < w.endHour);
   if (active) {
@@ -83,7 +90,7 @@ const RIDE_SURGE = [
 ];
 
 export function adviseRideByRules(now: Date = new Date()): Advice {
-  const hour = now.getHours();
+  const hour = istHour(now);
   const surge = RIDE_SURGE.find((s) => hour >= s.startHour && hour < s.endHour);
 
   if (surge) {

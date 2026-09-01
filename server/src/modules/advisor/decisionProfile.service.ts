@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma.js";
 import type { Personalization, Scorable } from "./scoring.js";
+import { istHour } from "../../lib/istTime.js";
 
 // Decision Intelligence — Faculty 1: Memory.
 //
@@ -84,7 +85,7 @@ export async function buildDecisionProfile(
       else if (d.dietary === "nonveg") nonvegCount++;
       if ((d.offers?.reduce((s, x) => s + x.discountPaise, 0) ?? 0) > 0) offerCount++;
     } else if (o.domain === "ride" && d.drop) {
-      const hour = new Date(o.createdAt).getHours();
+      const hour = istHour(new Date(o.createdAt));
       const arr = dropTimes.get(d.drop) ?? [];
       arr.push(hour);
       dropTimes.set(d.drop, arr);

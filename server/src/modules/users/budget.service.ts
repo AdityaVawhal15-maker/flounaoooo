@@ -1,12 +1,12 @@
 import { prisma } from "../../lib/prisma.js";
+import { istStartOfWeek } from "../../lib/istTime.js";
 
-// Monday 00:00 of the current week (local server time).
+// Monday 00:00 in India, which is the week the person spending the money is
+// living in. This used to be the server's own Monday: correct on a laptop in
+// India, five and a half hours early on a UTC host, where a Monday-morning
+// order would have been counted against last week's budget.
 export function startOfWeek(now = new Date()): Date {
-  const d = new Date(now);
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return istStartOfWeek(now);
 }
 
 export type WeeklyBudget = {

@@ -8,12 +8,17 @@ import {
 import { predictFor } from "../src/modules/advisor/prediction.service.js";
 import type { DecisionProfile } from "../src/modules/advisor/decisionProfile.service.js";
 import type { DecisionContext } from "../src/modules/advisor/context.service.js";
+import { istHour } from "../src/lib/istTime.js";
 
 // A 9am date in a monsoon month (July) so offline weather is wet in the evening
 // but cloudy in the morning — deterministic, no network.
+// Times here are o'clock in India, built as real instants rather than through
+// the host's clock. Written the local way they silently meant something else on
+// a UTC machine, which is the ambiguity the code under test no longer has.
+const IST_OFFSET_MS = (5 * 60 + 30) * 60_000;
+
 function at(hour: number, month = 6 /* July */): Date {
-  const d = new Date(2026, month, 15, hour, 0, 0, 0);
-  return d;
+  return new Date(Date.UTC(2026, month, 15, hour, 0, 0, 0) - IST_OFFSET_MS);
 }
 
 describe("context engine (Faculty 3)", () => {
@@ -68,10 +73,10 @@ function profileWithRoutine(
 function ctx(now: Date, wet: boolean): DecisionContext {
   return {
     now,
-    hour: now.getHours(),
-    timeOfDay: timeOfDayFor(now.getHours()),
-    isPeakCommute: (now.getHours() >= 8 && now.getHours() < 11) ||
-      (now.getHours() >= 17 && now.getHours() < 21),
+    hour: istHour(now),
+    timeOfDay: timeOfDayFor(istHour(now)),
+    isPeakCommute: (istHour(now) >= 8 && istHour(now) < 11) ||
+      (istHour(now) >= 17 && istHour(now) < 21),
     isMealWindow: false,
     weather: wet
       ? { condition: "rain", temperatureC: 26, rainChance: 0.7, source: "offline" }

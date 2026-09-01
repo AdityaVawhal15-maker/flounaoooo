@@ -46,7 +46,15 @@ export async function authedAgent({ withAddress = true } = {}) {
   const agent = request.agent(app);
   await agent
     .post("/api/auth/signup")
-    .send({ name: "Test User", email, password: "password123" })
+    .send({
+      name: "Test User",
+      email,
+      password: "password123",
+      // Sign-up now enforces the published minimum age and requires an
+      // explicit acceptance, so every helper-built account carries both.
+      dateOfBirth: "1995-04-12",
+      acceptTerms: true,
+    })
     .expect(201);
   await agent
     .post("/api/auth/verify-email")

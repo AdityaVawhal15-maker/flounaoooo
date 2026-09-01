@@ -20,6 +20,7 @@ import { verifyPassword } from "../../lib/tokens.js";
 import { describeDevice } from "../../lib/device.js";
 import { walletBalance, walletHistory } from "./wallet.service.js";
 import { credentialLimiter, lookupLimiter } from "../../middleware/rateLimit.js";
+import { istHour } from "../../lib/istTime.js";
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -658,10 +659,12 @@ usersRouter.get("/savings", async (req, res, next) => {
     const thisWeek = startOfWeek();
     const weekly: { weekStart: string; savedPaise: number }[] = [];
     for (let i = WEEKS - 1; i >= 0; i--) {
-      const start = new Date(thisWeek);
-      start.setDate(start.getDate() - i * 7);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
+      // Plain week arithmetic from an Indian Monday. Stepping with setDate
+      // would have gone through the host's calendar, which drifts by an hour
+      // across a daylight-saving boundary the rider does not observe.
+      const WEEK_MS = 7 * 24 * 3_600_000;
+      const start = new Date(thisWeek.getTime() - i * WEEK_MS);
+      const end = new Date(start.getTime() + WEEK_MS);
       const savedPaise = orders
         .filter((o) => o.createdAt >= start && o.createdAt < end)
         .reduce((s, o) => s + o.savedPaise, 0);
@@ -730,7 +733,9 @@ type Suggestion = { label: string; prompt: string; icon: string; theme: string }
 
 // Time-of-day food nudge — what most people are deciding right now.
 function mealSuggestion(now = new Date()): Suggestion {
-  const h = now.getHours();
+  // Their dinner time, not the host's. On a UTC server this offered lunch at
+  // eight in the evening.
+  const h = istHour(now);
   if (h < 11)
     return { label: "Breakfast picks", prompt: "Find me a quick breakfast under ₹150", icon: "coffee", theme: "amber" };
   if (h < 16)

@@ -9,6 +9,8 @@
 // deterministic seasonal fallback, so context is always available even with no
 // network and no keys (the rest of the app's demo-first contract).
 
+import { istHour } from "../../lib/istTime.js";
+
 export type TimeOfDay =
   | "early_morning" // 5–8
   | "morning" // 8–11
@@ -67,7 +69,7 @@ function offlineWeather(now: Date): Weather {
   const monsoon = month >= 5 && month <= 8; // Jun–Sep
   if (monsoon) {
     // Afternoon/evening showers are the regional pattern.
-    const hour = now.getHours();
+    const hour = istHour(now);
     const showerWindow = hour >= 15 && hour < 21;
     return {
       condition: showerWindow ? "rain" : "clouds",
@@ -110,7 +112,7 @@ async function fetchWeather(
     const temp = data.current?.temperature_2m ?? null;
     // Next-hour precip probability (first entry is the current hour).
     const probs = data.hourly?.precipitation_probability;
-    const nextHourIdx = Math.min((probs?.length ?? 1) - 1, now.getHours() + 1);
+    const nextHourIdx = Math.min((probs?.length ?? 1) - 1, istHour(now) + 1);
     const rainChance =
       probs && probs.length > 0 ? (probs[nextHourIdx] ?? probs[0]!) / 100 : null;
     if (code == null) throw new Error("no weather_code");
@@ -137,7 +139,7 @@ export async function buildContext(
   opts: ContextOptions = {},
 ): Promise<DecisionContext> {
   const now = opts.now ?? new Date();
-  const hour = now.getHours();
+  const hour = istHour(now);
   const lat = opts.lat ?? DEFAULT_LAT;
   const lng = opts.lng ?? DEFAULT_LNG;
 

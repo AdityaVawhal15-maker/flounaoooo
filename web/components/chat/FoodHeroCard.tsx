@@ -36,6 +36,7 @@ export function FoodHeroCard({ q }: { q: FoodQuote }) {
         platform: q.platform,
         name: q.name,
         restaurant: q.restaurant,
+        image: q.image,
         pricePaise: q.effectivePaise,
       },
       qty,

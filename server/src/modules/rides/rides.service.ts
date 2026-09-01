@@ -199,7 +199,14 @@ export function quoteRidesTraced(opts: QuoteRidesOpts): {
     p.products
       .filter((prod) => !wanted || prod.vehicle === wanted)
       .map((prod): RideQuote => {
-        const fare = Math.round(prod.basePaise + prod.perKmPaise * opts.distanceKm);
+        // To the rupee, because that is what a fare is.
+        //
+        // A per-kilometre rate lands on amounts like ₹131.44, and no ride app
+        // in India quotes paise. Rounded here rather than at the point it is
+        // drawn, so the number the rider agrees to is the number they are
+        // charged: rounding only the label would have shown ₹131 against a
+        // ₹131.44 payment.
+        const fare = Math.round((prod.basePaise + prod.perKmPaise * opts.distanceKm) / 100) * 100;
         const offers = prod.offer ? [prod.offer] : [];
         const discount = offers.reduce((s, o) => s + o.discountPaise, 0);
         return {

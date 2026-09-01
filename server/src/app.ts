@@ -22,6 +22,7 @@ import { shopRouter } from "./modules/shop/shop.routes.js";
 import { subscriptionRouter } from "./modules/subscription/subscription.routes.js";
 import { couponsRouter } from "./modules/coupons/coupons.routes.js";
 import { supportRouter } from "./modules/support/support.routes.js";
+import { complianceRouter } from "./modules/compliance/compliance.routes.js";
 import { complaintsRouter } from "./modules/complaints/complaints.routes.js";
 import { igmWebhookRouter } from "./modules/complaints/igm.webhooks.js";
 import { devRouter } from "./modules/backoffice/dev.routes.js";
@@ -168,6 +169,8 @@ export function createApp() {
   app.get(["/", "/health", "/api/health"], healthHandler);
 
   app.use("/api/auth", authRouter);
+  // Privacy rights and cookie choices (privacy policy 6, cookie policy 1.3).
+  app.use("/api/privacy", complianceRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/food", foodRouter);
   app.use("/api/orders", ordersRouter);

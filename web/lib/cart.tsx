@@ -18,6 +18,7 @@ export type CartLine = {
   platform: string;
   name: string; // display-only snapshot
   restaurant: string; // display-only snapshot
+  image?: string; // display-only snapshot, falls back to the drawn tile
   pricePaise: number; // display-only estimate; server reprices
   qty: number;
 };

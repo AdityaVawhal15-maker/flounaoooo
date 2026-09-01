@@ -31,6 +31,8 @@ import {
   RotateCcw,
   Megaphone,
   type LucideIcon,
+  ShieldAlert,
+  Gavel,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { roleSatisfies, type Operator, type Role } from "./useOperator";
@@ -76,6 +78,12 @@ const NAV: NavSection[] = [
     items: [
       { href: "/console/admin/users", label: "Users", icon: Users, need: "admin" },
       { href: "/console/admin/support", label: "Support", icon: LifeBuoy, need: "admin" },
+      // Two entries rather than one, because they answer different questions.
+      // ONDC complaints is the protocol log; Grievances is the four deadlines
+      // we published to the customer, which is what somebody chasing a case
+      // is actually asking about.
+      { href: "/console/admin/grievances", label: "Grievances", icon: ShieldAlert, need: "admin" },
+      { href: "/console/admin/appeals", label: "Decision appeals", icon: Gavel, need: "admin" },
       { href: "/console/admin/complaints", label: "ONDC complaints", icon: Scale, need: "admin" },
       { href: "/console/super/staff", label: "Staff & roles", icon: ShieldCheck, need: "super_admin" },
       { href: "/console/super/broadcast", label: "Broadcast", icon: Megaphone, need: "super_admin" },

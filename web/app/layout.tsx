@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
+import { CookieNotice } from "@/components/legal/CookieNotice";
 import { I18nProvider } from "@/components/i18n/I18nContext";
 import { ThemeProvider, themeInitScript } from "@/components/theme/ThemeContext";
 import { NavHistoryTracker } from "@/components/layout/NavHistoryTracker";
@@ -53,6 +54,11 @@ export default function RootLayout({
             <AuthProvider>
               <NavHistoryTracker />
               {children}
+              {/* Inside AuthProvider: the choice is saved against the account
+                  when there is one, and remembering it for a signed-out
+                  visitor would need an identifier, which is the tracking the
+                  notice is asking about. */}
+              <CookieNotice />
             </AuthProvider>
           </I18nProvider>
         </ThemeProvider>

@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma.js";
 import { env } from "../../config/env.js";
 import { sendPrebuiltEmail } from "../../lib/mailer.js";
 import { notificationEmail } from "../../lib/emailTemplates.js";
+import { istStartOfDay } from "../../lib/istTime.js";
 
 // ---------------------------------------------------------------------------
 // Email-notification outbox.
@@ -414,8 +415,9 @@ export async function drainOutbox(opts: { userId?: string } = {}) {
 
     // Daily cap for everything except security.
     if (entry.category !== "security") {
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
+      // Their day, so the cap resets at midnight in India rather than at
+      // half past five in the morning.
+      const since = istStartOfDay();
       const sentToday = await prisma.notification.count({
         where: { userId: n.userId, status: "sent", sentAt: { gte: since } },
       });

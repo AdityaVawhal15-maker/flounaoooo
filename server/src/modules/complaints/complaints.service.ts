@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { GRIEVANCE_SLA } from "../../lib/policy.js";
 import { ApiError } from "../../middleware/error.js";
 import { enqueueNotification } from "../notifications/outbox.service.js";
 import { igmAdapter } from "./igm.adapter.js";
@@ -196,6 +197,12 @@ export async function createComplaint(input: {
     if (!order) throw new ApiError(404, "Order not found");
   }
 
+  // The deadlines the support policy publishes for a grievance, stamped when
+  // the case opens. Written down rather than worked out later, so a change to
+  // the policy cannot move a commitment already made to this customer, and so
+  // "are we late" is a question the row can answer by itself.
+  const now = Date.now();
+
   const complaint = await prisma.complaint.create({
     data: {
       code: await nextComplaintCode(),
@@ -207,6 +214,9 @@ export async function createComplaint(input: {
       subCategory: input.subCategory,
       description: input.description,
       status: "OPEN",
+      assignBy: new Date(now + GRIEVANCE_SLA.assignMs),
+      contactBy: new Date(now + GRIEVANCE_SLA.contactMs),
+      investigateBy: new Date(now + GRIEVANCE_SLA.investigateMs),
     },
   });
 
@@ -267,6 +277,14 @@ export async function listComplaints(userId: string) {
       orderId: true,
       createdAt: true,
       infoRequestedAt: true,
+      resolvedAt: true,
+      assignBy: true,
+      contactBy: true,
+      investigateBy: true,
+      assignedAt: true,
+      contactedAt: true,
+      appealedAt: true,
+      appealDueBy: true,
     },
     take: 50,
   });

@@ -1,6 +1,9 @@
+import crypto from "node:crypto";
+import type { Request } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { cancellationTerms, refundWindowDays } from "./cancellation.service.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { validateBody } from "../../middleware/validate.js";
 import { ApiError } from "../../middleware/error.js";
@@ -9,6 +12,7 @@ import { quoteRides, fetchRoute } from "../rides/rides.service.js";
 import { quotesForProduct } from "../shop/shop.service.js";
 import { env } from "../../config/env.js";
 import { rideProvider } from "../providers/index.js";
+import { catchUpDriverMessages } from "../rides/rideChat.service.js";
 import { creditCashback, refundToWallet } from "../users/wallet.service.js";
 import { getConfig } from "../backoffice/config.service.js";
 import {
@@ -115,13 +119,66 @@ const createShopOrder = z.object({
 
 // Prices are always recomputed server-side from the catalog/quote engine —
 // a tampered client cannot set its own amount.
+/**
+ * The client's key for one order attempt, if it sent one.
+ *
+ * A double-tap, a connection that retried, or a back-then-submit all send the
+ * same request again, and each one used to become its own order the customer
+ * could be charged for. Verified against the live app: three identical
+ * requests produced three orders.
+ *
+ * Deliberately only an explicit key, never a hash of the body. Those answer
+ * different questions: a key means "this is a retry of that attempt", while a
+ * matching body only means "you ordered the same thing", and ordering the same
+ * dish twice is something people genuinely do. Deduping on content silently
+ * refused the second one, which the test suite caught by buying a dish twice
+ * on purpose.
+ *
+ * A caller that sends no key gets no protection, which is the honest trade:
+ * the alternative was protecting it from a second order it actually wanted.
+ */
+function requestFingerprint(req: Request): string | null {
+  const supplied = req.get("idempotency-key")?.trim();
+  if (!supplied || supplied.length > 200) return null;
+  return supplied;
+}
+
+/**
+ * How long the same request keeps returning the same order.
+ *
+ * Long enough to cover a retry and a frustrated second tap, short enough that
+ * genuinely ordering the same thing again later still works. Somebody booking
+ * an identical trip twice within two minutes is rare; being charged twice for
+ * one tap is not something to risk against it.
+ */
+const IDEMPOTENCY_WINDOW_MS = 10 * 60_000;
+
 ordersRouter.post(
   "/",
   // Cart variant first: both food shapes share domain, so plain union with
   // the more specific (items[]) schema ahead.
   validateBody(z.union([createFoodCartOrder, createFoodOrder, createRideOrder, createShopOrder])),
   async (req, res, next) => {
+    // Outside the try so the conflict handler below can still see it.
+    const fingerprint = requestFingerprint(req);
     try {
+      // A retry of an attempt we already completed? Hand back the order it
+      // made rather than making a second one.
+      if (fingerprint) {
+        const recent = await prisma.order.findFirst({
+          where: {
+            userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
+            createdAt: { gte: new Date(Date.now() - IDEMPOTENCY_WINDOW_MS) },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (recent) {
+          res.status(200).json({ order: recent, deduplicated: true });
+          return;
+        }
+      }
+
       const body = req.body as
         | z.infer<typeof createFoodCartOrder>
         | z.infer<typeof createFoodOrder>
@@ -223,6 +280,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "food",
             status: "pending_payment",
             provider: first.platform,
@@ -330,6 +388,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "food",
             status: "pending_payment",
             provider: quote.platform,
@@ -416,6 +475,7 @@ ordersRouter.post(
         const order = await prisma.order.create({
           data: {
             userId: req.userId!,
+            ...(fingerprint ? { requestKey: fingerprint } : {}),
             domain: "shop",
             status: "pending_payment",
             provider: quote.platform,
@@ -491,6 +551,7 @@ ordersRouter.post(
       const order = await prisma.order.create({
         data: {
           userId: req.userId!,
+          ...(fingerprint ? { requestKey: fingerprint } : {}),
           domain: "ride",
           status: "pending_payment",
           provider: quote.provider,
@@ -522,6 +583,22 @@ ordersRouter.post(
       void emitOrderDiscovery(order);
       res.status(201).json({ order });
     } catch (err) {
+      // Two identical requests in flight together both pass the check above
+      // and both try to insert. The unique index stops the second, which is
+      // the outcome that matters, but the loser was being handed a 500 for a
+      // request that had in fact succeeded once. Give it the order that won.
+      if (fingerprint && (err as { code?: string }).code === "P2002") {
+        const existing = await prisma.order
+          .findFirst({
+            where: { userId: req.userId!, requestKey: fingerprint },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => null);
+        if (existing) {
+          res.status(200).json({ order: existing, deduplicated: true });
+          return;
+        }
+      }
       next(err);
     }
   },
@@ -612,6 +689,103 @@ ordersRouter.get("/:id", async (req, res, next) => {
 // Live fulfilment tracking for a ride — driver, OTP, vehicle and live GPS.
 // Backed by the active provider (simulation now, real ONDC once onboarded).
 // Works for every user; never gated behind subscription.
+/**
+ * The conversation with the driver of one ride.
+ *
+ * The rider's messages are real and kept. The driver's are produced from the
+ * states the ride has actually reached, by the same simulation that invents
+ * the driver's name and plate, and are flagged so the screen can keep saying
+ * so. A rider must never be unable to tell which of the two they are reading.
+ */
+ordersRouter.get("/:id/messages", async (req, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      include: { trackingEvents: { orderBy: { createdAt: "asc" }, take: 1 } },
+    });
+    if (!order) throw new ApiError(404, "Order not found");
+    if (order.domain !== "ride") throw new ApiError(400, "This order has no driver");
+    if (order.status === "pending_payment")
+      throw new ApiError(409, "Ride not confirmed yet");
+
+    // Bring the driver's side up to whatever the ride has reached, then read
+    // the whole thread back in one order.
+    if (order.status !== "cancelled") {
+      const d = JSON.parse(order.details) as {
+        pickupLat?: number; pickupLng?: number;
+        dropLat?: number; dropLng?: number;
+        vehicle?: "bike" | "auto" | "cab";
+        routeGeometry?: [number, number][];
+      };
+      if (d.pickupLat != null && d.pickupLng != null && d.dropLat != null && d.dropLng != null) {
+        const bookedAt = order.trackingEvents[0]?.createdAt ?? order.createdAt;
+        if (bookedAt.getTime() <= Date.now()) {
+          const assignment = await rideProvider.track({
+            orderId: order.id,
+            providerRef: `SIM-${order.id.slice(0, 8).toUpperCase()}`,
+            vehicle: d.vehicle ?? "cab",
+            pickup: { lat: d.pickupLat, lng: d.pickupLng },
+            drop: { lat: d.dropLat, lng: d.dropLng },
+            routeGeometry:
+              d.routeGeometry ?? ([[d.pickupLng, d.pickupLat], [d.dropLng, d.dropLat]] as [number, number][]),
+            bookedAt,
+            domain: "ride",
+          });
+          await catchUpDriverMessages({
+            orderId: order.id,
+            state: assignment.state,
+            etaMinutes: assignment.pickupEtaMinutes,
+            plate: assignment.driver?.vehicle.plate ?? null,
+          });
+        }
+      }
+    }
+
+    const messages = await prisma.rideMessage.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, sender: true, body: true, simulated: true, createdAt: true },
+    });
+    res.json({ messages, simulated: rideProvider.mode === "simulation" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+ordersRouter.post(
+  "/:id/messages",
+  validateBody(z.object({ body: z.string().trim().min(1).max(500) }).strict()),
+  async (req, res, next) => {
+    try {
+      const order = await prisma.order.findFirst({
+        where: { id: req.params.id, userId: req.userId! },
+        select: { id: true, domain: true, status: true },
+      });
+      if (!order) throw new ApiError(404, "Order not found");
+      if (order.domain !== "ride") throw new ApiError(400, "This order has no driver");
+      if (order.status === "pending_payment")
+        throw new ApiError(409, "Ride not confirmed yet");
+      // A finished or cancelled ride keeps its transcript readable but takes
+      // no new messages: there is nobody on the other end any more.
+      if (order.status === "completed" || order.status === "cancelled")
+        throw new ApiError(409, "This ride has ended");
+
+      const message = await prisma.rideMessage.create({
+        data: {
+          orderId: order.id,
+          sender: "rider",
+          body: (req.body as { body: string }).body,
+          simulated: false,
+        },
+        select: { id: true, sender: true, body: true, simulated: true, createdAt: true },
+      });
+      res.status(201).json({ message });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 ordersRouter.get("/:id/track", async (req, res, next) => {
   try {
     const order = await prisma.order.findFirst({
@@ -712,6 +886,27 @@ ordersRouter.get("/:id/track", async (req, res, next) => {
   }
 });
 
+// What the published refund policy says about this order, right now.
+//
+// Served rather than worked out in the client so the countdown the customer
+// sees and the rule the server enforces are the same rule. A five minute
+// window that the screen computes from its own clock is a window that
+// disagrees with the server for anyone whose phone clock is off.
+ordersRouter.get("/:id/cancellation", async (req, res, next) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+      include: { payment: true },
+    });
+    if (!order) throw new ApiError(404, "Order not found");
+    const terms = cancellationTerms(order, order.payment);
+    const [lo, hi] = refundWindowDays(order.payment?.method ?? null);
+    res.json({ ...terms, refundDays: { min: lo, max: hi } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Cancel an order. Rides: allowed while live (searching → in progress), like
 // Uber/Ola. Food: allowed only until the delivery partner picks the order up
 // (before the out_for_delivery stage) — the Swiggy/Zomato policy; once food is
@@ -764,6 +959,15 @@ ordersRouter.post(
       const { reason } = req.body as { reason?: string };
       const details = JSON.parse(order.details) as Record<string, unknown>;
       if (reason) details.cancelReason = reason;
+
+      // Which side of the published window this fell on, decided here and
+      // written down. Working it out later from timestamps would re-derive a
+      // customer's entitlement from a clock that has since moved on, and the
+      // answer has to be the one that was true at the moment they cancelled.
+      const payment = await prisma.payment.findUnique({ where: { orderId: order.id } });
+      const terms = cancellationTerms(order, payment);
+      details.cancelledWithinFreeWindow = terms.freeWindow;
+      details.cancelledAt = new Date().toISOString();
 
       const updated = await prisma.order.update({
         where: { id: order.id },

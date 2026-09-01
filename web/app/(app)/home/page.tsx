@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { InlinePayment } from "@/components/chat/inline/InlinePayment";
 import { rupees } from "@/lib/money";
 import {
   ComboRecommendation,
@@ -97,9 +98,13 @@ function ChatHome() {
   // Temporary chat: nothing is persisted server-side and the thread lives only
   // in this component's state.
   const { temporary, resetToken } = useTemporaryChat();
+  // Orders placed from inside the conversation, keyed by the message whose
+  // card placed them. Keeping it per message rather than as one "current
+  // order" means a thread with two bookings in it still shows each payment
+  // under the thing it belongs to.
+  const [ordered, setOrdered] = useState<Record<string, string>>({});
   const [usual, setUsual] = useState<Usual | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>(FALLBACK_SUGGESTIONS);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Switching in or out of temporary mode starts a fresh conversation either
   // way. Carrying a saved thread into a private one, or the reverse, would do
@@ -159,9 +164,58 @@ function ChatHome() {
       .catch(() => router.replace("/home"));
   }, [chatParam, sessionId, router]);
 
+  // Staying at the bottom while an answer is still arriving.
+  //
+  // Scrolling once when the message list changes was not enough: a result card
+  // carries a map, images and quotes that all land after it mounts, so the
+  // scroll reached the bottom as it was and the card then grew past it. The
+  // effect had run, the page looked stuck, and the answer was off screen.
+  //
+  // So the thread is watched for size changes rather than for new messages,
+  // and follows them down. It stops following the moment somebody scrolls up,
+  // because yanking a reader back to the bottom mid-sentence is worse than not
+  // scrolling at all, and it resumes when they return to the end themselves.
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, thinking]);
+    const el = threadRef.current;
+    if (!el) return;
+
+    const atBottom = () => el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const follow = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+
+    const onScroll = () => {
+      stick.current = atBottom();
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    // Fires as the card grows, which is the part scrollIntoView kept missing.
+    const ro = new ResizeObserver(follow);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    // And as children are added, so a new message is observed too.
+    const mo = new MutationObserver(() => {
+      for (const child of Array.from(el.children)) ro.observe(child);
+      follow();
+    });
+    mo.observe(el, { childList: true });
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, []);
+
+  // A new question is always followed, whatever the reader was doing: they
+  // just asked it, so they want to see the answer.
+  useEffect(() => {
+    stick.current = true;
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length, thinking]);
 
   async function send(text: string) {
     const message = text.trim();
@@ -169,7 +223,15 @@ function ChatHome() {
     setInput("");
     setMessages((m) => [
       ...m,
-      { id: `u-${Date.now()}`, role: "user", content: message },
+      {
+        id: `u-${Date.now()}`,
+        role: "user",
+        content: message,
+        // Stamped here rather than read back from the server: the bubble is on
+        // screen before any reply exists, and a time that appears late reads
+        // as the message having been sent late.
+        at: new Date().toISOString(),
+      },
     ]);
     setLastAsk(message);
     setThinking(true);
@@ -313,18 +375,43 @@ function ChatHome() {
           )}
         </div>
       ) : (
-        <div className="flex-1 space-y-4 overflow-y-auto py-6">
+        <div ref={threadRef} className="flex-1 space-y-4 overflow-y-auto py-6">
           {messages.map((m) => (
             <div
               key={m.id}
               className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}
             >
               {m.role === "user" ? (
-                <p className="max-w-[80%] rounded-2xl rounded-br-md bg-cocoa px-4 py-2.5 text-[14px] text-white">
-                  {m.content}
-                </p>
+                <div className="flex max-w-[80%] flex-col items-end">
+                  {/* Tinted rather than solid, as in the design: the question
+                      is the quieter half of the exchange and a heavy dark
+                      block pulls the eye away from the answer under it. */}
+                  <p className="rounded-2xl rounded-br-md border border-accent/25 bg-accent-soft px-4 py-2.5 text-[14px] text-ink">
+                    {m.content}
+                  </p>
+                  {m.at && (
+                    <span className="mt-1 pr-1 text-[11px] text-cocoa/70">
+                      {new Date(m.at).toLocaleTimeString("en-IN", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                </div>
               ) : (
-                <div className="w-full max-w-[95%]">
+                <div
+                  className={cn(
+                    "w-full max-w-[95%]",
+                    // An answer that carries a recommendation is a result, and
+                    // the design gives a result its own surface: the reasoning,
+                    // the evidence and the options read as one thing rather
+                    // than as loose text with cards drifting under it. A plain
+                    // reply stays plain, because a card around "sure, what
+                    // would you like?" is just furniture.
+                    m.recommendation &&
+                      "rounded-card border border-line bg-card p-3.5 shadow-soft",
+                  )}
+                >
                   <p className="text-[14px] leading-relaxed text-ink">{m.content}</p>
                   {m.recommendation?.type === "food" && (
                     <div className="mt-3">
@@ -333,7 +420,21 @@ function ChatHome() {
                   )}
                   {m.recommendation?.type === "ride" && (
                     <div className="mt-3">
-                      <RideRecommendation rec={m.recommendation} />
+                      <RideRecommendation
+                        rec={m.recommendation}
+                        onBook={(orderId) =>
+                          setOrdered((o) => ({ ...o, [m.id]: orderId }))
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Payment, in the thread, under the card that booked it.
+                      The journey used to end at a link out to /pay, which is
+                      the point at which a conversation stops being one. */}
+                  {ordered[m.id] && (
+                    <div className="mt-3">
+                      <InlinePayment orderId={ordered[m.id]!} />
                     </div>
                   )}
                   {m.recommendation?.type === "shop" && (
@@ -351,7 +452,6 @@ function ChatHome() {
             </div>
           ))}
           {thinking && <ThinkingSteps simple={!needsComparison(lastAsk)} />}
-          <div ref={bottomRef} />
         </div>
       )}
 

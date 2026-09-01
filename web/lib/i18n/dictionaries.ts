@@ -14,6 +14,18 @@ export const LANGUAGES: { code: Lang; label: string; speechLang: string }[] = [
 
 export const dictionaries = {
   en: {
+    "cx.ride": "Ride",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "Driver never arrived",
+    "cx.rideNotCompleted": "Ride ended before my stop",
+    "cx.fareDispute": "Charged more than quoted",
+    "cx.driverConduct": "Driver behaviour or safety",
+    "cx.vehicleIssue": "Vehicle was not as described",
+    "pp.profile.grievances": "Grievances",
+    "pp.profile.grievancesSub": "Complaints you have raised, and their progress",
+    "pp.profile.data": "Your data",
+    "pp.profile.dataSub": "Download, delete, cookies and consent",
     // Incognito chat
     "chat.incognitoTitle": "You're incognito",
     "chat.incognitoAsk": "Ask anything. It stays here.",
@@ -787,6 +799,18 @@ export const dictionaries = {
   },
 
   hi: {
+    "cx.ride": "सवारी",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "ड्राइवर कभी नहीं आया",
+    "cx.rideNotCompleted": "सवारी मेरे रुकने से पहले खत्म हो गई",
+    "cx.fareDispute": "बताए गए किराए से ज़्यादा लिया गया",
+    "cx.driverConduct": "ड्राइवर का व्यवहार या सुरक्षा",
+    "cx.vehicleIssue": "वाहन बताए गए जैसा नहीं था",
+    "pp.profile.grievances": "शिकायतें",
+    "pp.profile.grievancesSub": "आपकी दर्ज शिकायतें और उनकी प्रगति",
+    "pp.profile.data": "आपका डेटा",
+    "pp.profile.dataSub": "डाउनलोड करें, हटाएँ, कुकीज़ और सहमति",
     // Incognito chat
     "chat.incognitoTitle": "आप गुप्त मोड में हैं",
     "chat.incognitoAsk": "कुछ भी पूछें। यह यहीं रहेगा।",
@@ -1553,6 +1577,18 @@ export const dictionaries = {
   },
 
   mr: {
+    "cx.ride": "प्रवास",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "ड्रायव्हर आलाच नाही",
+    "cx.rideNotCompleted": "प्रवास माझ्या थांब्याआधीच संपला",
+    "cx.fareDispute": "सांगितलेल्या भाड्यापेक्षा जास्त घेतले",
+    "cx.driverConduct": "ड्रायव्हरचे वर्तन किंवा सुरक्षितता",
+    "cx.vehicleIssue": "वाहन सांगितल्याप्रमाणे नव्हते",
+    "pp.profile.grievances": "तक्रारी",
+    "pp.profile.grievancesSub": "तुम्ही नोंदवलेल्या तक्रारी आणि त्यांची प्रगती",
+    "pp.profile.data": "तुमचा डेटा",
+    "pp.profile.dataSub": "डाउनलोड, हटवा, कुकीज आणि संमती",
     // Incognito chat
     "chat.incognitoTitle": "तुम्ही गुप्त मोडमध्ये आहात",
     "chat.incognitoAsk": "काहीही विचारा. ते इथेच राहील.",
@@ -2319,6 +2355,18 @@ export const dictionaries = {
   },
 
   kn: {
+    "cx.ride": "ಪ್ರಯಾಣ",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "ಚಾಲಕ ಬರಲೇ ಇಲ್ಲ",
+    "cx.rideNotCompleted": "ನನ್ನ ನಿಲ್ದಾಣಕ್ಕೂ ಮೊದಲೇ ಪ್ರಯಾಣ ಮುಗಿಯಿತು",
+    "cx.fareDispute": "ಹೇಳಿದ್ದಕ್ಕಿಂತ ಹೆಚ್ಚು ಶುಲ್ಕ ವಿಧಿಸಲಾಗಿದೆ",
+    "cx.driverConduct": "ಚಾಲಕನ ವರ್ತನೆ ಅಥವಾ ಸುರಕ್ಷತೆ",
+    "cx.vehicleIssue": "ವಾಹನ ಹೇಳಿದಂತೆ ಇರಲಿಲ್ಲ",
+    "pp.profile.grievances": "ದೂರುಗಳು",
+    "pp.profile.grievancesSub": "ನೀವು ಸಲ್ಲಿಸಿದ ದೂರುಗಳು ಮತ್ತು ಅವುಗಳ ಪ್ರಗತಿ",
+    "pp.profile.data": "ನಿಮ್ಮ ಡೇಟಾ",
+    "pp.profile.dataSub": "ಡೌನ್‌ಲೋಡ್, ಅಳಿಸಿ, ಕುಕೀಗಳು ಮತ್ತು ಸಮ್ಮತಿ",
     // Incognito chat
     "chat.incognitoTitle": "ನೀವು ಗುಪ್ತ ಮೋಡ್‌ನಲ್ಲಿದ್ದೀರಿ",
     "chat.incognitoAsk": "ಏನಾದರೂ ಕೇಳಿ. ಅದು ಇಲ್ಲಿಯೇ ಉಳಿಯುತ್ತದೆ.",
@@ -3085,6 +3133,18 @@ export const dictionaries = {
   },
 
   ta: {
+    "cx.ride": "பயணம்",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "ஓட்டுநர் வரவே இல்லை",
+    "cx.rideNotCompleted": "என் நிறுத்தத்திற்கு முன்பே பயணம் முடிந்தது",
+    "cx.fareDispute": "கூறியதை விட அதிகமாக வசூலிக்கப்பட்டது",
+    "cx.driverConduct": "ஓட்டுநரின் நடத்தை அல்லது பாதுகாப்பு",
+    "cx.vehicleIssue": "வாகனம் கூறியபடி இல்லை",
+    "pp.profile.grievances": "முறையீடுகள்",
+    "pp.profile.grievancesSub": "நீங்கள் பதிவு செய்த முறையீடுகளும் அவற்றின் நிலையும்",
+    "pp.profile.data": "உங்கள் தரவு",
+    "pp.profile.dataSub": "பதிவிறக்கம், நீக்கம், குக்கீகள் மற்றும் ஒப்புதல்",
     // Incognito chat
     "chat.incognitoTitle": "நீங்கள் அந்தரங்க முறையில் உள்ளீர்கள்",
     "chat.incognitoAsk": "எதையும் கேளுங்கள். அது இங்கேயே இருக்கும்.",
@@ -3851,6 +3911,18 @@ export const dictionaries = {
   },
 
   te: {
+    "cx.ride": "ప్రయాణం",
+    // Ride complaints. Kept apart from the food reasons on
+    // purpose: a rider has no item to be damaged.
+    "cx.driverNotArrived": "డ్రైవర్ రానే లేదు",
+    "cx.rideNotCompleted": "నా స్టాప్‌కు ముందే ప్రయాణం ముగిసింది",
+    "cx.fareDispute": "చెప్పిన దానికంటే ఎక్కువ వసూలు చేశారు",
+    "cx.driverConduct": "డ్రైవర్ ప్రవర్తన లేదా భద్రత",
+    "cx.vehicleIssue": "వాహనం చెప్పినట్టు లేదు",
+    "pp.profile.grievances": "ఫిర్యాదులు",
+    "pp.profile.grievancesSub": "మీరు నమోదు చేసిన ఫిర్యాదులు, వాటి పురోగతి",
+    "pp.profile.data": "మీ డేటా",
+    "pp.profile.dataSub": "డౌన్‌లోడ్, తొలగింపు, కుకీలు మరియు సమ్మతి",
     // Incognito chat
     "chat.incognitoTitle": "మీరు ఇన్‌కాగ్నిటోలో ఉన్నారు",
     "chat.incognitoAsk": "ఏదైనా అడగండి. అది ఇక్కడే ఉంటుంది.",

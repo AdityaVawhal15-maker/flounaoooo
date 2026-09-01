@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useCheckout } from "@/lib/payments/useCheckout";
 import { rupees } from "@/lib/money";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -56,19 +57,6 @@ type Status = {
 
 type AddressSummary = { label: string; line1: string; city: string; isDefault: boolean };
 
-type Stage = "select" | "processing" | "done" | "failed";
-type Method = "upi" | "cash" | "card";
-
-/** What was attempted, so the failure screen can name it rather than guess. */
-type FailedAttempt = { method: Method; at: Date; message: string };
-
-declare global {
-  interface Window {
-    Cashfree?: (config: { mode: string }) => {
-      checkout: (opts: { paymentSessionId: string; redirectTarget: string }) => void;
-    };
-  }
-}
 
 export default function PayPage({
   params,
@@ -78,13 +66,21 @@ export default function PayPage({
   const { orderId } = use(params);
   const router = useRouter();
   const { t } = useI18n();
-  const [status, setStatus] = useState<Status | null>(null);
-  const [stage, setStage] = useState<Stage>("select");
-  const [method, setMethod] = useState<Method>("upi");
+  // The whole payment sequence, shared with the payment step inside the chat.
+  // This screen keeps its layout and owns none of the machinery.
+  const {
+    status,
+    stage,
+    setStage,
+    method,
+    setMethod,
+    failed,
+    paidWithCash,
+    error,
+    pay,
+    reset,
+  } = useCheckout(orderId, { genericError: t("pay.failed.generic") });
   const [showSummary, setShowSummary] = useState(true);
-  const [error, setError] = useState("");
-  const [failed, setFailed] = useState<FailedAttempt | null>(null);
-  const [paidWithCash, setPaidWithCash] = useState(false);
   const [address, setAddress] = useState<AddressSummary | null>(null);
   // Off by default: reward credit is the buyer's to keep or spend, and quietly
   // draining it on an order they never asked to spend it on is not a saving.
@@ -96,101 +92,6 @@ export default function PayPage({
       .then((d) => setAddress(d.addresses.find((a) => a.isDefault) ?? d.addresses[0] ?? null))
       .catch(() => setAddress(null));
   }, []);
-
-  useEffect(() => {
-    // Verify-then-load: if the buyer is returning from the Cashfree checkout,
-    // the server confirms the payment against Cashfree directly (webhook-
-    // independent), so a paid order shows success immediately instead of
-    // re-offering payment. Harmless no-op for unpaid/simulated orders.
-    api<{ orderStatus: string }>("/api/payments/verify", {
-      method: "POST",
-      json: { orderId },
-    })
-      .catch(() => null)
-      .then(() => api<Status>(`/api/payments/status/${orderId}`))
-      .then((s) => {
-        setStatus(s);
-        if (s.orderStatus !== "pending_payment") setStage("done");
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
-  }, [orderId]);
-
-  async function pay() {
-    setError("");
-    setFailed(null);
-    setStage("processing");
-    try {
-      const d = await api<{
-        mode: "cashfree" | "simulated" | "cash" | "wallet";
-        paymentSessionId?: string;
-        cfEnv?: string;
-      }>("/api/payments/checkout", {
-        method: "POST",
-        json: { orderId, method, useWallet },
-      });
-
-      // Covered entirely by reward credit — no gateway was involved, so the
-      // order is already confirmed and there is nothing to wait for.
-      if (d.mode === "wallet") {
-        const s = await api<Status>(`/api/payments/status/${orderId}`).catch(() => null);
-        if (s) setStatus(s);
-        setStage("done");
-        return;
-      }
-
-      // Cash on delivery — confirmed straight away, money collected in person.
-      if (d.mode === "cash") {
-        // `status` was fetched on mount, before any payment existed, so it
-        // cannot tell the confirmation screen this was cash — it would still
-        // read "Payment successful" until a reload.
-        setPaidWithCash(true);
-        setStage("done");
-        return;
-      }
-
-      if (d.mode === "cashfree" && d.paymentSessionId) {
-        await loadCashfreeSdk();
-        const cashfree = window.Cashfree?.({
-          mode: d.cfEnv === "production" ? "production" : "sandbox",
-        });
-        // If the SDK failed to load we must not sit on "Processing" forever —
-        // hand the screen back so the buyer can retry or switch method.
-        if (!cashfree) {
-          throw new Error("Could not open the payment page. Please try again.");
-        }
-        // With redirectTarget "_self" the browser navigates away, so nothing
-        // below runs on the happy path. If we're still here afterwards the
-        // gateway never took over (cancelled/blocked/invalid session) — fall
-        // back to the picker instead of spinning on "Processing" forever.
-        const result = (await cashfree.checkout({
-          paymentSessionId: d.paymentSessionId,
-          redirectTarget: "_self",
-        })) as { error?: { message?: string } } | undefined;
-        throw new Error(
-          result?.error?.message ??
-            "Payment was not completed. You can try again or pick another method.",
-        );
-      }
-
-      await new Promise((r) => setTimeout(r, 2400));
-      await api("/api/payments/simulate", {
-        method: "POST",
-        json: { orderId, method: method === "cash" ? "upi" : method },
-      });
-      setStage("done");
-    } catch (e) {
-      // Every failure path lands here: a declined card, an abandoned gateway
-      // page, an SDK that never loaded. The buyer gets the same account of it
-      // — what was tried, when, and that a debited amount comes back — rather
-      // than a single red line above the method picker.
-      setFailed({
-        method,
-        at: new Date(),
-        message: e instanceof Error ? e.message : t("pay.failed.generic"),
-      });
-      setStage("failed");
-    }
-  }
 
   if (!status) {
     return (
@@ -379,7 +280,7 @@ export default function PayPage({
           )}
 
           {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
-          <Button onClick={pay} className="mt-6 w-full">
+          <Button onClick={() => pay({ useWallet })} className="mt-6 w-full">
             {payable === 0
               ? t("pay.payWithRewards")
               : `${t("pay.pay")} ${rupees(payable)}`}
@@ -475,14 +376,11 @@ export default function PayPage({
             <p className="mt-3 text-[12px] text-cocoa/80">{failed.message}</p>
           )}
 
-          <Button onClick={pay} className="mt-6 w-full bg-danger hover:bg-danger/90">
+          <Button onClick={() => pay({ useWallet })} className="mt-6 w-full bg-danger hover:bg-danger/90">
             <RefreshCw size={17} /> {t("pay.failed.retry")}
           </Button>
           <button
-            onClick={() => {
-              setFailed(null);
-              setStage("select");
-            }}
+            onClick={reset}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-line bg-card py-3 text-[14px] font-semibold text-ink hover:bg-beige/40"
           >
             <CreditCard size={17} /> {t("pay.failed.another")}
@@ -694,15 +592,4 @@ function MethodRow({
       </Card>
     </button>
   );
-}
-
-function loadCashfreeSdk(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.Cashfree) return resolve();
-    const s = document.createElement("script");
-    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Could not load payment SDK"));
-    document.head.appendChild(s);
-  });
 }

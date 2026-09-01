@@ -23,6 +23,7 @@ import {
 } from "../advisor/decisionProfile.service.js";
 import type { Priority } from "../advisor/scoring.js";
 import { buildContext } from "../advisor/context.service.js";
+import { istStartOfDay } from "../../lib/istTime.js";
 
 // Paise → "₹123" for chat copy.
 const rupees = (paise: number) => `₹${Math.round(paise / 100)}`;
@@ -133,14 +134,18 @@ async function buildAssistantPayload(
   // once and layered onto food/ride advice. Never blocks — degrades offline.
   const ctx = await buildContext();
 
-  // "at 10pm" → the next occurrence of that local time (today, else tomorrow),
-  // as an ISO timestamp the rides screen books with.
+  // "at 10pm" → the next time it is ten at night in India (today, else
+  // tomorrow), as an ISO timestamp the rides screen books with. Somebody
+  // typing a time means their own; on a UTC host this booked the cab for
+  // half past three in the morning.
   const resolveScheduleAt = (hhmm: string | null | undefined): string | null => {
     if (!hhmm) return null;
     const [h, m] = hhmm.split(":").map(Number);
-    const t = new Date(ctx.now);
-    t.setHours(h!, m!, 0, 0);
-    if (t.getTime() <= ctx.now.getTime()) t.setDate(t.getDate() + 1);
+    let t = new Date(
+      istStartOfDay(ctx.now).getTime() + h! * 3_600_000 + m! * 60_000,
+    );
+    if (t.getTime() <= ctx.now.getTime())
+      t = new Date(t.getTime() + 24 * 3_600_000);
     return t.toISOString();
   };
   const scheduleLabel = (iso: string) =>
@@ -266,10 +271,12 @@ async function buildAssistantPayload(
     }
     // Send the full spread so the chat's Bike/Cab/Auto switcher always has
     // every available vehicle type (we only cap when a specific type was asked).
+    // Resolved, not raw: the model regularly omits a vehicle the rider named,
+    // and vehicleFrom is what catches "book a bike ride". Reading the raw field
+    // here let the cap disagree with the filter the quotes were built under.
+    const askedVehicle = vehicleFrom(message, intent.ride.vehicle);
     const sent =
-      intent.ride.vehicle && intent.ride.vehicle !== "any"
-        ? quotes.slice(0, 5)
-        : quotes;
+      askedVehicle && askedVehicle !== "any" ? quotes.slice(0, 5) : quotes;
     const scheduledAt = resolveScheduleAt(intent.ride.scheduleAt);
     return {
       reply: intent.reply,
@@ -279,6 +286,10 @@ async function buildAssistantPayload(
         type: "ride",
         drop: intent.ride.drop,
         pickup: intent.ride.pickup,
+        // What the rider actually asked for. Without this the booking card in
+        // the chat opens on "any" and re-prices every vehicle type, so asking
+        // for a bike returns cab fares alongside it.
+        vehicle: askedVehicle ?? "any",
         quotes: sent,
         scheduledAt,
         why: scheduledAt
@@ -286,7 +297,7 @@ async function buildAssistantPayload(
           : // Chat has no pickup coordinates, so these fares price a typical
             // 8 km city trip. Saying so keeps a short hop and an airport run
             // from both being quoted at the same number without explanation.
-            `Cheapest effective fare is ${quotes[0]?.displayName} after offers, indicative for a typical 8 km trip. Open Rides to set your exact pickup and drop.`,
+            `Cheapest effective fare is ${quotes[0]?.displayName} after offers, for a typical 8 km trip. Set your pickup and drop below to see the exact price.`,
         advice: await adviseRide(quotes[0]?.vehicle ?? null, ctx.now, ctx),
       },
     };
@@ -414,6 +425,7 @@ chatRouter.post(
           id: assistantMessage.id,
           role: "assistant",
           content: payload.reply,
+          at: assistantMessage.createdAt.toISOString(),
           domain: payload.intent.domain,
           recommendation: payload.recommendation ?? null,
         },
@@ -455,6 +467,10 @@ chatRouter.get("/sessions/:id", async (req, res, next) => {
           id: m.id,
           role: m.role,
           content: m.content,
+          // When it was sent. Without this a restored conversation loses every
+          // timestamp, and so does the live one the moment the URL gains a
+          // ?chat= and the client swaps its local list for this response.
+          at: m.createdAt.toISOString(),
           ...(m.intent ? JSON.parse(m.intent) : {}),
         })),
       },

@@ -61,6 +61,28 @@ model User {
   // password itself. Reuses the same OTP machinery the operator console's
   // step-up already runs on.
   twoFactorEnabled      Boolean   @default(false)
+  // Consent has to be demonstrable under DPDP s.6, so we record which version
+  // of the terms this account agreed to and when, rather than inferring it
+  // from the fact that they have an account at all.
+  termsAcceptedAt       DateTime?
+  termsVersion          String?
+  // Cookie categories. Essential has no column because it cannot be switched
+  // off. The rest default to false, which is the only honest default for a
+  // choice the person has not made yet.
+  cookieChoiceAt        DateTime?
+  cookieAnalytics       Boolean   @default(false)
+  cookieAdvertising     Boolean   @default(false)
+  cookieSocial          Boolean   @default(false)
+  cookiePerformance     Boolean   @default(false)
+  // Privacy policy 6.4: excluded from model training on request.
+  aiTrainingOptOut      Boolean   @default(false)
+  // Privacy policy 6.2. Deletion is scheduled, not immediate: the policy
+  // allows 30 to 45 days to process, and transaction rows have to survive 7
+  // years for tax, so the erase step anonymises those rather than dropping
+  // them. deletedAt marks the account erased without freeing the email.
+  deletionRequestedAt   DateTime?
+  deletionScheduledFor  DateTime?
+  deletedAt             DateTime?
   // Flouna Plus (₹50/mo). Live tracking stays free for everyone; this unlocks
   // deeper AI, waived convenience fees and the savings guarantee.
   plusActive            Boolean   @default(false)
@@ -105,6 +127,9 @@ model User {
   blocks               BlockedUser[]       @relation("Blocker")
   blockedBy            BlockedUser[]       @relation("Blocked")
   deviceLocks          DeviceLock[]
+  consents             ConsentRecord[]
+  privacyRequests      PrivacyRequest[]
+  decisionAppeals      DecisionAppeal[]
 }
 
 // Help Centre conversation. One row per time the customer opens support.
@@ -305,6 +330,26 @@ model Complaint {
   updatedAt  DateTime  @updatedAt
   resolvedAt DateTime?
   closedAt   DateTime?
+
+  // The deadlines support policy 3.7 publishes, stamped when the case opens.
+  // Stored rather than recomputed, so amending the policy later cannot move a
+  // commitment already made to this person.
+  assignBy      DateTime?
+  contactBy     DateTime?
+  investigateBy DateTime?
+  assignedAt    DateTime?
+  contactedAt   DateTime?
+  // Who is handling it. Free text rather than a relation to User: a grievance
+  // officer is a role a person holds, and the IT Rules ask us to publish who
+  // it is, not to guarantee they hold an account in this system.
+  officerId     String?
+  // The written conclusion given to the customer.
+  resolution    String?
+
+  // One internal appeal, decided within 15 days (3.7 step 5).
+  appealedAt    DateTime?
+  appealDueBy   DateTime?
+  appealOutcome String?
 
   actors      ComplaintActor[]
   actions     ComplaintAction[]
@@ -865,26 +910,36 @@ model ChatMessage {
 
 // Unified order for both domains; domain-specific details live in `details` JSON.
 model Order {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  domain      String // "food" | "ride"
-  status      String // "created" | "pending_payment" | "confirmed" | "in_progress" | "completed" | "cancelled"
-  provider    String // "ondc" | "swiggy" | "zomato" | "uber" | "ola" | "rapido" (simulated for now)
-  fulfillment String // "in_app" (ONDC) | "redirect" (closed platform)
-  title       String // human-readable summary, e.g. "Dum Biryani — Hotel Paradise"
-  details     String // JSON: items / route / provider quote snapshot
-  amount      Int // paise — integer money, never floats
-  savedPaise  Int      @default(0) // vs next-best option at decision time
-  currency    String   @default("INR")
-  addressId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String        @id @default(cuid())
+  // Fingerprint of the request that created this order.
+  //
+  // A double-tap, a flaky connection retrying, or a back-then-submit all send
+  // the same request twice, and without this each one became a separate order
+  // the customer could be charged for. Unique per user rather than globally:
+  // two people ordering the same dish from the same place in the same minute
+  // is ordinary, and must not collide.
+  requestKey   String?
+  rideMessages RideMessage[]
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain       String // "food" | "ride"
+  status       String // "created" | "pending_payment" | "confirmed" | "in_progress" | "completed" | "cancelled"
+  provider     String // "ondc" | "swiggy" | "zomato" | "uber" | "ola" | "rapido" (simulated for now)
+  fulfillment  String // "in_app" (ONDC) | "redirect" (closed platform)
+  title        String // human-readable summary, e.g. "Dum Biryani — Hotel Paradise"
+  details      String // JSON: items / route / provider quote snapshot
+  amount       Int // paise — integer money, never floats
+  savedPaise   Int           @default(0) // vs next-best option at decision time
+  currency     String        @default("INR")
+  addressId    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   payment        Payment?
   trackingEvents TrackingEvent[]
   rating         OrderRating?
 
+  @@unique([userId, requestKey])
   @@index([userId, domain])
 }
 
@@ -964,19 +1019,28 @@ model ErrorLog {
 // Support / Issue-&-Grievance (ONDC IGM-shaped) ticket raised by a user and
 // worked by admins. Keeps order disputes auditable end to end.
 model SupportTicket {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId    String? // optional link to the order in question
-  category   String // "order" | "payment" | "refund" | "account" | "other"
-  subject    String
-  body       String
-  status     String   @default("open") // "open" | "in_progress" | "resolved" | "closed"
-  priority   String   @default("normal") // "low" | "normal" | "high" | "urgent"
-  assigneeId String? // admin handling it
-  resolution String? // closing note
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId         String? // optional link to the order in question
+  category        String // "order" | "payment" | "refund" | "account" | "other"
+  subject         String
+  body            String
+  status          String    @default("open") // "open" | "in_progress" | "resolved" | "closed"
+  priority        String    @default("normal") // "low" | "normal" | "high" | "urgent"
+  assigneeId      String? // admin handling it
+  resolution      String? // closing note
+  // Support policy 3.2 publishes a response and a resolution time per issue
+  // type. Storing both deadlines on the row is what turns that table from a
+  // promise on a page into something we can be measured against.
+  slaRespondBy    DateTime?
+  slaResolveBy    DateTime?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  // 1 frontline, 2 specialist, 3 management (support policy 3.5).
+  escalationLevel Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([status, priority])
   @@index([userId])
@@ -1154,4 +1218,149 @@ model DecisionLog {
 
   @@index([domain, createdAt])
   @@index([userId])
+}
+
+// An entry in the consent log. Append-only: a consent record is evidence, and
+// evidence you can edit is not evidence. Withdrawal is a new row rather than an
+// update to the old one, so the history stays readable end to end.
+//
+// kind: "terms" | "cookies" | "ai_training" | "marketing"
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  granted   Boolean
+  version   String? // policy version this refers to, where one applies
+  detail    String? // JSON, e.g. the per-category cookie choice
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, kind])
+}
+
+// A data-subject request under the privacy policy: a copy of your data (6.1),
+// erasure (6.2), or exclusion from model training (6.4).
+//
+// Each carries the deadline the policy commits to, written when it is created.
+// Reading the deadline off the row rather than recomputing it means a later
+// edit to the policy cannot silently move a promise we already made.
+//
+// kind:   "export" | "deletion" | "training_opt_out"
+// status: "pending" | "in_progress" | "completed" | "rejected" | "cancelled"
+model PrivacyRequest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind   String
+  status String @default("pending")
+
+  dueBy       DateTime // 30 days for export, 45 for deletion
+  completedAt DateTime?
+
+  // Export only: where the bundle lives and when it stops being downloadable.
+  // Short-lived by design, since it is the most sensitive single object we
+  // ever produce about one person.
+  artifactPath String?
+  expiresAt    DateTime?
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, kind])
+  @@index([status, dueBy])
+}
+
+// A challenge to something the decision engine chose (AI policy 2.5 and 2.6).
+//
+// 2.6 is the part with legal weight: a person may require that a human looks
+// at an automated decision. humanReviewRequested records that this was asked
+// for, so it can never be answered by the same automation being appealed.
+//
+// status: "open" | "reviewing" | "answered" | "closed"
+model DecisionAppeal {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decisionLogId String? // the recommendation being contested, when known
+  orderId       String?
+
+  reason               String // what they wanted instead
+  wanted               String? // "cheaper" | "faster" | "better_rated" | "other"
+  humanReviewRequested Boolean @default(false)
+
+  status      String    @default("open")
+  dueBy       DateTime // 5 business days (AI policy 2.5)
+  reviewerId  String?
+  response    String?
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status, dueBy])
+}
+
+// A security incident that may require notifying affected people and the
+// regulator. The breach policy commits to 72 hours from becoming aware, so
+// that clock is a stored deadline rather than something worked out later in
+// the middle of an incident.
+//
+// severity: "low" | "medium" | "high" | "critical"
+// status:   "detected" | "investigating" | "contained" | "notified" | "closed"
+model BreachIncident {
+  id          String @id @default(cuid())
+  reference   String @unique
+  title       String
+  description String
+  severity    String @default("medium")
+  status      String @default("detected")
+
+  detectedAt          DateTime  @default(now())
+  notifyDueBy         DateTime // detectedAt + 72h
+  containedAt         DateTime?
+  usersNotifiedAt     DateTime?
+  regulatorNotifiedAt DateTime?
+
+  affectedCount  Int     @default(0)
+  dataCategories String? // JSON array of what was exposed
+  remediation    String?
+
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, notifyDueBy])
+}
+
+/// A message between a rider and the driver of one ride.
+///
+/// The rider's own messages are real and kept here. The driver's side is
+/// produced by the simulation that already invents the driver's name, plate
+/// and OTP, and is marked as such rather than being passed off as a person
+/// typing: `simulated` is what the screen reads to keep saying so.
+model RideMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// "rider" or "driver". Not a userId: the driver is not an account here, and
+  /// will be a provider identity rather than one of ours once rides are real.
+  sender    String
+  body      String
+  /// Which line of the driver script this is, for the driver's side only.
+  ///
+  /// Deduping on the text itself looked equivalent and was not: the arrival
+  /// line carries a countdown, so "about 2 minutes" and "about 1 minute" are
+  /// different strings and the driver announced the ETA again every minute.
+  /// The key is what is actually unique, and the constraint enforces it.
+  scriptKey String?
+  /// True while no live driver network is connected, so the rider is told.
+  simulated Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, scriptKey])
+  @@index([orderId, createdAt])
 }

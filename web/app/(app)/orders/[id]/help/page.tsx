@@ -18,6 +18,11 @@ import {
   Info,
   SendHorizonal,
   MapPin,
+  CarFront,
+  MapPinOff,
+  IndianRupee,
+  ShieldAlert,
+  TriangleAlert,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { TranslationKey } from "@/lib/i18n/dictionaries";
@@ -32,21 +37,46 @@ import { useI18n } from "@/components/i18n/I18nContext";
 // ONDC enum values — the guide is explicit that those must come from the live
 // spec, and inventing them would produce complaints the network rejects. The
 // adapter maps these to the real vocabulary once we have it.
-const PROBLEMS = [
-  { code: "ORDER_NOT_RECEIVED", labelKey: "cx.orderNotReceived", icon: Package },
-  { code: "WRONG_ITEM_DELIVERED", labelKey: "cx.wrongItem", icon: ArrowLeftRight },
-  { code: "ITEM_DAMAGED", labelKey: "cx.itemDamaged", icon: PackageOpen },
-  { code: "REFUND_NOT_RECEIVED", labelKey: "cx.refundNotReceived", icon: RotateCcw },
-  { code: "PAYMENT_ISSUE", labelKey: "cx.paymentIssue", icon: CreditCard },
-  { code: "OTHER", labelKey: "cx.other", icon: Ellipsis },
-] as const satisfies ReadonlyArray<{
+type Problem = {
   code: string;
   labelKey: TranslationKey;
   icon: typeof Package;
-}>;
+};
+
+// Money and refunds go wrong the same way whichever thing was bought.
+const SHARED = [
+  { code: "REFUND_NOT_RECEIVED", labelKey: "cx.refundNotReceived", icon: RotateCcw },
+  { code: "PAYMENT_ISSUE", labelKey: "cx.paymentIssue", icon: CreditCard },
+  { code: "OTHER", labelKey: "cx.other", icon: Ellipsis },
+] as const satisfies ReadonlyArray<Problem>;
+
+const FOOD_PROBLEMS = [
+  { code: "ORDER_NOT_RECEIVED", labelKey: "cx.orderNotReceived", icon: Package },
+  { code: "WRONG_ITEM_DELIVERED", labelKey: "cx.wrongItem", icon: ArrowLeftRight },
+  { code: "ITEM_DAMAGED", labelKey: "cx.itemDamaged", icon: PackageOpen },
+  ...SHARED,
+] as const satisfies ReadonlyArray<Problem>;
+
+// A rider has no item to be damaged and nothing was delivered to them. Offering
+// "wrong item delivered" after a trip is the product admitting it does not know
+// what the person just bought, and it puts a complaint into a category no
+// operator can action.
+const RIDE_PROBLEMS = [
+  { code: "DRIVER_NOT_ARRIVED", labelKey: "cx.driverNotArrived", icon: CarFront },
+  { code: "RIDE_NOT_COMPLETED", labelKey: "cx.rideNotCompleted", icon: MapPinOff },
+  { code: "FARE_DISPUTE", labelKey: "cx.fareDispute", icon: IndianRupee },
+  { code: "DRIVER_CONDUCT", labelKey: "cx.driverConduct", icon: ShieldAlert },
+  { code: "VEHICLE_ISSUE", labelKey: "cx.vehicleIssue", icon: TriangleAlert },
+  ...SHARED,
+] as const satisfies ReadonlyArray<Problem>;
 
 type Step = "problem" | "details" | "submitted";
-type OrderCard = { title: string; itemCount: number | null; createdAt: string };
+type OrderCard = {
+  title: string;
+  itemCount: number | null;
+  createdAt: string;
+  domain: string;
+};
 
 export default function OrderHelpPage() {
   const params = useParams<{ id: string }>();
@@ -68,12 +98,24 @@ export default function OrderHelpPage() {
   const [code, setCode] = useState<string | null>(null);
   const [complaintId, setComplaintId] = useState<string | null>(null);
 
-  const chosen = PROBLEMS.find((p) => p.code === problem);
+  // Ride until the order says otherwise. Defaulting to the food list would
+  // quietly offer a rider "item damaged" for the moment before the order
+  // loads, which is the exact bug this splits apart.
+  const problems: readonly Problem[] =
+    order?.domain === "ride" ? RIDE_PROBLEMS : FOOD_PROBLEMS;
+  const chosen = problems.find((p) => p.code === problem);
 
   // The order summary card at the top of the problem step.
   useEffect(() => {
     let cancelled = false;
-    api<{ order: { title: string; createdAt: string; details: { items?: unknown[] } } }>(
+    api<{
+      order: {
+        title: string;
+        createdAt: string;
+        domain: string;
+        details: { items?: unknown[] };
+      };
+    }>(
       `/api/orders/${orderId}`,
     )
       .then((d) => {
@@ -84,6 +126,7 @@ export default function OrderHelpPage() {
             ? d.order.details.items.length
             : null,
           createdAt: d.order.createdAt,
+          domain: d.order.domain,
         });
       })
       .catch(() => {});
@@ -170,7 +213,10 @@ export default function OrderHelpPage() {
           <>
             <div className="rounded-[16px] bg-card p-4 shadow-soft">
               <p className="text-[15px] font-bold text-ink">
-                Order #{orderId.slice(0, 8).toUpperCase()}
+                {/* "Order #" over a trip is the same mix-up as offering a
+                    rider a damaged item. */}
+                {order?.domain === "ride" ? t("cx.ride") : t("cx.order")} #
+                {orderId.slice(0, 8).toUpperCase()}
               </p>
               {order && (
                 <>
@@ -202,7 +248,7 @@ export default function OrderHelpPage() {
               role="radiogroup"
               aria-label={t("cx.whatProblem")}
             >
-              {PROBLEMS.map((p) => {
+              {problems.map((p) => {
                 const active = problem === p.code;
                 const Icon = p.icon;
                 return (

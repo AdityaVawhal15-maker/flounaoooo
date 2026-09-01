@@ -454,6 +454,7 @@ function DishRow({ q }: { q: FoodQuote }) {
       platform: q.platform,
       name: q.name,
       restaurant: q.restaurant,
+      image: q.image,
       pricePaise: q.effectivePaise,
     });
     setAdded(true);
@@ -468,7 +469,7 @@ function DishRow({ q }: { q: FoodQuote }) {
           column a minimum basis makes the action group drop to its own line
           instead, which keeps the name readable at 320px. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <DishArt name={q.name} size={48} />
+        <DishArt name={q.name} image={q.image} size={48} />
         <div className="min-w-0 flex-1 basis-36">
           <span className="inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold text-accent">
             {q.tag}

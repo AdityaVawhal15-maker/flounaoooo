@@ -75,6 +75,8 @@ type RideRec = {
   type: "ride";
   drop: string;
   pickup: string | null;
+  /** What the rider asked for. "any" when they did not say. */
+  vehicle?: "bike" | "auto" | "cab" | "any";
   quotes: RideQuote[];
   // ISO timestamp when the user asked to book for later ("cab at 10pm").
   scheduledAt?: string | null;
@@ -105,6 +107,8 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** When it was sent, ISO. Absent on restored history that never stored one. */
+  at?: string;
   domain?: string;
   recommendation?: Recommendation | null;
 };
