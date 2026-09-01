@@ -35,8 +35,10 @@ function delta(now: number, prev: number): string {
 }
 
 // Fetch a CSV with the session cookie and hand it to the browser as a download.
+// Uses the same "/"→"" normalization as lib/api.ts so proxy mode works correctly.
 async function downloadCsv(name: "orders" | "users") {
-  const res = await fetch(`${API_URL}/api/console/super/export/${name}.csv`, {
+  const base = API_URL === "/" ? "" : API_URL.replace(/\/$/, "");
+  const res = await fetch(`${base}/api/console/super/export/${name}.csv`, {
     credentials: "include",
   });
   if (!res.ok) return;
