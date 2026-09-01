@@ -18,7 +18,14 @@ export type PayStage = "select" | "processing" | "done" | "failed";
 
 export type CheckoutStatus = {
   orderStatus: string;
+  /** The gross bill. The wallet is an instrument against it, not a discount. */
   amount: number;
+  /** Reward credit already committed to this order. */
+  walletAppliedPaise?: number;
+  /** What the gateway still has to collect: amount − walletApplied. */
+  payablePaise?: number;
+  /** Spendable balance, only sent while the order can still take it. */
+  walletBalancePaise?: number;
   title: string;
   domain: "food" | "ride";
   provider?: string;
@@ -106,19 +113,30 @@ export function useCheckout(
   }, [orderId]);
   useEffect(load, [load]);
 
-  async function pay() {
+  async function pay(payOpts: { useWallet?: boolean } = {}) {
     setError("");
     setFailed(null);
     setStage("processing");
     try {
       const d = await api<{
-        mode: "cashfree" | "simulated" | "cash" | "demo";
+        mode: "cashfree" | "simulated" | "cash" | "demo" | "wallet";
         paymentSessionId?: string;
         cfEnv?: string;
+        walletAppliedPaise?: number;
       }>("/api/payments/checkout", {
         method: "POST",
-        json: { orderId, method },
+        json: { orderId, method, useWallet: payOpts.useWallet },
       });
+
+      // Covered entirely by reward credit — no gateway was involved, so the
+      // order is already confirmed and there is nothing to wait for. Reload
+      // rather than trust this response for the final numbers: the server is
+      // still the one source of truth for what actually got spent.
+      if (d.mode === "wallet") {
+        load();
+        setStage("done");
+        return;
+      }
 
       // Cash on delivery is settled in person, so it confirms immediately.
       // Tracked separately because `status` was read before any payment

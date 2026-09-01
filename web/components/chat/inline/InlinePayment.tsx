@@ -153,7 +153,7 @@ export function InlinePayment({
 
       <button
         type="button"
-        onClick={c.pay}
+        onClick={() => c.pay()}
         className="tap-target mt-3 w-full rounded-pill bg-accent px-4 py-3 text-[14px] font-bold text-white"
       >
         {c.stage === "failed" ? "Try again" : `Pay ${rupees(c.status.amount)}`}
