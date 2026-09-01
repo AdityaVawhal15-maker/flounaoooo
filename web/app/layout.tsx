@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Newsreader } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { CookieNotice } from "@/components/legal/CookieNotice";
@@ -12,18 +12,24 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+const newsreader = Newsreader({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "Flouna. Stop Searching, Start Deciding",
-    template: "%s · Flouna",
+    default: "FLOUNA · The Intelligence Behind Your Next Move",
+    template: "%s · FLOUNA by Algorithec",
   },
   description:
-    "Flouna is your AI decision engine that finds the single best option across food, rides and more, all in one place.",
-  appleWebApp: { capable: true, title: "Flouna", statusBarStyle: "default" },
+    "FLOUNA by Algorithec is an intelligent career and personal growth platform connecting path discovery, skill intelligence, mentorship, and actionable learning plans.",
+  appleWebApp: { capable: true, title: "FLOUNA", statusBarStyle: "default" },
 };
 
 export const viewport = {
-  themeColor: "#fff9f6",
+  themeColor: "#F7F2EA",
   width: "device-width",
   initialScale: 1,
 };
@@ -41,7 +47,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} h-full antialiased`}
+      className={`${inter.variable} ${newsreader.variable} h-full antialiased`}
     >
       <head>
         {/* Sets the theme before first paint so dark-mode users never see a

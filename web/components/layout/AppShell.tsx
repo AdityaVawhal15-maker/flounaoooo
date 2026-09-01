@@ -15,6 +15,7 @@ import {
   TemporaryChatProvider,
   useTemporaryChat,
 } from "@/components/chat/TemporaryChatContext";
+import { GlobalAIPanel } from "@/components/ai/GlobalAIPanel";
 
 // Layout for all signed-in screens: persistent sidebar on desktop, hamburger
 // drawer on mobile — one codebase, two views. The drawer is the single
@@ -137,6 +138,7 @@ export function AppShell({
         )}
 
         <main className="flex-1 pb-6">{children}</main>
+        <GlobalAIPanel />
       </div>
     </div>
     </TemporaryChatProvider>

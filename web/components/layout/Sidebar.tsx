@@ -14,43 +14,36 @@ import {
   MessageSquare,
   Plus,
   X,
+  Sparkles,
+  Compass,
+  Users,
+  Flame,
+  type LucideIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/components/i18n/I18nContext";
 import { useAuth } from "@/components/auth/AuthContext";
 import { FlounaLogo } from "@/components/brand/FlounaLogo";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type ChatSessionSummary = { id: string; title: string | null };
 
-// Sidebar (Figma 2177:1233): outlined "New Conversation" pill, an
-// nav card whose rows carry a round icon badge and a chevron, and a
-// profile card pinned to the foot. Icons and row text stay black/ink at every
-// row — the design leans on weight and the row tint to mark the active item,
-// not brand-accent colour.
-//
-// The design frame shows no recent-chats list, but it is drawn as a fresh
-// account — hence the large empty band between the nav card and the profile
-// card. Recent chats are kept and restyled into that band rather than dropped,
-// since conversation restore is a working feature and the History row goes to a
-// different surface.
-const navItems: { href: string; key: TranslationKey; icon: typeof Home }[] = [
-  { href: "/home", key: "nav.home", icon: Home },
-  { href: "/history", key: "nav.history", icon: History },
-  { href: "/rides", key: "nav.rides", icon: Car },
-  { href: "/food", key: "nav.food", icon: Utensils },
+const navItems: { href: string; label: string; icon: LucideIcon; isAI?: boolean }[] = [
+  { href: "/ai", label: "FLOUNA AI", icon: Sparkles, isAI: true },
+  { href: "/path", label: "My Path", icon: Compass },
+  { href: "/mentors", label: "Mentors", icon: Users },
+  { href: "/journey", label: "Journey", icon: Flame },
+  { href: "/home", label: "Workspace", icon: Home },
+  { href: "/history", label: "History", icon: History },
 ];
 
-// Signed-out variant (Figma 2177:1180-ish "logged out" frame): no account to
-// show recent chats or the signed-in nav for, so the card holds the
-// legal/settings links instead. Not reachable today — every (app) route
-// still sits behind RequireAuth — but correct and ready for whenever a
-// guest-browsing surface exists to render it on.
 const guestNavItems = [
-  { href: "/legal/terms", label: "Terms" },
-  { href: "/legal/privacy", label: "Policy" },
-  { href: "/profile/settings", label: "Settings" },
+  { href: "/ai", label: "FLOUNA AI", icon: Sparkles },
+  { href: "/path", label: "Discover Paths", icon: Compass },
+  { href: "/mentors", label: "Mentor Network", icon: Users },
+  { href: "/journey", label: "30-Day Plan", icon: Flame },
+  { href: "/legal/terms", label: "Terms", icon: History },
+  { href: "/legal/privacy", label: "Policy", icon: History },
 ];
 
 const COLLAPSE_KEY = "flouna-sidebar-collapsed";
@@ -199,33 +192,52 @@ export function Sidebar({
           )}
         >
           {user
-            ? navItems.map(({ href, key, icon: Icon }) => {
+            ? navItems.map(({ href, label, icon: Icon, isAI }) => {
                 const active = pathname.startsWith(href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     onClick={onClose}
-                    title={t(key)}
+                    title={label}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 transition-colors",
-                      active ? "bg-accent-soft/70" : "hover:bg-beige/40",
+                      "flex items-center gap-3 px-3 py-2.5 transition-colors group",
+                      active
+                        ? isAI
+                          ? "bg-flouna-orange-soft/70"
+                          : "bg-accent-soft/70"
+                        : "hover:bg-beige/40",
                       collapsed && "lg:justify-center lg:px-0",
                     )}
                   >
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-acct-tint">
-                      <Icon size={19} className="text-ink" />
+                    <span
+                      className={cn(
+                        "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors",
+                        isAI
+                          ? active
+                            ? "bg-flouna-maroon text-white"
+                            : "bg-flouna-maroon-soft text-flouna-maroon group-hover:bg-flouna-orange-soft"
+                          : "bg-acct-tint text-ink",
+                      )}
+                    >
+                      <Icon size={19} className={cn(isAI && !active ? "text-flouna-maroon" : "")} />
                     </span>
                     <span
                       className={cn(
                         "flex-1 truncate text-[16px] text-ink",
                         active && "font-bold",
+                        isAI && "font-serif text-[17px] font-bold text-flouna-maroon",
                         collapsed && "lg:hidden",
                       )}
                     >
-                      {t(key)}
+                      {label}
                     </span>
+                    {isAI && (
+                      <span className={cn("rounded-full bg-flouna-orange-soft px-2 py-0.5 text-[10px] font-bold text-flouna-maroon", collapsed && "lg:hidden")}>
+                        ✦ AI
+                      </span>
+                    )}
                     <ChevronRight
                       size={17}
                       className={cn("shrink-0 text-muted/60", collapsed && "lg:hidden")}
@@ -233,16 +245,17 @@ export function Sidebar({
                   </Link>
                 );
               })
-            : guestNavItems.map(({ href, label }) => (
+            : guestNavItems.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
                   onClick={onClose}
                   className="flex items-center justify-between px-4 py-3.5 text-[16px] text-ink transition-colors hover:bg-beige/40"
                 >
-                  {/* Plain text — no icon badge here, unlike the account nav
-                      above it. Figma draws this list bare. */}
-                  <span>{label}</span>
+                  <div className="flex items-center gap-2.5">
+                    {Icon && <Icon size={17} className="text-muted" />}
+                    <span>{label}</span>
+                  </div>
                   <ChevronRight size={17} className="shrink-0 text-muted/60" />
                 </Link>
               ))}

@@ -85,14 +85,32 @@
   --color-surface: #fffdfb; /* slightly-raised surface */
   --color-hairline: #f2ebe4; /* even softer divider */
 
+  /* FLOUNA AI Flagship Design System Tokens (Bright Premium Palette) */
+  --color-flouna-ivory: #f7f2ea;
+  --color-flouna-warm-white: #fffdf9;
+  --color-flouna-pure-white: #ffffff;
+  --color-flouna-maroon: #5a1725;
+  --color-flouna-maroon-dark: #3b0d17;
+  --color-flouna-maroon-soft: #f4e8ea;
+  --color-flouna-orange: #e8752a;
+  --color-flouna-orange-bright: #f28a3d;
+  --color-flouna-orange-soft: #fdeee3;
+  --color-flouna-grey-soft: #e8e4de;
+  --color-flouna-grey-mid: #8a8580;
+  --color-flouna-charcoal: #292522;
+  --color-flouna-card: #ffffff;
+  --color-flouna-line: #e8e4de;
+
   --font-sans: var(--font-inter);
+  --font-serif: var(--font-serif);
 
   --radius-pill: 28px;
   --radius-card: 20px;
   --radius-tile: 18px;
 
   --shadow-glow: 0px 4px 10px 0px rgba(240, 101, 0, 0.25);
-  /* Layered, soft elevation for a high-end feel */
+  --shadow-ai-orange: 0 4px 20px -2px rgba(232, 117, 42, 0.25);
+  --shadow-ai-maroon: 0 4px 20px -2px rgba(90, 23, 37, 0.2);
   --shadow-card: 0 1px 2px rgba(61, 28, 0, 0.04), 0 8px 24px -12px rgba(61, 28, 0, 0.12);
   --shadow-soft: 0 1px 2px rgba(61, 28, 0, 0.03), 0 2px 8px -4px rgba(61, 28, 0, 0.06);
   --shadow-lift: 0 2px 4px rgba(61, 28, 0, 0.05), 0 16px 40px -16px rgba(61, 28, 0, 0.18);
