@@ -1,0 +1,6 @@
+server/
+.git
+.gitignore
+README.md
+render.yaml
+tools/
